@@ -50,10 +50,10 @@ norm01 <- function(x) {
 norm_energy <- function(x, min_energy = -10, q = 0.99) {
     x <- exp(1)^x
     y <- log2(x / quantile(x, q, na.rm = TRUE))
-    y[y > 1] <- 1
+    y[y > 0] <- 0
     y[y < min_energy] <- min_energy
     y <- y - min(y, na.rm = TRUE)
-    y
+    return(y)
 }
 
 
