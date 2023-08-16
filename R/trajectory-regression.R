@@ -133,6 +133,7 @@ setMethod("predict", signature = "TrajectoryModel", definition = function(object
     }
 
     e_test_logist <- create_logist_features(e_test)
+    e_test_logist <- e_test_logist[, colnames(object@normalized_energies), drop = FALSE]
 
     predicted_diff_score <- logist(glmnet::predict.glmnet(object@model, newx = e_test_logist, type = "link", s = object@params$lambda))[, 1]
     predicted_diff_score <- (predicted_diff_score * max(object@diff_score)) + min(object@diff_score)
