@@ -1,0 +1,62 @@
+#' Infer 'prego' models for ATAC difference of a trajectory
+#'
+#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak
+#' @param atac_diff A numeric vector, indicating the ATAC difference of each peak
+#' @param n_motifs Number of motifs to infer
+#' @param min_diff Minimum ATAC difference to include a peak in the training
+#' @param energy_norm_quantile quantile of the energy used for normalization. Default: 0.99
+#' @param sample_fraction Fraction of peaks to sample for training. Default: 0.1
+#' @param sequences A character vector of sequences to infer the motifs on. If NULL, the sequences of the peaks are used.
+#' @param seed Random seed
+#'
+#' @export
+infer_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 0.99, sample_fraction = 0.1, sequences = NULL, seed = NULL) {
+    if (length(atac_diff) != nrow(peak_intervals)) {
+        cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows of {.field {peak_intervals}}. Current lengths: {.val {length(atac_diff)}} and {.val {nrow(peak_intervals)}}")
+    }
+
+    if (is.null(sequences)) {
+        sequences <- toupper(gseq.extract(peak_intervals))
+    }
+
+    peaks_df <- peak_intervals %>%
+        select(chrom, start, end, const) %>%
+        mutate(id = 1:n()) %>%
+        mutate(score = atac_diff) %>%
+        filter(abs(score) >= min_diff)
+
+    if (has_name(peak_intervals, "const")) {
+        peaks_df <- peaks_df %>%
+            filter(!const) %>%
+            select(-const)
+    }
+
+    if (nrow(peaks_df) < 200) {
+        cli_warn("Not enough peaks to run prego. Please consider increasing {.field {min_diff}} (current value: {.val {min_prego_diff}})")
+        return(NULL)
+    }
+
+    # cli_alert_info("Sampling {.field {scales::percent(sample_fraction)}} out of {.val {nrow(peaks_df)}} peaks for prego motif inference (min score: {.val {min_diff}})...")
+    # peaks_df <- prego::sample_quantile_matched_rows(peaks_df, peaks_df$score, sample_fraction, num_quantiles = 50, seed = seed)
+    seqs <- toupper(gseq.extract(peaks_df))
+
+    cli_alert_info("Inferring {.val {n_motifs}} prego motifs...")
+    reg <- prego::regress_pwm(seqs, peaks_df$score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = TRUE, sample_frac = sample_fraction)
+
+    prego_e <- reg$predict_multi(sequences)
+    prego_e <- apply(prego_e, 2, norm_energy, min_energy = -10, q = energy_norm_quantile)
+
+    prego_models <- prego::export_multi_regression(reg)$models
+    names(prego_models) <- colnames(prego_e)
+
+    prego_pssm <- purrr::imap_dfr(prego_models, ~ .x$pssm %>% mutate(motif = .y)) %>%
+        select(motif, pos, everything())
+
+    return(
+        list(
+            energies = prego_e,
+            pssm = prego_pssm,
+            models = prego_models
+        )
+    )
+}

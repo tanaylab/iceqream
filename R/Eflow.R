@@ -32,13 +32,13 @@ Eflow <- setClass(
 setMethod(
     "initialize",
     signature = "Eflow",
-    definition = function(.Object, id = NULL, description = NULL, mc_metadata = NULL, peaks_metadata = NULL, mc_flow_graph = NULL, matched_mcs_nms=NULL, mc_rna = NULL, mc_atac = NULL, mc_atac_s = NULL, mc_atac_norm = NULL, pwm_metadata = NULL, pwms = NULL, peaks_energy = NULL, pwm_activity = NULL, mc_tracks_path = NULL) {
-        .Object <- make_eflow_object(.Object, id, description, mc_metadata, peaks_metadata, mc_flow_graph, matched_mcs_nms, mc_rna , mc_atac, mc_atac_s, mc_atac_norm, pwm_metadata, pwms, peaks_energy, pwm_activity, mc_tracks_path)
+    definition = function(.Object, id = NULL, description = NULL, mc_metadata = NULL, peaks_metadata = NULL, mc_flow_graph = NULL, matched_mcs_nms = NULL, mc_rna = NULL, mc_atac = NULL, mc_atac_s = NULL, mc_atac_norm = NULL, pwm_metadata = NULL, pwms = NULL, peaks_energy = NULL, pwm_activity = NULL, mc_tracks_path = NULL) {
+        .Object <- make_eflow_object(.Object, id, description, mc_metadata, peaks_metadata, mc_flow_graph, matched_mcs_nms, mc_rna, mc_atac, mc_atac_s, mc_atac_norm, pwm_metadata, pwms, peaks_energy, pwm_activity, mc_tracks_path)
         return(.Object)
     }
 )
 
-make_eflow_object <- function(.Object, id = NULL, description = NULL, mc_metadata = NULL, peaks_metadata = NULL, mc_flow_graph = NULL, matched_mcs_nms=NULL, mc_rna = NULL, mc_atac = NULL, mc_atac_s = NULL,  mc_atac_norm = NULL, pwm_metadata = NULL, pwms = NULL, peaks_energy = NULL, pwm_activity = NULL, mc_tracks_path = NULL) {
+make_eflow_object <- function(.Object, id = NULL, description = NULL, mc_metadata = NULL, peaks_metadata = NULL, mc_flow_graph = NULL, matched_mcs_nms = NULL, mc_rna = NULL, mc_atac = NULL, mc_atac_s = NULL, mc_atac_norm = NULL, pwm_metadata = NULL, pwms = NULL, peaks_energy = NULL, pwm_activity = NULL, mc_tracks_path = NULL) {
     # TODO: this is just a skeleton - need to validate the input of these things!
     if (!is.null(id)) {
         .Object@id <- id
@@ -56,7 +56,7 @@ make_eflow_object <- function(.Object, id = NULL, description = NULL, mc_metadat
         .Object@mc_flow_graph <- mc_flow_graph
     }
     if (!is.null(matched_mcs_nms)) {
-      .Object@matched_mcs_nms <- matched_mcs_nms
+        .Object@matched_mcs_nms <- matched_mcs_nms
     }
     if (!is.null(mc_rna)) {
         .Object@mc_rna <- mc_rna
@@ -68,7 +68,7 @@ make_eflow_object <- function(.Object, id = NULL, description = NULL, mc_metadat
         .Object@mc_atac_s <- mc_atac_s
     }
     if (!is.null(mc_atac_norm)) {
-      .Object@mc_atac_norm <- mc_atac_norm
+        .Object@mc_atac_norm <- mc_atac_norm
     }
     if (!is.null(pwm_metadata)) {
         .Object@pwm_metadata <- pwm_metadata
@@ -83,7 +83,7 @@ make_eflow_object <- function(.Object, id = NULL, description = NULL, mc_metadat
         .Object@pwm_activity <- pwm_activity
     }
     if (!is.null(mc_tracks_path)) {
-      .Object@mc_tracks_path <- mc_tracks_path
+        .Object@mc_tracks_path <- mc_tracks_path
     }
     return(.Object)
 }
