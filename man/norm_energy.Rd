@@ -2,22 +2,32 @@
 % Please edit documentation in R/energy-utils.R
 \name{norm_energy}
 \alias{norm_energy}
-\title{Normalize energy of a vector}
+\title{Normalize Energy Values of a Vector}
 \usage{
 norm_energy(x, min_energy = -10, q = 0.99)
 }
 \arguments{
-\item{x}{A vector of energy values}
+\item{x}{A numeric vector containing the energy values to be normalized.}
 
-\item{min_energy}{Minimum energy value}
+\item{min_energy}{A numeric value representing the minimum energy value after normalization.
+Default is set to -10.}
 
-\item{q}{Quantile of the energies to consider as maximum}
+\item{q}{A numeric value between 0 and 1, representing the quantile of the energy values
+to be used as the maximum after normalization. Default is set to 0.99.}
+}
+\value{
+A numeric vector of normalized energy values.
 }
 \description{
-Normalize energy of a vector
+This function normalizes the energy values of a given vector. The normalization process
+involves transforming the energy values using the exponential function, followed by a
+logarithm with base 2. The function then scales the values to lie between a user-specified
+minimum energy and the q-th quantile of the initial energy values.
 }
 \examples{
+# Generate random energy values
 x <- runif(n = 100, min = -11, max = 0)
+# Normalize the energy values
 norm_energy(x)
 
 }
