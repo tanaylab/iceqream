@@ -160,6 +160,7 @@ setMethod("predict", signature = "TrajectoryModel", definition = function(object
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 0.99
 #' @param n_prego_motifs number of prego motifs to consider.
+#' @param traj_prego output of \code{infer_traj_prego}. If provided, no additional prego models would be inferred.
 #' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference.
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
 #' @param seed random seed for reproducibility.
@@ -192,6 +193,7 @@ regress_trajectory_motifs <- function(atac_scores,
                                       normalize_energies = TRUE,
                                       energy_norm_quantile = 0.99,
                                       n_prego_motifs = 4,
+                                      traj_prego = NULL,
                                       min_diff = 0.2,
                                       prego_sample_fraction = 0.1,
                                       seed = 60427,
@@ -247,20 +249,24 @@ regress_trajectory_motifs <- function(atac_scores,
     cli_alert("Extracting sequences...")
     all_seqs <- toupper(gseq.extract(peak_intervals_all))
 
-    prego_models <- list()
-    if (n_prego_motifs > 0) {
-        prego_res <- infer_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, seed = seed)
-        if (!is.null(prego_res)) {
-            prego_models <- prego_res$models
-            prego_e <- prego_res$energies
-            prego_pssm <- prego_res$pssm
-            if (!is.null(min_tss_distance)) {
-                prego_e <- prego_e[enhancers_filter, ]
-            }
-            motif_energies <- cbind(motif_energies, prego_e)
-            pssm_db <- bind_rows(pssm_db, prego_pssm)
-        }
+
+    if (is.null(traj_prego) && n_prego_motifs > 0) {
+        traj_prego <- infer_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, seed = seed)
     }
+
+    if (!is.null(traj_prego)) {
+        prego_models <- traj_prego$models
+        prego_e <- traj_prego$energies
+        prego_pssm <- traj_prego$pssm
+        if (!is.null(min_tss_distance)) {
+            prego_e <- prego_e[enhancers_filter, ]
+        }
+        motif_energies <- cbind(motif_energies, prego_e)
+        pssm_db <- bind_rows(pssm_db, prego_pssm)
+    } else {
+        prego_models <- list()
+    }
+
 
     cli_alert_info("Calculating correlations between {.val {ncol(motif_energies)}} motif energies and ATAC difference...")
     cm <- tgs_cor(motif_energies, as.matrix(atac_diff), pairwise.complete.obs = TRUE)[, 1]

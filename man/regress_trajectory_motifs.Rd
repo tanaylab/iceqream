@@ -18,6 +18,7 @@ regress_trajectory_motifs(
   normalize_energies = TRUE,
   energy_norm_quantile = 0.99,
   n_prego_motifs = 4,
+  traj_prego = NULL,
   min_diff = 0.2,
   prego_sample_fraction = 0.1,
   seed = 60427,
@@ -54,6 +55,8 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 \item{energy_norm_quantile}{quantile of the energy used for normalization. Default: 0.99}
 
 \item{n_prego_motifs}{number of prego motifs to consider.}
+
+\item{traj_prego}{output of \code{infer_traj_prego}. If provided, no additional prego models would be inferred.}
 
 \item{min_diff}{minimal ATAC difference for a peak to participate in the initial prego motif inference.}
 
