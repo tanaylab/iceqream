@@ -36,7 +36,7 @@ norm01 <- function(x) {
 #' @param min_energy A numeric value representing the minimum energy value after normalization.
 #' Default is set to -10.
 #' @param q A numeric value between 0 and 1, representing the quantile of the energy values
-#' to be used as the maximum after normalization. Default is set to 0.99.
+#' to be used as the maximum after normalization. Default is set to 1 (max).
 #'
 #' @return A numeric vector of normalized energy values.
 #'
@@ -47,7 +47,7 @@ norm01 <- function(x) {
 #' norm_energy(x)
 #'
 #' @export
-norm_energy <- function(x, min_energy = -10, q = 0.99) {
+norm_energy <- function(x, min_energy = -10, q = 1) {
     x <- exp(1)^x
     y <- log2(x / quantile(x, q, na.rm = TRUE))
     y[y > 0] <- 0
@@ -57,7 +57,7 @@ norm_energy <- function(x, min_energy = -10, q = 0.99) {
 }
 
 
-norm_energy_dataset <- function(x, ds_x, min_energy = -10, q = 0.99) {
+norm_energy_dataset <- function(x, ds_x, min_energy = -10, q = 1) {
     x_both <- c(x, ds_x)
     x_idx <- seq_along(x)
     y_both <- norm_energy(x_both, min_energy, q)

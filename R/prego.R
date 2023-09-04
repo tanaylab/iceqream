@@ -1,16 +1,16 @@
-#' Infer 'prego' models for ATAC difference of a trajectory
+#' Learn 'prego' models for ATAC difference of a trajectory
 #'
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak
 #' @param atac_diff A numeric vector, indicating the ATAC difference of each peak
-#' @param n_motifs Number of motifs to infer
+#' @param n_motifs Number of motifs to learn
 #' @param min_diff Minimum ATAC difference to include a peak in the training
-#' @param energy_norm_quantile quantile of the energy used for normalization. Default: 0.99
+#' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param sample_fraction Fraction of peaks to sample for training. Default: 0.1
-#' @param sequences A character vector of sequences to infer the motifs on. If NULL, the sequences of the peaks are used.
+#' @param sequences A character vector of sequences to learn the motifs on. If NULL, the sequences of the peaks are used.
 #' @param seed Random seed
 #'
 #' @export
-infer_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 0.99, sample_fraction = 0.1, sequences = NULL, seed = NULL) {
+learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, sample_fraction = 0.1, sequences = NULL, seed = NULL) {
     withr::local_options(list(gmax.data.size = 1e9))
     if (length(atac_diff) != nrow(peak_intervals)) {
         cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows of {.field {peak_intervals}}. Current lengths: {.val {length(atac_diff)}} and {.val {nrow(peak_intervals)}}")

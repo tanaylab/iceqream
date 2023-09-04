@@ -158,7 +158,7 @@ setMethod("predict", signature = "TrajectoryModel", definition = function(object
 #' @param bin_end the end of the trajectory. Default: the last bin
 #' @param normalize_energies whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
-#' @param energy_norm_quantile quantile of the energy used for normalization. Default: 0.99
+#' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param n_prego_motifs number of prego motifs to consider.
 #' @param traj_prego output of \code{infer_traj_prego}. If provided, no additional prego models would be inferred.
 #' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference.
@@ -191,7 +191,7 @@ regress_trajectory_motifs <- function(atac_scores,
                                       bin_end = ncol(atac_scores),
                                       min_initial_energy_cor = 0.05,
                                       normalize_energies = TRUE,
-                                      energy_norm_quantile = 0.99,
+                                      energy_norm_quantile = 1,
                                       n_prego_motifs = 4,
                                       traj_prego = NULL,
                                       min_diff = 0.2,
@@ -381,7 +381,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
 
 run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, sequences, pssm_db, spat_db = NULL, lambda = 1e-5, seed = 60427) {
-    cli_alert("Running prego on cluster {.val {motif}}...")
+    cli_alert("Running {.field prego} on cluster {.val {motif}}...")
     pssm <- pssm_db %>%
         filter(motif == !!motif)
 
@@ -402,7 +402,7 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
 
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
     cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
-    cli::cli_alert_success("Finished running prego on cluster {.val {motif}}")
+    cli::cli_alert_success("Finished running {.field prego} on cluster {.val {motif}}")
     return(prego::export_regression_model(prego_model))
 }
 

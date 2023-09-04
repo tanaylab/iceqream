@@ -17,6 +17,7 @@ Imports:
     misha,
     misha.ext,
     prego,
+    purrr,
     tgstat,
     tibble,
     tidyr,
