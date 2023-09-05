@@ -17,7 +17,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
     }
 
     if (is.null(sequences)) {
-        sequences <- toupper(gseq.extract(peak_intervals))
+        sequences <- toupper(misha::gseq.extract(peak_intervals))
     }
 
     peaks_df <- peak_intervals %>%
@@ -39,7 +39,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
 
     # cli_alert_info("Sampling {.field {scales::percent(sample_fraction)}} out of {.val {nrow(peaks_df)}} peaks for prego motif inference (min score: {.val {min_diff}})...")
     # peaks_df <- prego::sample_quantile_matched_rows(peaks_df, peaks_df$score, sample_fraction, num_quantiles = 50, seed = seed)
-    seqs <- toupper(gseq.extract(peaks_df))
+    seqs <- toupper(misha::gseq.extract(peaks_df))
 
     cli_alert_info("Inferring {.val {n_motifs}} prego motifs...")
     reg <- prego::regress_pwm(seqs, peaks_df$score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = TRUE, sample_frac = sample_fraction)

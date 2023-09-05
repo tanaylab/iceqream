@@ -2,7 +2,7 @@
 % Please edit documentation in R/energy-utils.R
 \name{norm01}
 \alias{norm01}
-\title{Normalize Values to the \link{0, 1} Range}
+\title{Normalize Values to the [0, 1] Range}
 \usage{
 norm01(x)
 }

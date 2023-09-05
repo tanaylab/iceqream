@@ -16,12 +16,16 @@ Imports:
     Matrix,
     misha,
     misha.ext,
+    methods,
     prego,
     purrr,
+    plyr,
     tgstat,
     tibble,
     tidyr,
-    withr
+    withr,
+    grDevices,
+    patchwork
 Suggests: 
     testthat (>= 3.0.0)
 Remotes:

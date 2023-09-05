@@ -22,7 +22,7 @@ regress_trajectory_motifs(
   min_diff = 0.2,
   prego_sample_fraction = 0.1,
   seed = 60427,
-  feature_selection_beta = 0.005,
+  feature_selection_beta = 0.003,
   lambda = 0.00001,
   alpha = 1,
   parallel = TRUE
@@ -79,6 +79,8 @@ and its often faster to fit a whole path than compute a single fit.}
 The penalty is defined as
 \deqn{(1-\alpha)/2||\beta||_2^2+\alpha||\beta||_1.} \code{alpha=1} is the
 lasso penalty, and \code{alpha=0} the ridge penalty.}
+
+\item{parallel}{whether to use parallel processing on glmnet.}
 }
 \value{
 An instance of \code{TrajectoryModel} containing:
@@ -86,11 +88,11 @@ An instance of \code{TrajectoryModel} containing:
 \item{model}{The final General Linear Model (GLM) object.}
 \item{motif_models}{Named List, PSSM and spatial models for each motif cluster.}
 \item{normalized_energies}{Numeric vector, normalized energies of each motif in each peak.}
-\item{additional_features}{Character vector, names of additional features.}
+\item{additional_features}{data frame of the additional features.}
 \item{diff_score}{Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.}
 \item{predicted_diff_score}{Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.}
 \item{initial_prego_models}{List, inferred prego models at the initial step of the algorithm.}
-\item{train_peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.}
+\item{peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.}
 }
 }
 \description{
