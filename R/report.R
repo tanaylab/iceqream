@@ -104,7 +104,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
         sort(decreasing = TRUE) %>%
         names()
 
-    sorted_vars <- sorted_vars[!(sorted_vars %in% traj_model@additional_features)]
+    sorted_vars <- sorted_vars[!(sorted_vars %in% colnames(traj_model@additional_features))]
 
     if (!is.null(motif_num)) {
         if (motif_num > length(models)) {
@@ -135,17 +135,17 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
         C = patchwork::wrap_plots(spatial_p, ncol = 1),
         # D = patchwork::wrap_plots(scatter_p, ncol = 1),
         design = "ABC",
-        widths = c(0.4, 0.2, 0.2)
+        widths = c(0.6, 0.2, 0.2)
     )
 
     if (!is.null(filename)) {
         if (is.null(width)) {
-            width <- 9
+            width <- 10
         }
         if (is.null(height)) {
             height <- motif_num * 1.5
         }
-        cli_alert_info("Saving plot to {.file {filename}}")
+        cli_alert_info("Saving plot...")
         dev(filename, width = width, height = height, ...)
         print(p)
         dev.off()

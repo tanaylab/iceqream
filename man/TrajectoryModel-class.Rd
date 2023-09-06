@@ -28,8 +28,10 @@ The model object or any data type that represents the trajectory model.}
 A data frame containing the coefficients of the model (not including the intercept). Contains
 the coefficients for the 'early', 'linear' and 'late' models}
 
+\item{\code{model_features}}{A matrix containing the features used for training the model.}
+
 \item{\code{normalized_energies}}{matrix
-A matrix containing normalized energies.}
+A matrix containing normalized energies. If additional variables were used, they are also included.}
 
 \item{\code{type}}{A vector the length of the number of peaks, indicating whether each peak is a training ('train') or
 a prediction peak ('test').}

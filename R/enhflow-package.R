@@ -14,5 +14,10 @@
 #' @importFrom grDevices png pdf
 #' @import ggplot2
 ## usethis namespace: start
+#' @importFrom ComplexHeatmap %v%
+#' @importFrom rlang has_name
+#' @importFrom stats hclust
+#' @importFrom tgstat tgs_cor
+#' @importFrom tgstat tgs_dist
 ## usethis namespace: end
 NULL

@@ -10,13 +10,14 @@ learn_traj_prego(
   n_motifs,
   min_diff = 0.2,
   energy_norm_quantile = 1,
+  min_energy = -10,
   sample_fraction = 0.1,
   sequences = NULL,
   seed = NULL
 )
 }
 \arguments{
-\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak}
+\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
 
 \item{atac_diff}{A numeric vector, indicating the ATAC difference of each peak}
 
@@ -25,6 +26,8 @@ learn_traj_prego(
 \item{min_diff}{Minimum ATAC difference to include a peak in the training}
 
 \item{energy_norm_quantile}{quantile of the energy used for normalization. Default: 1}
+
+\item{min_energy}{Minimum energy value after normalization (default: -10)}
 
 \item{sample_fraction}{Fraction of peaks to sample for training. Default: 0.1}
 

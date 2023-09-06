@@ -63,14 +63,15 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     }
 
     e_test_logist <- create_logist_features(e_test)
-    e_test_logist <- e_test_logist[, colnames(traj_model@normalized_energies), drop = FALSE]
-
+    e_test_logist <- e_test_logist[, colnames(traj_model@model_features), drop = FALSE]
 
     predicted_diff_score <- logist(glmnet::predict.glmnet(traj_model@model, newx = e_test_logist, type = "link", s = traj_model@params$lambda))[, 1]
     # predicted_diff_score <- (predicted_diff_score * max(traj_model@diff_score)) + min(traj_model@diff_score)
+
     predicted_diff_score <- rescale(predicted_diff_score, min(traj_model@diff_score), max(traj_model@diff_score))
 
-    traj_model@normalized_energies <- rbind(traj_model@normalized_energies, e_test_logist)
+    traj_model@model_features <- rbind(traj_model@model_features, e_test_logist)
+    traj_model@normalized_energies <- rbind(traj_model@normalized_energies, e_test)
     if (!is.null(atac_scores)) {
         traj_model@diff_score <- c(traj_model@diff_score, atac_scores[, bin_end] - atac_scores[, bin_start])
     }

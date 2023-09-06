@@ -15,8 +15,11 @@
 #'  A data frame containing the coefficients of the model (not including the intercept). Contains
 #'  the coefficients for the 'early', 'linear' and 'late' models
 #'
+#' @slot model_features
+#'  A matrix containing the features used for training the model.
+#'
 #' @slot normalized_energies matrix
-#'   A matrix containing normalized energies.
+#'   A matrix containing normalized energies. If additional variables were used, they are also included.
 #'
 #' @slot type
 #'  A vector the length of the number of peaks, indicating whether each peak is a training ('train') or
@@ -46,6 +49,7 @@ TrajectoryModel <- setClass(
         model = "ANY",
         motif_models = "list",
         coefs = "data.frame",
+        model_features = "matrix",
         normalized_energies = "matrix",
         type = "character",
         diff_score = "numeric",
@@ -68,7 +72,8 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         cli_ul(c("{.field @motif_models}: A named list of motif models. Each element contains PSSM and spatial model ({.val {length(object@motif_models)}} models: {.val {names(object@motif_models)}})"))
         cli_ul(c("{.field @additional_features}: A data frame of additional features ({.val {nrow(object@additional_features)}} elements)"))
         cli_ul(c("{.field @coefs}: A data frame of coefficients ({.val {nrow(object@coefs)}} elements)"))
-        cli_ul(c("{.field @normalized_energies}: A matrix of normalized energies of the model features (logistic functions of the motif models energies, dimensions: {.val {nrow(object@normalized_energies)}}x{.val {ncol(object@normalized_energies)}})"))
+        cli_ul(c("{.field @model_features}: A matrix of the model features (logistic functions of the motif models energies, dimensions: {.val {nrow(object@model_features)}}x{.val {ncol(object@model_features)}})"))
+        cli_ul(c("{.field @normalized_energies}: A matrix of normalized energies of the model features (dimensions: {.val {nrow(object@normalized_energies)}}x{.val {ncol(object@normalized_energies)}})"))
         cli_ul(c("{.field @type}: A vector the length of the number of peaks, indicating whether each peak is a training ('train') or a prediction peak ('test')"))
         cli_ul(c("{.field @diff_score}: A numeric value representing the difference score the model was trained on ({.val {length(object@normalized_energies[,1])}} elements)"))
         if (any(object@type == "test")) {
@@ -113,7 +118,7 @@ validate_traj_model <- function(object) {
 #' @description This function performs motif regression on ATAC trajectories. Given ATAC scores on trajectory bins, it predicts the differential accessibility between the start and end of the trajectory and returns the motifs that are most likely to be responsible for this differential accessibility.
 #'
 #' @param atac_scores A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.
-#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive.
+#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
 #' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
@@ -335,7 +340,8 @@ regress_trajectory_motifs <- function(atac_scores,
         model = model,
         motif_models = best_motifs_prego,
         coefs = get_model_coefs(model),
-        normalized_energies = clust_energies_logist,
+        normalized_energies = clust_energies,
+        model_features = clust_energies_logist,
         type = rep("train", nrow(atac_scores)),
         additional_features = as.data.frame(additional_features),
         diff_score = atac_diff,
@@ -370,7 +376,8 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
     }
 
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
-    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
+    # cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
+    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE))
     cli::cli_alert_success("Finished running {.field prego} on cluster {.val {motif}}")
     return(prego::export_regression_model(prego_model))
 }
