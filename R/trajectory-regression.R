@@ -131,7 +131,7 @@ validate_traj_model <- function(object) {
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param n_prego_motifs number of prego motifs to consider.
-#' @param traj_prego output of \code{infer_traj_prego}. If provided, no additional prego models would be inferred.
+#' @param traj_prego output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.
 #' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference.
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
 #' @param seed random seed for reproducibility.
@@ -223,7 +223,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
-        traj_prego <- infer_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, seed = seed)
+        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, seed = seed)
     }
 
     if (!is.null(traj_prego)) {
@@ -456,7 +456,7 @@ get_model_coefs <- function(model) {
 
     df <- df %>%
         mutate(type = sub(".*_", "", variable), variable = sub("_(early|late|linear)$", "", variable)) %>%
-        spread(type, s1)
+        spread(type, variable)
 
     df[is.na(df)] <- 0
 

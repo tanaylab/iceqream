@@ -56,7 +56,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{n_prego_motifs}{number of prego motifs to consider.}
 
-\item{traj_prego}{output of \code{infer_traj_prego}. If provided, no additional prego models would be inferred.}
+\item{traj_prego}{output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.}
 
 \item{min_diff}{minimal ATAC difference for a peak to participate in the initial prego motif inference.}
 
