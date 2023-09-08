@@ -85,8 +85,10 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         cli_ul(c("{.field @peak_intervals}: A data frame containing the peak intervals ({.val {nrow(object@peak_intervals)}} elements)"))
         cli_ul(c("{.field @params}: A list of parameters used for training (including: {.val {names(object@params)}})"))
 
-        cli::cli_text("\n")
-        cli::cli_text("Run {.code predict(object, peak_intervals)} to predict the model on new data.")
+        if (!any(object@type == "test")) {
+            cli::cli_text("\n")
+            cli::cli_text("Run {.code predict(object, peak_intervals)} to predict the model on new data.")
+        }
     })
 })
 

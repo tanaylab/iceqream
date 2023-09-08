@@ -32,8 +32,7 @@ Imports:
     princurve
 Suggests: 
     testthat (>= 3.0.0)
-Remotes:
-    tanaylab/misha,
+Remotes:    
     tanaylab/misha.ext,
     tanaylab/prego
 Config/testthat/edition: 3
