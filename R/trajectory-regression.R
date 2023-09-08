@@ -340,7 +340,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
     return(TrajectoryModel(
         model = model,
-        motif_models = best_motifs_prego,
+        motif_models = homogenize_pssm_models(best_motifs_prego),
         coefs = get_model_coefs(model),
         normalized_energies = clust_energies,
         model_features = clust_energies_logist,
