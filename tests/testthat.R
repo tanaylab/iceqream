@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/reference/test_package.html#special-files
 
 library(testthat)
-library(enhflow)
+library(iceqream)
 
-test_check("enhflow")
+test_check("iceqream")

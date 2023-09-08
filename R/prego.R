@@ -23,7 +23,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
 
     peaks_df <- peak_intervals %>%
         select(chrom, start, end, const) %>%
-        mutate(id = 1:n()) %>%
+        mutate(id = seq_len(n())) %>%
         mutate(score = atac_diff) %>%
         filter(abs(score) >= min_diff)
 
@@ -38,8 +38,6 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
         return(NULL)
     }
 
-    # cli_alert_info("Sampling {.field {scales::percent(sample_fraction)}} out of {.val {nrow(peaks_df)}} peaks for prego motif inference (min score: {.val {min_diff}})...")
-    # peaks_df <- prego::sample_quantile_matched_rows(peaks_df, peaks_df$score, sample_fraction, num_quantiles = 50, seed = seed)
     seqs <- toupper(misha::gseq.extract(peaks_df))
 
     cli_alert_info("Inferring {.val {n_motifs}} prego motifs...")
