@@ -458,7 +458,7 @@ get_model_coefs <- function(model) {
 
     df <- df %>%
         mutate(type = sub(".*_", "", variable), variable = sub("_(early|late|linear)$", "", variable)) %>%
-        tidyr::spread(type, variable)
+        tidyr::spread(type, s1)
 
     df[is.na(df)] <- 0
 
