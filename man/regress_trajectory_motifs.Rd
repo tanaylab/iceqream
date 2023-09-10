@@ -25,6 +25,8 @@ regress_trajectory_motifs(
   feature_selection_beta = 0.003,
   lambda = 0.00001,
   alpha = 1,
+  filter_using_r2 = FALSE,
+  r2_threshold = 0.0005,
   parallel = TRUE
 )
 }
@@ -79,6 +81,10 @@ and its often faster to fit a whole path than compute a single fit.}
 The penalty is defined as
 \deqn{(1-\alpha)/2||\beta||_2^2+\alpha||\beta||_1.} \code{alpha=1} is the
 lasso penalty, and \code{alpha=0} the ridge penalty.}
+
+\item{filter_using_r2}{whether to filter features using R^2.}
+
+\item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
 
 \item{parallel}{whether to use parallel processing on glmnet.}
 }
