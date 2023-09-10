@@ -70,8 +70,8 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     predicted_diff_score <- rescale(predicted_diff_score, min(traj_model@diff_score), max(traj_model@diff_score))
 
-    traj_model@model_features <- rbind(traj_model@model_features, e_test_logist)
-    traj_model@normalized_energies <- rbind(traj_model@normalized_energies, e_test)
+    traj_model@model_features <- rbind(traj_model@model_features, e_test_logist[, intersect(colnames(e_test_logist), colnames(traj_model@model_features))])
+    traj_model@normalized_energies <- rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))])
     if (!is.null(atac_scores)) {
         traj_model@diff_score <- c(traj_model@diff_score, atac_scores[, bin_end] - atac_scores[, bin_start])
     }

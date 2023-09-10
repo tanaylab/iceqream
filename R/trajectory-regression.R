@@ -138,6 +138,8 @@ validate_traj_model <- function(object) {
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
 #' @param seed random seed for reproducibility.
 #' @param feature_selection_beta beta parameter used for feature selection.
+#' @param filter_using_r2 whether to filter features using R^2.
+#' @param r2_threshold minimal R^2 for a feature to be included in the model.
 #' @param parallel whether to use parallel processing on glmnet.
 #'
 #' @return An instance of `TrajectoryModel` containing:
@@ -174,6 +176,8 @@ regress_trajectory_motifs <- function(atac_scores,
                                       feature_selection_beta = 0.003,
                                       lambda = 1e-5,
                                       alpha = 1,
+                                      filter_using_r2 = FALSE,
+                                      r2_threshold = 0.0005,
                                       parallel = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
     atac_scores <- as.matrix(atac_scores)
@@ -336,9 +340,10 @@ regress_trajectory_motifs <- function(atac_scores,
     predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = lambda))[, 1]
     predicted_diff_score <- (predicted_diff_score * max(atac_diff)) + min(atac_diff)
 
+
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
 
-    return(TrajectoryModel(
+    traj_model <- TrajectoryModel(
         model = model,
         motif_models = homogenize_pssm_models(best_motifs_prego),
         coefs = get_model_coefs(model),
@@ -351,9 +356,19 @@ regress_trajectory_motifs <- function(atac_scores,
         initial_prego_models = prego_models,
         peak_intervals = peak_intervals,
         params = list(
-            energy_norm_quantile = energy_norm_quantile
+            energy_norm_quantile = energy_norm_quantile,
+            alpha = alpha,
+            lambda = lambda
         )
-    ))
+    )
+
+    if (filter_using_r2) {
+        coefs <- get_model_coefs(model)
+        traj_model <- filter_traj_model(traj_model, r2_threshold = r2_threshold)
+    }
+
+
+    return(traj_model)
 }
 
 
@@ -378,8 +393,8 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
     }
 
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
-    # cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
-    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE))
+    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
+    # cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE))
     cli::cli_alert_success("Finished running {.field prego} on cluster {.val {motif}}")
     return(prego::export_regression_model(prego_model))
 }
@@ -463,4 +478,59 @@ get_model_coefs <- function(model) {
     df[is.na(df)] <- 0
 
     return(df)
+}
+
+
+filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, ignore_variables = NULL, r2_threshold = 0.0005) {
+    if (!is.null(ignore_variables)) {
+        variables <- variables[!(variables %in% ignore_variables)]
+    }
+    # for each variable of X calculate the r^2 of a GLM model without it
+    vars_r2 <- plyr::llply(variables, function(var) {
+        cli_alert("Testing variable {.field {var}}...")
+        X_f <- X[, grep(var, colnames(X), value = TRUE, invert = TRUE)]
+        m <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
+        pred <- logist(glmnet::predict.glmnet(m, newx = X_f, type = "link", s = lambda))[, 1]
+        r2 <- cor(pred, y)^2
+        cli::cli_alert_info("R^2 without {.field {var}}: {.val {r2}}")
+        r2
+    }, .parallel = FALSE)
+
+    vars_r2 <- purrr::map_dbl(vars_r2, ~.x)
+    names(vars_r2) <- variables
+
+    full_model_r2 <- cor(logist(glmnet::predict.glmnet(full_model, newx = X, type = "link", s = lambda))[, 1], y)^2
+
+    vars_f <- variables[(full_model_r2 - vars_r2) > r2_threshold]
+
+    X_f <- X[, grep(paste0("(", paste(c(vars_f, ignore_variables), collapse = "|"), ").+"), colnames(X))]
+    cli_alert_info("Number of features left: {.val {length(vars_f)}}")
+
+    model_f <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
+    pred_f <- logist(glmnet::predict.glmnet(model_f, newx = X_f, type = "link", s = lambda))[, 1]
+    r2_f <- cor(pred_f, y)^2
+    cli_alert_info("R^2 after filtering: {.val {r2_f}}")
+
+    # tibble(var = variables, r2 = full_model_r2 - vars_r2) %>%
+    #     ggplot(aes(x = reorder(var, r2), y = r2)) +
+    #     geom_col() +
+    #     theme_classic() +
+    #     vertical_labs() +
+    #     geom_hline(yintercept = r2_threshold, color = "red", linetype = "dashed")
+
+    return(list(model = model_f, pred = pred_f, X = X_f, r2 = r2_f, vars = vars_f))
+}
+
+filter_traj_model <- function(traj_model, r2_threshold = 0.0005) {
+    res <- filter_model(traj_model@model_features, traj_model@coefs$variable, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold)
+
+    traj_model@model <- res$model
+    traj_model@predicted_diff_score <- res$pred
+    traj_model@model_features <- res$X
+    traj_model@coefs <- get_model_coefs(res$model)
+    traj_model@normalized_energies <- traj_model@normalized_energies[, res$vars, drop = FALSE]
+
+    cli_alert_success("After filtering: Number of non-zero coefficients: {.val {sum(traj_model@model$beta != 0)}} (out of {.val {ncol(traj_model@model_features)}}). R^2: {.val {cor(traj_model@predicted_diff_score, norm01(traj_model@diff_score))^2}}")
+
+    return(traj_model)
 }
