@@ -138,6 +138,8 @@ validate_traj_model <- function(object) {
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
 #' @param seed random seed for reproducibility.
 #' @param feature_selection_beta beta parameter used for feature selection.
+#' @param filter_using_r2 whether to filter features using R^2.
+#' @param r2_threshold minimal R^2 for a feature to be included in the model.
 #' @param parallel whether to use parallel processing on glmnet.
 #'
 #' @return An instance of `TrajectoryModel` containing:
@@ -174,6 +176,8 @@ regress_trajectory_motifs <- function(atac_scores,
                                       feature_selection_beta = 0.003,
                                       lambda = 1e-5,
                                       alpha = 1,
+                                      filter_using_r2 = FALSE,
+                                      r2_threshold = 0.0005,
                                       parallel = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
     atac_scores <- as.matrix(atac_scores)
@@ -336,9 +340,10 @@ regress_trajectory_motifs <- function(atac_scores,
     predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = lambda))[, 1]
     predicted_diff_score <- (predicted_diff_score * max(atac_diff)) + min(atac_diff)
 
+
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
 
-    return(TrajectoryModel(
+    traj_model <- TrajectoryModel(
         model = model,
         motif_models = homogenize_pssm_models(best_motifs_prego),
         coefs = get_model_coefs(model),
@@ -351,9 +356,19 @@ regress_trajectory_motifs <- function(atac_scores,
         initial_prego_models = prego_models,
         peak_intervals = peak_intervals,
         params = list(
-            energy_norm_quantile = energy_norm_quantile
+            energy_norm_quantile = energy_norm_quantile,
+            alpha = alpha,
+            lambda = lambda
         )
-    ))
+    )
+
+    if (filter_using_r2) {
+        coefs <- get_model_coefs(model)
+        traj_model <- filter_traj_model(traj_model, r2_threshold = r2_threshold)
+    }
+
+
+    return(traj_model)
 }
 
 
