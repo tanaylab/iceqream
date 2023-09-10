@@ -4,7 +4,11 @@
 \name{TrajectoryModel-class}
 \alias{TrajectoryModel-class}
 \alias{TrajectoryModel}
+\alias{show,TrajectoryModel-method}
 \title{TrajectoryModel Class}
+\usage{
+\S4method{show}{TrajectoryModel}(object)
+}
 \description{
 An S4 class to represent a trajectory model.
 }
@@ -20,8 +24,17 @@ A numerical value representing the predicted difference score.}
 \item{\code{model}}{ANY
 The model object or any data type that represents the trajectory model.}
 
+\item{\code{coefs}}{data.frame
+A data frame containing the coefficients of the model (not including the intercept). Contains
+the coefficients for the 'early', 'linear' and 'late' models}
+
+\item{\code{model_features}}{A matrix containing the features used for training the model.}
+
 \item{\code{normalized_energies}}{matrix
-A matrix containing normalized energies.}
+A matrix containing normalized energies. If additional variables were used, they are also included.}
+
+\item{\code{type}}{A vector the length of the number of peaks, indicating whether each peak is a training ('train') or
+a prediction peak ('test').}
 
 \item{\code{motif_models}}{list
 A list of models representing different motifs.}
@@ -29,13 +42,13 @@ A list of models representing different motifs.}
 \item{\code{initial_prego_models}}{list
 A list of initial pre-go models.}
 
-\item{\code{train_peak_intervals}}{data.frame
-A data frame containing the peak intervals used for training.}
+\item{\code{peak_intervals}}{data.frame
+A data frame containing the peak intervals.}
 
 \item{\code{params}}{list
 A list of parameters used for training.}
 
-\item{\code{additional_features}}{character
-A character vector of the names of additional features.}
+\item{\code{additional_features}}{data.frame
+A data frame containing the additional features.}
 }}
 
