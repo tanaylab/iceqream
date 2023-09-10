@@ -11,8 +11,19 @@
 #' @slot model ANY
 #'   The model object or any data type that represents the trajectory model.
 #'
+#' @slot coefs data.frame
+#'  A data frame containing the coefficients of the model (not including the intercept). Contains
+#'  the coefficients for the 'early', 'linear' and 'late' models
+#'
+#' @slot model_features
+#'  A matrix containing the features used for training the model.
+#'
 #' @slot normalized_energies matrix
-#'   A matrix containing normalized energies.
+#'   A matrix containing normalized energies. If additional variables were used, they are also included.
+#'
+#' @slot type
+#'  A vector the length of the number of peaks, indicating whether each peak is a training ('train') or
+#' a prediction peak ('test').
 #'
 #' @slot motif_models list
 #'   A list of models representing different motifs.
@@ -20,14 +31,15 @@
 #' @slot initial_prego_models list
 #'   A list of initial pre-go models.
 #'
-#' @slot train_peak_intervals data.frame
-#'  A data frame containing the peak intervals used for training.
+#' @slot peak_intervals data.frame
+#'  A data frame containing the peak intervals.
 #'
 #' @slot params list
 #'  A list of parameters used for training.
 #'
-#' @slot additional_features character
-#'  A character vector of the names of additional features.
+#' @slot additional_features data.frame
+#'  A data frame containing the additional features.
+#'
 #'
 #'
 #' @exportClass TrajectoryModel
@@ -36,18 +48,21 @@ TrajectoryModel <- setClass(
     slots = list(
         model = "ANY",
         motif_models = "list",
+        coefs = "data.frame",
+        model_features = "matrix",
         normalized_energies = "matrix",
+        type = "character",
         diff_score = "numeric",
         predicted_diff_score = "numeric",
         initial_prego_models = "list",
-        train_peak_intervals = "data.frame",
-        additional_features = "character",
+        peak_intervals = "data.frame",
+        additional_features = "data.frame",
         params = "list"
     )
 )
 
 #' @export
-#' @noRd
+#' @rdname TrajectoryModel-class
 setMethod("show", signature = "TrajectoryModel", definition = function(object) {
     cli::cli({
         cli::cli_text("{.cls TrajectoryModel} with {.val {length(object@motif_models)}} motifs and {.val {length(object@additional_features)}} additional features\n")
@@ -55,16 +70,25 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         cli::cli_text("Slots include:")
         cli_ul(c("{.field @model}: A GLM model object. Number of non-zero coefficients: {.val {sum(object@model$beta[, 1] != 0)}}"))
         cli_ul(c("{.field @motif_models}: A named list of motif models. Each element contains PSSM and spatial model ({.val {length(object@motif_models)}} models: {.val {names(object@motif_models)}})"))
-        cli_ul(c("{.field @additional_features}: A character vector of the names of additional features ({.val {object@additional_features}})}})"))
-        cli_ul(c("{.field @normalized_energies}: A matrix of normalized energies of the model features (logistic functions of the motif models energies, dimensions: {.val {nrow(object@normalized_energies)}}x{.val {ncol(object@normalized_energies)}})"))
+        cli_ul(c("{.field @additional_features}: A data frame of additional features ({.val {nrow(object@additional_features)}} elements)"))
+        cli_ul(c("{.field @coefs}: A data frame of coefficients ({.val {nrow(object@coefs)}} elements)"))
+        cli_ul(c("{.field @model_features}: A matrix of the model features (logistic functions of the motif models energies, dimensions: {.val {nrow(object@model_features)}}x{.val {ncol(object@model_features)}})"))
+        cli_ul(c("{.field @normalized_energies}: A matrix of normalized energies of the model features (dimensions: {.val {nrow(object@normalized_energies)}}x{.val {ncol(object@normalized_energies)}})"))
+        cli_ul(c("{.field @type}: A vector the length of the number of peaks, indicating whether each peak is a training ('train') or a prediction peak ('test')"))
         cli_ul(c("{.field @diff_score}: A numeric value representing the difference score the model was trained on ({.val {length(object@normalized_energies[,1])}} elements)"))
-        cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score (R^2: {.val {round(cor(object@diff_score, object@predicted_diff_score)^2, digits = 3)}})"))
+        if (any(object@type == "test")) {
+            cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score (R^2 train: {.val {round(cor(object@diff_score[object@type == 'train'], object@predicted_diff_score[object@type == 'train'])^2, digits = 3)}}; R^2 test: {.val {round(cor(object@diff_score[object@type == 'test'], object@predicted_diff_score[object@type == 'test'])^2, digits = 3)}})"))
+        } else {
+            cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score (R^2 (train): {.val {round(cor(object@diff_score, object@predicted_diff_score)^2, digits = 3)}})"))
+        }
         cli_ul(c("{.field @initial_prego_models}: A list of prego models used in the initial phase of the algorithm ({.val {length(object@initial_prego_models)}} models)"))
-        cli_ul(c("{.field @train_peak_intervals}: A data frame containing the peak intervals used for training ({.val {nrow(object@train_peak_intervals)}} elements)"))
+        cli_ul(c("{.field @peak_intervals}: A data frame containing the peak intervals ({.val {nrow(object@peak_intervals)}} elements)"))
         cli_ul(c("{.field @params}: A list of parameters used for training (including: {.val {names(object@params)}})"))
 
-        cli::cli_text("\n")
-        cli::cli_text("Run {.code predict(object, peak_intervals)} to predict the model on new data.")
+        if (!any(object@type == "test")) {
+            cli::cli_text("\n")
+            cli::cli_text("Run {.code predict(object, peak_intervals)} to predict the model on new data.")
+        }
     })
 })
 
@@ -80,66 +104,15 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
 #' @inheritParams regress_trajectory_motifs
 #' @export
 setMethod("predict", signature = "TrajectoryModel", definition = function(object, peak_intervals, additional_features = NULL) {
-    validate_additional_features(additional_features, peak_intervals)
-    if (length(object@additional_features) > 0) {
-        if (is.null(additional_features)) {
-            additional_features <- matrix(0, nrow = nrow(peak_intervals), ncol = length(object@additional_features))
-            colnames(additional_features) <- object@additional_features
-            cli_warn("No additional features were provided. Using 0 for all features. The following features are needed: {.val {object@additional_features}}")
-        } else {
-            for (feat in object@additional_features) {
-                if (!(feat %in% colnames(additional_features))) {
-                    cli_warn("Additional feature {.val {feat}} is missing. Using 0 for this feature.")
-                    additional_features[, feat] <- 0
-                }
-            }
-        }
-    }
-
-    withr::local_options(list(gmax.data.size = 1e9))
-
-    all_intervals <- bind_rows(
-        object@train_peak_intervals %>% mutate(type = "train"),
-        peak_intervals %>% mutate(type = "predict")
-    ) %>%
-        select(chrom, start, end, type)
-
-    intervals_unique <- all_intervals %>%
-        distinct(chrom, start, end) %>%
-        mutate(id = 1:n())
-
-    cli_alert_info("Extracting sequences...")
-    sequences <- toupper(gseq.extract(intervals_unique))
-
-    cli_alert_info("Computing motif energies for {.val {nrow(intervals_unique)}} intervals (train: {.val {sum(all_intervals$type == 'train')}}, predict: {.val {sum(all_intervals$type == 'predict')}})")
-    clust_energies <- plyr::llply(purrr::discard(object@motif_models, is.null), function(x) {
-        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = TRUE)
-
-    clust_energies <- do.call(cbind, clust_energies)
-
-    clust_energies <- apply(clust_energies, 2, norm_energy, min_energy = -10, q = object@params$energy_norm_quantile)
-
-    idxs <- peak_intervals %>%
-        select(chrom, start, end) %>%
-        left_join(intervals_unique, by = c("chrom", "start", "end")) %>%
-        pull(id)
-
-    e_test <- clust_energies[idxs, , drop = FALSE]
-
-    if (!is.null(additional_features)) {
-        additional_features[is.na(additional_features)] <- 0
-        e_test <- cbind(e_test, additional_features)
-    }
-
-    e_test_logist <- create_logist_features(e_test)
-    e_test_logist <- e_test_logist[, colnames(object@normalized_energies), drop = FALSE]
-
-    predicted_diff_score <- logist(glmnet::predict.glmnet(object@model, newx = e_test_logist, type = "link", s = object@params$lambda))[, 1]
-    predicted_diff_score <- (predicted_diff_score * max(object@diff_score)) + min(object@diff_score)
-
-    return(predicted_diff_score)
+    traj_model <- infer_trajectory_motifs(object, peak_intervals, additional_features = additional_features)
+    return(traj_model@predicted_diff_score[traj_model@type == "test"])
 })
+
+validate_traj_model <- function(object) {
+    if (!methods::is(object, "TrajectoryModel")) {
+        cli_abort("Please provide an instance of {.cls TrajectoryModel}", call = parent.frame(1))
+    }
+}
 
 
 #' Perform motif regression on ATAC trajectories.
@@ -147,7 +120,7 @@ setMethod("predict", signature = "TrajectoryModel", definition = function(object
 #' @description This function performs motif regression on ATAC trajectories. Given ATAC scores on trajectory bins, it predicts the differential accessibility between the start and end of the trajectory and returns the motifs that are most likely to be responsible for this differential accessibility.
 #'
 #' @param atac_scores A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.
-#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive.
+#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
 #' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
@@ -158,24 +131,25 @@ setMethod("predict", signature = "TrajectoryModel", definition = function(object
 #' @param bin_end the end of the trajectory. Default: the last bin
 #' @param normalize_energies whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
-#' @param energy_norm_quantile quantile of the energy used for normalization. Default: 0.99
+#' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param n_prego_motifs number of prego motifs to consider.
-#' @param traj_prego output of \code{infer_traj_prego}. If provided, no additional prego models would be inferred.
+#' @param traj_prego output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.
 #' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference.
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
 #' @param seed random seed for reproducibility.
 #' @param feature_selection_beta beta parameter used for feature selection.
+#' @param parallel whether to use parallel processing on glmnet.
 #'
 #' @return An instance of `TrajectoryModel` containing:
 #' \itemize{
 #'   \item{model}{The final General Linear Model (GLM) object.}
 #'   \item{motif_models}{Named List, PSSM and spatial models for each motif cluster.}
 #'   \item{normalized_energies}{Numeric vector, normalized energies of each motif in each peak.}
-#'   \item{additional_features}{Character vector, names of additional features.}
+#'   \item{additional_features}{data frame of the additional features.}
 #'   \item{diff_score}{Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.}
 #'   \item{predicted_diff_score}{Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.}
 #'   \item{initial_prego_models}{List, inferred prego models at the initial step of the algorithm.}
-#'   \item{train_peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.}
+#'   \item{peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.}
 #' }
 #'
 #' @inheritParams glmnet::glmnet
@@ -191,13 +165,13 @@ regress_trajectory_motifs <- function(atac_scores,
                                       bin_end = ncol(atac_scores),
                                       min_initial_energy_cor = 0.05,
                                       normalize_energies = TRUE,
-                                      energy_norm_quantile = 0.99,
+                                      energy_norm_quantile = 1,
                                       n_prego_motifs = 4,
                                       traj_prego = NULL,
                                       min_diff = 0.2,
                                       prego_sample_fraction = 0.1,
                                       seed = 60427,
-                                      feature_selection_beta = 0.005,
+                                      feature_selection_beta = 0.003,
                                       lambda = 1e-5,
                                       alpha = 1,
                                       parallel = TRUE) {
@@ -247,11 +221,11 @@ regress_trajectory_motifs <- function(atac_scores,
     atac_diff_n <- norm01(atac_diff)
 
     cli_alert("Extracting sequences...")
-    all_seqs <- toupper(gseq.extract(peak_intervals_all))
+    all_seqs <- toupper(misha::gseq.extract(peak_intervals_all))
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
-        traj_prego <- infer_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, seed = seed)
+        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, seed = seed)
     }
 
     if (!is.null(traj_prego)) {
@@ -366,13 +340,16 @@ regress_trajectory_motifs <- function(atac_scores,
 
     return(TrajectoryModel(
         model = model,
-        motif_models = best_motifs_prego,
-        normalized_energies = clust_energies_logist,
-        additional_features = colnames(additional_features),
+        motif_models = homogenize_pssm_models(best_motifs_prego),
+        coefs = get_model_coefs(model),
+        normalized_energies = clust_energies,
+        model_features = clust_energies_logist,
+        type = rep("train", nrow(atac_scores)),
+        additional_features = as.data.frame(additional_features),
         diff_score = atac_diff,
         predicted_diff_score = predicted_diff_score,
         initial_prego_models = prego_models,
-        train_peak_intervals = peak_intervals,
+        peak_intervals = peak_intervals,
         params = list(
             energy_norm_quantile = energy_norm_quantile
         )
@@ -381,7 +358,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
 
 run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, sequences, pssm_db, spat_db = NULL, lambda = 1e-5, seed = 60427) {
-    cli_alert("Running prego on cluster {.val {motif}}...")
+    cli_alert("Running {.field prego} on cluster {.val {motif}}...")
     pssm <- pssm_db %>%
         filter(motif == !!motif)
 
@@ -401,8 +378,9 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
     }
 
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
-    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
-    cli::cli_alert_success("Finished running prego on cluster {.val {motif}}")
+    # cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
+    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE))
+    cli::cli_alert_success("Finished running {.field prego} on cluster {.val {motif}}")
     return(prego::export_regression_model(prego_model))
 }
 
@@ -469,4 +447,20 @@ calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datas
     }
 
     return(motif_energies)
+}
+
+get_model_coefs <- function(model) {
+    df <- coef(model, s = model$lambda) %>%
+        as.matrix() %>%
+        as.data.frame() %>%
+        tibble::rownames_to_column("variable")
+    df <- df %>% filter(variable != "(Intercept)")
+
+    df <- df %>%
+        mutate(type = sub(".*_", "", variable), variable = sub("_(early|late|linear)$", "", variable)) %>%
+        tidyr::spread(type, s1)
+
+    df[is.na(df)] <- 0
+
+    return(df)
 }

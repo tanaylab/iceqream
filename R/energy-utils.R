@@ -1,4 +1,4 @@
-#' Normalize Values to the [0, 1] Range
+#' Normalize Values to the \[0, 1\] Range
 #'
 #' This function scales and translates the values in the input vector `x`
 #' such that the minimum value becomes 0 and the maximum value becomes 1.
@@ -36,7 +36,7 @@ norm01 <- function(x) {
 #' @param min_energy A numeric value representing the minimum energy value after normalization.
 #' Default is set to -10.
 #' @param q A numeric value between 0 and 1, representing the quantile of the energy values
-#' to be used as the maximum after normalization. Default is set to 0.99.
+#' to be used as the maximum after normalization. Default is set to 1 (max).
 #'
 #' @return A numeric vector of normalized energy values.
 #'
@@ -47,7 +47,7 @@ norm01 <- function(x) {
 #' norm_energy(x)
 #'
 #' @export
-norm_energy <- function(x, min_energy = -10, q = 0.99) {
+norm_energy <- function(x, min_energy = -10, q = 1) {
     x <- exp(1)^x
     y <- log2(x / quantile(x, q, na.rm = TRUE))
     y[y > 0] <- 0
@@ -57,13 +57,38 @@ norm_energy <- function(x, min_energy = -10, q = 0.99) {
 }
 
 
-norm_energy_dataset <- function(x, ds_x, min_energy = -10, q = 0.99) {
+norm_energy_dataset <- function(x, ds_x, min_energy = -10, q = 1) {
     x_both <- c(x, ds_x)
     x_idx <- seq_along(x)
     y_both <- norm_energy(x_both, min_energy, q)
     y <- y_both[x_idx]
     return(y)
 }
+
+#' Rescale numeric values to a specified range
+#'
+#' This function rescales numeric values from their original range to a specified
+#' new range, which defaults to between -1 and 1.
+#'
+#' @param x A numeric vector of values to be rescaled.
+#' @param new_min The minimum value of the desired output range. Defaults to -1.
+#' @param new_max The maximum value of the desired output range. Defaults to 1.
+#'
+#' @return A numeric vector of rescaled values.
+#' @examples
+#' values <- c(2, 3, 5, 6, 8, 10)
+#' rescale(values)
+#' rescale(values, 0, 100)
+#' rescale(values, 5, 50)
+#'
+#' @export
+rescale <- function(x, new_min = -1, new_max = 1) {
+    old_min <- min(x)
+    old_max <- max(x)
+
+    return(((x - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min)
+}
+
 
 #' Logistic Function
 #'

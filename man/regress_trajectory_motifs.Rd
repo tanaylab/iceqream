@@ -16,13 +16,13 @@ regress_trajectory_motifs(
   bin_end = ncol(atac_scores),
   min_initial_energy_cor = 0.05,
   normalize_energies = TRUE,
-  energy_norm_quantile = 0.99,
+  energy_norm_quantile = 1,
   n_prego_motifs = 4,
   traj_prego = NULL,
   min_diff = 0.2,
   prego_sample_fraction = 0.1,
   seed = 60427,
-  feature_selection_beta = 0.005,
+  feature_selection_beta = 0.003,
   lambda = 0.00001,
   alpha = 1,
   parallel = TRUE
@@ -31,7 +31,7 @@ regress_trajectory_motifs(
 \arguments{
 \item{atac_scores}{A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.}
 
-\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive.}
+\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
 
 \item{max_motif_num}{maximum number of motifs to consider. Default: 50}
 
@@ -52,11 +52,11 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{normalize_energies}{whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.}
 
-\item{energy_norm_quantile}{quantile of the energy used for normalization. Default: 0.99}
+\item{energy_norm_quantile}{quantile of the energy used for normalization. Default: 1}
 
 \item{n_prego_motifs}{number of prego motifs to consider.}
 
-\item{traj_prego}{output of \code{infer_traj_prego}. If provided, no additional prego models would be inferred.}
+\item{traj_prego}{output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.}
 
 \item{min_diff}{minimal ATAC difference for a peak to participate in the initial prego motif inference.}
 
@@ -79,6 +79,8 @@ and its often faster to fit a whole path than compute a single fit.}
 The penalty is defined as
 \deqn{(1-\alpha)/2||\beta||_2^2+\alpha||\beta||_1.} \code{alpha=1} is the
 lasso penalty, and \code{alpha=0} the ridge penalty.}
+
+\item{parallel}{whether to use parallel processing on glmnet.}
 }
 \value{
 An instance of \code{TrajectoryModel} containing:
@@ -86,11 +88,11 @@ An instance of \code{TrajectoryModel} containing:
 \item{model}{The final General Linear Model (GLM) object.}
 \item{motif_models}{Named List, PSSM and spatial models for each motif cluster.}
 \item{normalized_energies}{Numeric vector, normalized energies of each motif in each peak.}
-\item{additional_features}{Character vector, names of additional features.}
+\item{additional_features}{data frame of the additional features.}
 \item{diff_score}{Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.}
 \item{predicted_diff_score}{Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.}
 \item{initial_prego_models}{List, inferred prego models at the initial step of the algorithm.}
-\item{train_peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.}
+\item{peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.}
 }
 }
 \description{
