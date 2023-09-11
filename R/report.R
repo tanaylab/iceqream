@@ -91,18 +91,23 @@ plot_variable_vs_response <- function(traj_model, variable, point_size = 0.5) {
 #'
 #'
 #' @export
-plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, ...) {
+plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, ...) {
     validate_traj_model(traj_model)
 
     models <- traj_model@motif_models
 
-    sorted_vars <- traj_model@coefs %>%
-        tibble::column_to_rownames("variable") %>%
-        as.matrix() %>%
-        abs() %>%
-        apply(1, max) %>%
-        sort(decreasing = TRUE) %>%
-        names()
+    if (length(traj_model@features_r2) > 0) {
+        sorted_vars <- names(sort(traj_model@features_r2, decreasing = TRUE))
+    } else {
+        sorted_vars <- traj_model@coefs %>%
+            tibble::column_to_rownames("variable") %>%
+            as.matrix() %>%
+            abs() %>%
+            apply(1, max) %>%
+            sort(decreasing = TRUE) %>%
+            names()
+    }
+
 
     sorted_vars <- sorted_vars[!(sorted_vars %in% colnames(traj_model@additional_features))]
 
@@ -117,7 +122,12 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
     cli_alert_info("Plotting {.val {motif_num}} motifs")
     models <- models[sorted_vars[1:motif_num]]
 
-    spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat))
+    if (length(traj_model@features_r2) > 0) {
+        spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat, title = paste0("R^2=", round(traj_model@features_r2[.y], 6))))
+    } else {
+        spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat))
+    }
+
     motifs_p <- purrr::imap(models, ~ prego::plot_pssm_logo(.x$pssm, title = .y))
 
     if (free_coef_axis) {
@@ -138,12 +148,16 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
         widths = c(0.6, 0.2, 0.2)
     )
 
+    if (!is.null(title)) {
+        p <- p + patchwork::plot_annotation(title = title)
+    }
+
     if (!is.null(filename)) {
         if (is.null(width)) {
             width <- 10
         }
         if (is.null(height)) {
-            height <- motif_num * 1.5
+            height <- motif_num * 1.8
         }
         cli_alert_info("Saving plot...")
         dev(filename, width = width, height = height, ...)
@@ -180,4 +194,48 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {
     }
 
     return(p)
+}
+
+plot_traj_model_report <- function(traj_model, dir, k = 10) {
+    validate_traj_model(traj_model)
+    e_mat <- traj_model@normalized_energies
+    e_mat <- e_mat[, setdiff(colnames(e_mat), colnames(traj_model@additional_features))]
+    cm <- tgs_cor(e_mat, pairwise.complete.obs = TRUE)
+    cm_no_diag <- cm
+    diag(cm_no_diag) <- 0
+    hc <- tgs_dist(cm_no_diag) %>% hclust(method = "ward.D2")
+
+    # clust_df <- data.frame(
+    #     clust = cutree(hc, k = k),
+    #     variable = colnames(e_mat)
+    # )
+
+    # col <- chameleon::distinct_colors(k)$name
+    # names(col) <- as.character(1:k)
+
+    # ha <- ComplexHeatmap::HeatmapAnnotation(cluster = as.character(clust_df$clust), show_annotation_name = FALSE, col = list(cluster = col))
+
+    hm <- ComplexHeatmap::Heatmap(cm, name = "features", cluster_rows = hc, cluster_columns = hc, col = circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red")), split = k, column_split = k)
+
+    if (dir.exists(dir)) {
+        unlink(dir, recursive = TRUE)
+    }
+
+    dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+
+    png(file.path(dir, "heatmap.png"), width = 2000, height = 1000)
+    hm <- ComplexHeatmap::draw(hm, heatmap_legend_side = "left")
+    dev.off()
+
+    clust_df <- ComplexHeatmap::row_order(hm) %>%
+        purrr:::imap_dfr(~ tibble(ord = .x, clust = .y)) %>%
+        mutate(motif = rownames(cm)[ord])
+
+    plyr::d_ply(clust_df, "clust", function(x) {
+        traj_model_clust <- traj_model
+        traj_model_clust@motif_models <- traj_model@motif_models[x$motif]
+        traj_model_clust@coefs <- traj_model@coefs %>% filter(variable %in% x$motif)
+        traj_model_clust@features_r2 <- traj_model@features_r2[x$motif]
+        plot_motifs_report(traj_model_clust, filename = file.path(dir, paste0("clust_", x$clust[1], ".pdf")), title = paste0("Cluster ", x$clust[1], " (", nrow(x), " motifs)"))
+    })    
 }

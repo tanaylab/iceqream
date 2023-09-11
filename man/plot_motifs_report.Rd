@@ -12,6 +12,7 @@ plot_motifs_report(
   width = NULL,
   height = NULL,
   dev = grDevices::pdf,
+  title = NULL,
   ...
 )
 }
