@@ -33,10 +33,8 @@
 #' @export
 homogenize_pssm_models <- function(models) {
     homogenize_model <- function(model) {
-        # if GC is higher than AT, we need to reverse complement the model
-        gc <- sum(model$pssm$C + model$pssm$G)
-        at <- sum(model$pssm$A + model$pssm$T)
-        if (gc > at) {
+        # if A is higher than T reverse complement the model
+        if (sum(model$pssm$T) > sum(model$pssm$A)) {
             model$pssm <- pssm_rc(model$pssm)
         }
         return(model)
