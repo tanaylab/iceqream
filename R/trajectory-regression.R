@@ -57,6 +57,7 @@ TrajectoryModel <- setClass(
         initial_prego_models = "list",
         peak_intervals = "data.frame",
         additional_features = "data.frame",
+        features_r2 = "numeric",
         params = "list"
     )
 )
@@ -70,24 +71,29 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         cli::cli_text("Slots include:")
         cli_ul(c("{.field @model}: A GLM model object. Number of non-zero coefficients: {.val {sum(object@model$beta[, 1] != 0)}}"))
         cli_ul(c("{.field @motif_models}: A named list of motif models. Each element contains PSSM and spatial model ({.val {length(object@motif_models)}} models: {.val {names(object@motif_models)}})"))
-        cli_ul(c("{.field @additional_features}: A data frame of additional features ({.val {nrow(object@additional_features)}} elements)"))
+        cli_ul(c("{.field @additional_features}: A data frame of additional features ({.val {ncol(object@additional_features)}} features)"))
         cli_ul(c("{.field @coefs}: A data frame of coefficients ({.val {nrow(object@coefs)}} elements)"))
         cli_ul(c("{.field @model_features}: A matrix of the model features (logistic functions of the motif models energies, dimensions: {.val {nrow(object@model_features)}}x{.val {ncol(object@model_features)}})"))
         cli_ul(c("{.field @normalized_energies}: A matrix of normalized energies of the model features (dimensions: {.val {nrow(object@normalized_energies)}}x{.val {ncol(object@normalized_energies)}})"))
         cli_ul(c("{.field @type}: A vector the length of the number of peaks, indicating whether each peak is a training ('train') or a prediction peak ('test')"))
         cli_ul(c("{.field @diff_score}: A numeric value representing the difference score the model was trained on ({.val {length(object@normalized_energies[,1])}} elements)"))
-        if (any(object@type == "test")) {
-            cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score (R^2 train: {.val {round(cor(object@diff_score[object@type == 'train'], object@predicted_diff_score[object@type == 'train'])^2, digits = 3)}}; R^2 test: {.val {round(cor(object@diff_score[object@type == 'test'], object@predicted_diff_score[object@type == 'test'])^2, digits = 3)}})"))
-        } else {
-            cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score (R^2 (train): {.val {round(cor(object@diff_score, object@predicted_diff_score)^2, digits = 3)}})"))
-        }
+        cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score"))
         cli_ul(c("{.field @initial_prego_models}: A list of prego models used in the initial phase of the algorithm ({.val {length(object@initial_prego_models)}} models)"))
         cli_ul(c("{.field @peak_intervals}: A data frame containing the peak intervals ({.val {nrow(object@peak_intervals)}} elements)"))
+        if (length(object@features_r2) > 0) {
+            cli_ul(c("{.field @features_r2}: A numeric vector of R^2 values for each feature ({.val {length(object@features_r2)}} elements)"))
+        } else {
+            cli_ul(c("{.field @features_r2}: Please run {.code filter_traj_model} in order to calculate the R^2 values for each feature"))
+        }
         cli_ul(c("{.field @params}: A list of parameters used for training (including: {.val {names(object@params)}})"))
 
+        cli::cli_text("\n")
+        cli::cli_text("R^2 train: {.val {round(cor(object@diff_score[object@type == 'train'], object@predicted_diff_score[object@type == 'train'])^2, digits = 3)}}")
         if (!any(object@type == "test")) {
             cli::cli_text("\n")
             cli::cli_text("Run {.code predict(object, peak_intervals)} to predict the model on new data.")
+        } else {
+            cli::cli_text("R^2 test: {.val {round(cor(object@diff_score[object@type == 'test'], object@predicted_diff_score[object@type == 'test'])^2, digits = 3)}}")
         }
     })
 })
@@ -141,6 +147,9 @@ validate_traj_model <- function(object) {
 #' @param filter_using_r2 whether to filter features using R^2.
 #' @param r2_threshold minimal R^2 for a feature to be included in the model.
 #' @param parallel whether to use parallel processing on glmnet.
+#' @param peaks_size size of the peaks to extract sequences from. Default: 300bp
+#' @param spat_num_bins number of spatial bins to use.
+#' @param spat_bin_size size of each spatial bin.
 #'
 #' @return An instance of `TrajectoryModel` containing:
 #' \itemize{
@@ -178,7 +187,10 @@ regress_trajectory_motifs <- function(atac_scores,
                                       alpha = 1,
                                       filter_using_r2 = FALSE,
                                       r2_threshold = 0.0005,
-                                      parallel = TRUE) {
+                                      parallel = TRUE,
+                                      peaks_size = 300,
+                                      spat_num_bins = 7,
+                                      spat_bin_size = NULL) {
     withr::local_options(list(gmax.data.size = 1e9))
     atac_scores <- as.matrix(atac_scores)
 
@@ -189,8 +201,8 @@ regress_trajectory_motifs <- function(atac_scores,
     # Extract features
     motif_energies <- calc_motif_energies(peak_intervals, pssm_db, motif_energies)
 
-    cli_alert_info("Normalizing motif energies...")
     if (normalize_energies) {
+        cli_alert_info("Normalizing motif energies...")
         motif_energies <- apply(motif_energies, 2, norm_energy, min_energy = -10, q = energy_norm_quantile)
     }
 
@@ -225,7 +237,7 @@ regress_trajectory_motifs <- function(atac_scores,
     atac_diff_n <- norm01(atac_diff)
 
     cli_alert("Extracting sequences...")
-    all_seqs <- toupper(misha::gseq.extract(peak_intervals_all))
+    all_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals_all, peaks_size)))
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
@@ -265,73 +277,8 @@ regress_trajectory_motifs <- function(atac_scores,
     chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
     features <- motif_energies[, chosen_motifs]
 
-    nclust <- min(ncol(features), max_motif_num * 2)
-    cli_alert_info("Clustering {.val {ncol(features)}} features into {.val {nclust}} clusters...")
-    features_cm <- tgs_cor(features, pairwise.complete.obs = TRUE)
-    hc <- tgs_dist(features_cm) %>% hclust(method = "ward.D2")
-    clust_map <- data.frame(feat = colnames(features), clust = cutree(hc, k = nclust), beta = glm_model2$beta[chosen_motifs, 1])
-
-    cli_alert_info("Choosing top {.val {max_motif_num}} features clusters")
-    selected_clust <- clust_map %>%
-        group_by(clust) %>%
-        summarize(max_beta = max(beta)) %>%
-        arrange(desc(max_beta)) %>%
-        mutate(new_clust = 1:n()) %>%
-        head(max_motif_num)
-
-    clust_map <- clust_map %>%
-        inner_join(selected_clust, by = "clust") %>%
-        mutate(clust = new_clust) %>%
-        select(-new_clust)
-
-    cli_alert_info("Features left: {.val {nrow(clust_map)}}")
-
-    best_clust_map <- clust_map %>%
-        arrange(clust, abs(beta)) %>%
-        group_by(clust) %>%
-        slice(1) %>%
-        ungroup() %>%
-        as.data.frame()
-
-    cli_alert_info("Learning a model for each motif cluster...")
-    library(glmnet)
-    best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
-        run_prego_on_clust_residuals(
-            x$feat,
-            model = glm_model2,
-            y = atac_diff_n,
-            feats = features,
-            clust_motifs = clust_map %>% filter(clust == x$clust) %>% pull(feat),
-            sequences = all_seqs[enhancers_filter],
-            lambda = lambda,
-            pssm_db = pssm_db,
-            spat_db = prego_models %>% purrr::map("spat"),
-            seed = seed
-        )
-    }, .parallel = TRUE)
-    names(best_motifs_prego) <- best_clust_map$feat
-
-
-    cli_alert_info("Infering energies...")
-    clust_energies <- plyr::llply(purrr::discard(best_motifs_prego, is.null), function(x) {
-        prego::compute_pwm(all_seqs[enhancers_filter], x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = TRUE)
-
-    names(clust_energies) <- best_clust_map$feat
-    clust_energies_raw <- do.call(cbind, clust_energies)
-    clust_energies <- apply(clust_energies_raw, 2, norm_energy, min_energy = -10, q = energy_norm_quantile)
-
-    # add missing features
-    missing_features <- setdiff(best_clust_map$feat, colnames(clust_energies))
-    if (length(missing_features) > 0) {
-        clust_energies <- cbind(clust_energies, features[, missing_features, drop = FALSE])
-    }
-    clust_energies <- clust_energies[, best_clust_map$feat, drop = FALSE]
-
-    if (!is.null(additional_features)) {
-        additional_features[is.na(additional_features)] <- 0
-        clust_energies <- cbind(clust_energies, additional_features)
-    }
+    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size)
+    clust_energies <- distilled$energies
 
     clust_energies_logist <- create_logist_features(clust_energies)
 
@@ -345,7 +292,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
     traj_model <- TrajectoryModel(
         model = model,
-        motif_models = homogenize_pssm_models(best_motifs_prego),
+        motif_models = homogenize_pssm_models(distilled$motifs),
         coefs = get_model_coefs(model),
         normalized_energies = clust_energies,
         model_features = clust_energies_logist,
@@ -358,7 +305,8 @@ regress_trajectory_motifs <- function(atac_scores,
         params = list(
             energy_norm_quantile = energy_norm_quantile,
             alpha = alpha,
-            lambda = lambda
+            lambda = lambda,
+            peaks_size = peaks_size
         )
     )
 
@@ -371,33 +319,6 @@ regress_trajectory_motifs <- function(atac_scores,
     return(traj_model)
 }
 
-
-run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, sequences, pssm_db, spat_db = NULL, lambda = 1e-5, seed = 60427) {
-    cli_alert("Running {.field prego} on cluster {.val {motif}}...")
-    pssm <- pssm_db %>%
-        filter(motif == !!motif)
-
-    if (nrow(pssm) == 0) { # Motif is part of additional features
-        return(NULL)
-    }
-
-    if (length(clust_motifs) == 1) {
-        pssm <- pssm_db %>% filter(motif == !!motif)
-
-        if (!is.null(spat_db)) {
-            spat <- spat_db[[motif]]
-        } else {
-            spat <- NULL
-        }
-        return(list(pssm = pssm, spat = spat))
-    }
-
-    partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
-    # cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, motif = pssm, seed = seed, match_with_db = FALSE, screen_db = FALSE))
-    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE))
-    cli::cli_alert_success("Finished running {.field prego} on cluster {.val {motif}}")
-    return(prego::export_regression_model(prego_model))
-}
 
 validate_atac_scores <- function(atac_scores, bin_start, bin_end) {
     # validate bin_start and bin_end

@@ -39,7 +39,12 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         mutate(id = 1:n())
 
     cli_alert_info("Extracting sequences...")
-    sequences <- toupper(misha::gseq.extract(intervals_unique))
+    if (!is.null(traj_model@params$peaks_size)) {
+        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(intervals_unique, traj_model@params$peaks_size)))
+    } else {
+        sequences <- toupper(misha::gseq.extract(intervals_unique))
+    }
+
 
     cli_alert_info("Computing motif energies for {.val {nrow(intervals_unique)}} intervals (train: {.val {sum(all_intervals$type == 'train')}}, test: {.val {sum(all_intervals$type == 'test')}})")
     clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
