@@ -27,7 +27,10 @@ regress_trajectory_motifs(
   alpha = 1,
   filter_using_r2 = FALSE,
   r2_threshold = 0.0005,
-  parallel = TRUE
+  parallel = TRUE,
+  peaks_size = 300,
+  spat_num_bins = 7,
+  spat_bin_size = NULL
 )
 }
 \arguments{
@@ -87,6 +90,12 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
 
 \item{parallel}{whether to use parallel processing on glmnet.}
+
+\item{peaks_size}{size of the peaks to extract sequences from. Default: 300bp}
+
+\item{spat_num_bins}{number of spatial bins to use.}
+
+\item{spat_bin_size}{size of each spatial bin.}
 }
 \value{
 An instance of \code{TrajectoryModel} containing:

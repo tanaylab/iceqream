@@ -35,7 +35,7 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, ignor
     #     vertical_labs() +
     #     geom_hline(yintercept = r2_threshold, color = "red", linetype = "dashed")
 
-    return(list(model = model_f, pred = pred_f, X = X_f, r2 = r2_f, vars = vars_f))
+    return(list(model = model_f, pred = pred_f, X = X_f, vars_r2 = full_model_r2 - vars_r2, vars = vars_f))
 }
 
 filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_model, n_motifs, ignore_variables = NULL) {
@@ -84,10 +84,12 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005) {
     res <- filter_model(traj_model@model_features, traj_model@coefs$variable, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold)
 
     traj_model@model <- res$model
+    traj_model@motif_models <- traj_model@motif_models[res$vars]
     traj_model@predicted_diff_score <- res$pred
     traj_model@model_features <- res$X
     traj_model@coefs <- get_model_coefs(res$model)
     traj_model@normalized_energies <- traj_model@normalized_energies[, res$vars, drop = FALSE]
+    traj_model@features_r2 <- res$vars_r2
 
     cli_alert_success("After filtering: Number of non-zero coefficients: {.val {sum(traj_model@model$beta != 0)}} (out of {.val {ncol(traj_model@model_features)}}). R^2: {.val {cor(traj_model@predicted_diff_score, norm01(traj_model@diff_score))^2}}")
 
