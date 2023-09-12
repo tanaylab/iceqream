@@ -150,6 +150,7 @@ validate_traj_model <- function(object) {
 #' @param peaks_size size of the peaks to extract sequences from. Default: 300bp
 #' @param spat_num_bins number of spatial bins to use.
 #' @param spat_bin_size size of each spatial bin.
+#' @param kmer_sequence_length length of the kmer sequence to use for kmer screening. By default the full sequence is used.
 #'
 #' @return An instance of `TrajectoryModel` containing:
 #' \itemize{
@@ -189,8 +190,9 @@ regress_trajectory_motifs <- function(atac_scores,
                                       r2_threshold = 0.0005,
                                       parallel = TRUE,
                                       peaks_size = 300,
-                                      spat_num_bins = 7,
-                                      spat_bin_size = NULL) {
+                                      spat_num_bins = NULL,
+                                      spat_bin_size = NULL,
+                                      kmer_sequence_length = NULL) {
     withr::local_options(list(gmax.data.size = 1e9))
     atac_scores <- as.matrix(atac_scores)
 
@@ -277,7 +279,7 @@ regress_trajectory_motifs <- function(atac_scores,
     chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
     features <- motif_energies[, chosen_motifs]
 
-    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size)
+    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length)
     clust_energies <- distilled$energies
 
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -306,7 +308,9 @@ regress_trajectory_motifs <- function(atac_scores,
             energy_norm_quantile = energy_norm_quantile,
             alpha = alpha,
             lambda = lambda,
-            peaks_size = peaks_size
+            peaks_size = peaks_size,
+            spat_num_bins = spat_num_bins,
+            spat_bin_size = spat_bin_size
         )
     )
 

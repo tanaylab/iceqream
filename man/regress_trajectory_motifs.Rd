@@ -29,8 +29,9 @@ regress_trajectory_motifs(
   r2_threshold = 0.0005,
   parallel = TRUE,
   peaks_size = 300,
-  spat_num_bins = 7,
-  spat_bin_size = NULL
+  spat_num_bins = NULL,
+  spat_bin_size = NULL,
+  kmer_sequence_length = NULL
 )
 }
 \arguments{
@@ -96,6 +97,8 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{spat_num_bins}{number of spatial bins to use.}
 
 \item{spat_bin_size}{size of each spatial bin.}
+
+\item{kmer_sequence_length}{length of the kmer sequence to use for kmer screening. By default the full sequence is used.}
 }
 \value{
 An instance of \code{TrajectoryModel} containing:
