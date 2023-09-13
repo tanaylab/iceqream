@@ -205,16 +205,6 @@ plot_traj_model_report <- function(traj_model, dir, k = 10) {
     diag(cm_no_diag) <- 0
     hc <- tgs_dist(cm_no_diag) %>% hclust(method = "ward.D2")
 
-    # clust_df <- data.frame(
-    #     clust = cutree(hc, k = k),
-    #     variable = colnames(e_mat)
-    # )
-
-    # col <- chameleon::distinct_colors(k)$name
-    # names(col) <- as.character(1:k)
-
-    # ha <- ComplexHeatmap::HeatmapAnnotation(cluster = as.character(clust_df$clust), show_annotation_name = FALSE, col = list(cluster = col))
-
     hm <- ComplexHeatmap::Heatmap(cm, name = "features", cluster_rows = hc, cluster_columns = hc, col = circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red")), split = k, column_split = k)
 
     if (dir.exists(dir)) {
@@ -224,7 +214,13 @@ plot_traj_model_report <- function(traj_model, dir, k = 10) {
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 
     png(file.path(dir, "heatmap.png"), width = 2000, height = 1000)
-    hm <- ComplexHeatmap::draw(hm, heatmap_legend_side = "left")
+    if (length(traj_model@features_r2) > 0) {
+        ha <- ComplexHeatmap::rowAnnotation(r2 = ComplexHeatmap::anno_points(traj_model@features_r2[rownames(cm)]), width = grid::unit(3, "cm"))
+        hm <- ComplexHeatmap::draw(hm + ha, heatmap_legend_side = "left")
+    } else {
+        hm <- ComplexHeatmap::draw(hm, heatmap_legend_side = "left")
+    }
+    
     dev.off()
 
     clust_df <- ComplexHeatmap::row_order(hm) %>%
@@ -237,5 +233,6 @@ plot_traj_model_report <- function(traj_model, dir, k = 10) {
         traj_model_clust@coefs <- traj_model@coefs %>% filter(variable %in% x$motif)
         traj_model_clust@features_r2 <- traj_model@features_r2[x$motif]
         plot_motifs_report(traj_model_clust, filename = file.path(dir, paste0("clust_", x$clust[1], ".pdf")), title = paste0("Cluster ", x$clust[1], " (", nrow(x), " motifs)"))
-    })    
+    })
+
 }
