@@ -395,7 +395,8 @@ get_model_coefs <- function(model) {
         as.data.frame() %>%
         tibble::rownames_to_column("variable")
     df <- df %>% filter(variable != "(Intercept)")
-
+    colnames(df)[2] = "s1"
+    
     df <- df %>%
         mutate(type = sub(".*_", "", variable), variable = sub("_(early|late|linear)$", "", variable)) %>%
         tidyr::spread(type, s1)
