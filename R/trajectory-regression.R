@@ -372,7 +372,7 @@ validate_additional_features <- function(additional_features, peak_intervals) {
 calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datasets(), motif_energies = NULL) {
     if (is.null(motif_energies)) {
         cli_alert("Computing motif energies (this might take a while)")
-        motif_energies <- prego::gextract_pwm(peak_intervals, dataset = pssm_db, prior = 0.01) %>%
+        motif_energies <- prego::gextract_pwm(peak_intervals %>% select(chrom, start, end), dataset = pssm_db, prior = 0.01) %>%
             select(-chrom, -start, -end) %>%
             as.matrix()
     }
@@ -395,8 +395,8 @@ get_model_coefs <- function(model) {
         as.data.frame() %>%
         tibble::rownames_to_column("variable")
     df <- df %>% filter(variable != "(Intercept)")
-    colnames(df)[2] = "s1"
-    
+    colnames(df)[2] <- "s1"
+
     df <- df %>%
         mutate(type = sub(".*_", "", variable), variable = sub("_(early|late|linear)$", "", variable)) %>%
         tidyr::spread(type, s1)
