@@ -8,6 +8,7 @@ plot_motifs_report(
   traj_model,
   motif_num = NULL,
   free_coef_axis = TRUE,
+  spatial_freqs = NULL,
   filename = NULL,
   width = NULL,
   height = NULL,
@@ -22,6 +23,8 @@ plot_motifs_report(
 \item{motif_num}{Number of motifs to plot. If NULL, all motifs will be plotted.}
 
 \item{free_coef_axis}{Whether to use a free axis for the coefficient plots.}
+
+\item{spatial_freqs}{Pre-computed spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.}
 
 \item{filename}{Filename to save the plot to. If NULL, the plot will be returned.}
 

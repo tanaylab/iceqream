@@ -29,10 +29,12 @@ Imports:
     rlang,
     stats,
     ComplexHeatmap,
-    princurve
+    princurve,
+    zoo,
+    glue
 Suggests: 
     testthat (>= 3.0.0)
-Remotes:    
+Remotes: 
     tanaylab/misha.ext,
     tanaylab/prego
 Config/testthat/edition: 3
