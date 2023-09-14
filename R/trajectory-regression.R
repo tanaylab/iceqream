@@ -41,7 +41,6 @@
 #'  A data frame containing the additional features.
 #'
 #'
-#'
 #' @exportClass TrajectoryModel
 TrajectoryModel <- setClass(
     "TrajectoryModel",
@@ -310,7 +309,8 @@ regress_trajectory_motifs <- function(atac_scores,
             lambda = lambda,
             peaks_size = peaks_size,
             spat_num_bins = spat_num_bins,
-            spat_bin_size = spat_bin_size
+            spat_bin_size = spat_bin_size,
+            distilled_features = distilled$features
         )
     )
 

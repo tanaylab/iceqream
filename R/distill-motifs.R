@@ -72,7 +72,12 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, addition
         clust_energies <- cbind(clust_energies, additional_features)
     }
 
-    return(list(energies = clust_energies, motifs = best_motifs_prego))
+    distilled_features <- clust_map %>%
+        left_join(best_clust_map %>% select(clust, name = feat), by = "clust") %>%
+        select(clust = name, feat, beta, max_beta) %>%
+        arrange(clust)
+
+    return(list(energies = clust_energies, motifs = best_motifs_prego, features = distilled_features))
 }
 
 run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, sequences, pssm_db, spat_db = NULL, spat_min = NULL, spat_max = NULL, lambda = 1e-5, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL) {
