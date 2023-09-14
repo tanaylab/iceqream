@@ -260,5 +260,4 @@ plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL
         plot_motifs_report(traj_model_clust, filename = file.path(dir, paste0("clust_", x$clust[1], ".pdf")), title = paste0("Cluster ", x$clust[1], " (", nrow(x), " motifs)"), spatial_freqs = spatial_freqs)
     })
 
-    system(glue("ml load python3/3.7.5; /home/aviezerl/tools/pdftools/pdfmerge.py -o {dir}/all.pdf {files}", files = paste0(glue::glue("{dir}/clust_"), 1:k, ".pdf", collapse = " ")))
 }
