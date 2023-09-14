@@ -81,6 +81,7 @@ plot_variable_vs_response <- function(traj_model, variable, point_size = 0.5) {
 #' @param traj_model Trajectory model object. Please run \code{regress_trajectory_motifs} first.
 #' @param motif_num Number of motifs to plot. If NULL, all motifs will be plotted.
 #' @param free_coef_axis Whether to use a free axis for the coefficient plots.
+#' @param spatial_freqs Pre-computed spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.
 #' @param filename Filename to save the plot to. If NULL, the plot will be returned.
 #' @param width Width of the plot.
 #' @param height Height of the plot.
@@ -91,7 +92,7 @@ plot_variable_vs_response <- function(traj_model, variable, point_size = 0.5) {
 #'
 #'
 #' @export
-plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, ...) {
+plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, ...) {
     validate_traj_model(traj_model)
 
     models <- traj_model@motif_models
@@ -137,15 +138,29 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
     }
     coefs_p <- purrr::map(names(models), ~ plot_coefs(traj_model, .x, limits = coef_limits, title = ""))
 
+    if (is.null(spatial_freqs)) {
+        spatial_freqs <- compute_traj_model_spatial_freq(traj_model, size = 1000, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1)
+    }
+
+    spat_freq_p <- purrr::map(names(models), ~ plot_motif_spatial_freq(spatial_freqs, .x, smooth = 10))
+
+    if ("atac_freq" %in% colnames(spatial_freqs)) {
+        atac_spat_freq_p <- purrr::map(names(models), ~ plot_motif_spatial_freq(spatial_freqs, .x, smooth = 10, plot_atac = TRUE))
+    } else {
+        atac_spat_freq_p <- purrr::map(names(models), ~ ggplot() +
+            theme_void())
+    }
+
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
     p <- patchwork::wrap_plots(
         A = patchwork::wrap_plots(motifs_p, ncol = 1),
         B = patchwork::wrap_plots(coefs_p, ncol = 1),
         C = patchwork::wrap_plots(spatial_p, ncol = 1),
-        # D = patchwork::wrap_plots(scatter_p, ncol = 1),
-        design = "ABC",
-        widths = c(0.6, 0.2, 0.2)
+        D = patchwork::wrap_plots(spat_freq_p, ncol = 1),
+        E = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
+        design = "ABCDE",
+        widths = c(0.5, 0.1, 0.1, 0.3, 0.3)
     )
 
     if (!is.null(title)) {
@@ -154,7 +169,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
 
     if (!is.null(filename)) {
         if (is.null(width)) {
-            width <- 10
+            width <- 18
         }
         if (is.null(height)) {
             height <- motif_num * 1.8
@@ -196,7 +211,17 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {
     return(p)
 }
 
-plot_traj_model_report <- function(traj_model, dir, k = 10) {
+#' Plot trajectory model report
+#'
+#' @param traj_model A trajectory model object
+#' @param dir A directory to save the report files
+#' @param k Number of clusters to split the heatmap into
+#' @param spatial_freqs A vector of spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.
+#'
+#' @return None.
+#'
+#' @export
+plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL) {
     validate_traj_model(traj_model)
     e_mat <- traj_model@normalized_energies
     e_mat <- e_mat[, setdiff(colnames(e_mat), colnames(traj_model@additional_features))]
@@ -220,7 +245,7 @@ plot_traj_model_report <- function(traj_model, dir, k = 10) {
     } else {
         hm <- ComplexHeatmap::draw(hm, heatmap_legend_side = "left")
     }
-    
+
     dev.off()
 
     clust_df <- ComplexHeatmap::row_order(hm) %>%
@@ -232,7 +257,8 @@ plot_traj_model_report <- function(traj_model, dir, k = 10) {
         traj_model_clust@motif_models <- traj_model@motif_models[x$motif]
         traj_model_clust@coefs <- traj_model@coefs %>% filter(variable %in% x$motif)
         traj_model_clust@features_r2 <- traj_model@features_r2[x$motif]
-        plot_motifs_report(traj_model_clust, filename = file.path(dir, paste0("clust_", x$clust[1], ".pdf")), title = paste0("Cluster ", x$clust[1], " (", nrow(x), " motifs)"))
+        plot_motifs_report(traj_model_clust, filename = file.path(dir, paste0("clust_", x$clust[1], ".pdf")), title = paste0("Cluster ", x$clust[1], " (", nrow(x), " motifs)"), spatial_freqs = spatial_freqs)
     })
 
+    system(glue("ml load python3/3.7.5; /home/aviezerl/tools/pdftools/pdfmerge.py -o {dir}/all.pdf {files}", files = paste0(glue::glue("{dir}/clust_"), 1:k, ".pdf", collapse = " ")))
 }
