@@ -13,7 +13,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
         sequences <- toupper(misha::gseq.extract(intervals))
     }
 
-    local_pwm <- compute_local_pwm(sequences, pssm)
+    local_pwm <- prego::compute_local_pwm(sequences, pssm)
 
     local_pwm_n <- norm_energy(local_pwm, min_energy = -10, q = 1)
 
