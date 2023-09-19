@@ -48,7 +48,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     cli_alert_info("Computing motif energies for {.val {nrow(intervals_unique)}} intervals (train: {.val {sum(all_intervals$type == 'train')}}, test: {.val {sum(all_intervals$type == 'test')}})")
     clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
-        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
+        compute_directed_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
     }, .parallel = TRUE)
 
     clust_energies <- do.call(cbind, clust_energies)
