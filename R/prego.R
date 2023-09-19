@@ -9,16 +9,18 @@
 #' @param sample_fraction Fraction of peaks to sample for training. Default: 0.1
 #' @param sequences A character vector of sequences to learn the motifs on. If NULL, the sequences of the peaks are used.
 #' @param seed Random seed
+#' @param peaks_size size of the peaks to extract sequences from. Default: 300bp
+#' @param ... Additional arguments to be passed to \code{prego::regress_pwm}
 #'
 #' @export
-learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, min_energy = -10, sample_fraction = 0.1, sequences = NULL, seed = NULL) {
+learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, min_energy = -10, sample_fraction = 0.1, sequences = NULL, seed = NULL, peaks_size = 300, ...) {
     withr::local_options(list(gmax.data.size = 1e9))
     if (length(atac_diff) != nrow(peak_intervals)) {
         cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows of {.field {peak_intervals}}. Current lengths: {.val {length(atac_diff)}} and {.val {nrow(peak_intervals)}}")
     }
 
     if (is.null(sequences)) {
-        sequences <- toupper(misha::gseq.extract(peak_intervals))
+        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals, peaks_size)))
     }
 
     peaks_df <- peak_intervals %>%
@@ -38,10 +40,10 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
         return(NULL)
     }
 
-    seqs <- toupper(misha::gseq.extract(peaks_df))
+    seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peaks_df, peaks_size)))
 
     cli_alert_info("Inferring {.val {n_motifs}} prego motifs...")
-    reg <- prego::regress_pwm(seqs, peaks_df$score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = TRUE, sample_frac = sample_fraction)
+    reg <- prego::regress_pwm(seqs, peaks_df$score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = TRUE, sample_frac = sample_fraction, ...)
 
     prego_e <- reg$predict_multi(sequences)
     prego_e <- apply(prego_e, 2, norm_energy, min_energy = min_energy, q = energy_norm_quantile)
