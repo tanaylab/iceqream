@@ -52,8 +52,8 @@ direct_sequences <- function(sequences, pssm) {
 #'
 #' @export
 compute_motif_directional_hits <- function(pssm, intervals, size, pwm_threshold = 7) {
-    pwm_minus <- compute_spat_pwm(pssm, intervals %>% mutate(strand = -1), size, bidirect = FALSE)
-    pwm_plus <- compute_spat_pwm(pssm, intervals %>% mutate(strand = 1), size, bidirect = FALSE)
+    pwm_minus <- compute_spat_pwm(pssm, intervals %>% mutate(strand = -1), size, bidirect = TRUE)
+    pwm_plus <- compute_spat_pwm(pssm, intervals %>% mutate(strand = 1), size, bidirect = TRUE)
     freqs_plus <- pwm_plus >= pwm_threshold
     freqs_minus <- pwm_minus >= pwm_threshold
 
@@ -140,7 +140,7 @@ compute_traj_model_directional_hits <- function(traj_model, size, pwm_quantile =
 }
 
 
-compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_threshold = 7, sequences = NULL, atac_track = NULL) {
+compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_threshold = 7, sequences = NULL, atac_track = NULL, bidirect_size = NULL) {
     if (is.null(sequences)) {
         if (is.null(intervals)) {
             cli_abort("Either {.field {intervals}} or {.field {sequences}} must be provided.")
@@ -155,7 +155,17 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
         sequences <- toupper(misha::gseq.extract(intervals))
     }
 
-    local_pwm <- prego::compute_local_pwm(sequences, pssm)
+    if (!is.null(bidirect_size)){
+        if (is.null(intervals)) {
+            cli_abort("intervals must be provided providing {.field bidirect_size}.")
+        }
+
+        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(intervals, bidirect_size)))
+    }
+
+    sequences <- direct_sequences(sequences, pssm)
+
+    local_pwm <- prego::compute_local_pwm(sequences, pssm, bidirect = TRUE)
 
     local_pwm_n <- norm_energy(local_pwm, min_energy = -10, q = 1)
 
@@ -170,10 +180,19 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
         if (is.null(intervals)) {
             cli_abort("Intervals must be provided when computing ATAC-seq frequency.")
         }
-        atac <- gextract(atac_track, iterator = 1, intervals = intervals, colnames = "v")
+        if (is.null(size)){
+            size <- intervals$end[1] - intervals$start[1]
+        }
+        # align the intervals to the maximum in every sequence
+        max_pwms <- apply(local_pwm_n, 1, which.max)
+        atac_intervals <- intervals %>%
+            mutate(start = start + max_pwms) %>%
+            misha.ext::gintervals.normalize(size) %>%
+            select(chrom, start, end)
+        atac <- gextract(atac_track, iterator = 1, intervals = atac_intervals, colnames = "v")
         atac_mat <- atac %>%
             arrange(intervalID) %>%
-            mutate(pos = start - intervals$start[intervalID] + 1) %>%
+            mutate(pos = start - atac_intervals$start[intervalID] + 1) %>%
             select(intervalID, pos, v) %>%
             tidyr::spread(pos, v) %>%
             select(-intervalID) %>%
