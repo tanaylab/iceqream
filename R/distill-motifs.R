@@ -88,31 +88,6 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
         return(NULL)
     }
 
-    if (length(clust_motifs) == 1) {
-        pssm <- pssm_db %>% filter(motif == !!motif)
-
-        if (!is.null(spat_db)) {
-            spat <- spat_db[[motif]]
-        } else {
-            spat <- NULL
-        }
-
-        if (!is.null(spat_min)) {
-            spat_min <- spat_min[[motif]]
-        } else {
-            spat_min <- NULL
-        }
-
-        if (!is.null(spat_max)) {
-            spat_max <- spat_max[[motif]]
-        } else {
-            spat_max <- NULL
-        }
-
-
-        return(list(pssm = pssm, spat = spat, spat_min = spat_min, spat_max = spat_max))
-    }
-
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
 
     sequences_directed <- direct_sequences(sequences, pssm)
