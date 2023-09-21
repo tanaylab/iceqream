@@ -259,5 +259,4 @@ plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL
         traj_model_clust@features_r2 <- traj_model@features_r2[x$motif]
         plot_motifs_report(traj_model_clust, filename = file.path(dir, paste0("clust_", x$clust[1], ".pdf")), title = paste0("Cluster ", x$clust[1], " (", nrow(x), " motifs)"), spatial_freqs = spatial_freqs)
     })
-
 }
