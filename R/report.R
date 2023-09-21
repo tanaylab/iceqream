@@ -205,6 +205,13 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
             theme_void())
     }
 
+    if ("k27ac" %in% colnames(spatial_freqs)) {
+        k27ac_p <- purrr::map(names(models), ~ plot_epi_spatial_freq(spatial_freqs, .x, "k27ac"))
+    } else {
+        k27ac_p <- purrr::map(names(models), ~ ggplot() +
+            theme_void())
+    }
+
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
     p <- patchwork::wrap_plots(
@@ -213,10 +220,11 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
         C = patchwork::wrap_plots(spatial_p, ncol = 1),
         D = patchwork::wrap_plots(spat_freq_p, ncol = 1),
         E = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
-        F = patchwork::wrap_plots(k4me3_p, ncol = 1),
-        G = patchwork::wrap_plots(k27me3_p, ncol = 1),
-        design = "ABCDEFG",
-        widths = c(0.5, 0.1, 0.1, 0.3, 0.3, 0.3, 0.3)
+        F = patchwork::wrap_plots(k27ac_p, ncol = 1),
+        G = patchwork::wrap_plots(k4me3_p, ncol = 1),
+        H = patchwork::wrap_plots(k27me3_p, ncol = 1),
+        design = "ABCDEFGH",
+        widths = c(0.5, 0.1, 0.1, 0.3, 0.3, 0.3, 0.3, 0.3)
     )
 
     if (!is.null(title)) {
@@ -225,7 +233,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
 
     if (!is.null(filename)) {
         if (is.null(width)) {
-            width <- 24
+            width <- 27
         }
         if (is.null(height)) {
             height <- motif_num * 1.8
