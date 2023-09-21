@@ -11,7 +11,11 @@ compute_traj_model_spatial_freq(
   top_q = 0.1,
   bottom_q = 0.1,
   atac_track = NULL,
-  parallel = TRUE
+  parallel = TRUE,
+  bidirect_size = NULL,
+  k4me3_track = NULL,
+  k27me3_track = NULL,
+  k27ac_track = NULL
 )
 }
 \arguments{
@@ -24,6 +28,14 @@ compute_traj_model_spatial_freq(
 \item{top_q}{The proportion of top peaks to select}
 
 \item{bottom_q}{The proportion of bottom peaks to select}
+
+\item{bidirect_size}{Size of the intervals to use for deciding the directionality of the sequence}
+
+\item{k4me3_track}{name of k4me3 track}
+
+\item{k27me3_track}{name of k27me3 track}
+
+\item{k27ac_track}{name of k27ac track}
 }
 \value{
 A data frame with the spatial frequency of each motif

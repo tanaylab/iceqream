@@ -6,6 +6,25 @@
 #'
 #' @export
 plot_prediction_scatter <- function(traj_model) {
+    r <- get_obs_pred_df(traj_model)
+    plot_df <- r$df
+    type_str <- r$type_str
+
+    limits <- c(min(plot_df$observed, plot_df$predicted), max(plot_df$observed, plot_df$predicted))
+
+    p <- ggplot(plot_df, aes(x = observed, y = predicted)) +
+        geom_point(alpha = 0.5) +
+        geom_abline(intercept = 0, slope = 1, color = "red") +
+        labs(x = "Observed ATAC difference", y = "Predicted ATAC difference") +
+        xlim(limits) +
+        ylim(limits) +
+        ggtitle(paste0("R^2 = ", round(summary(lm(predicted ~ observed, data = plot_df))$r.squared, 2), type_str)) +
+        theme_classic()
+
+    return(p)
+}
+
+get_obs_pred_df <- function(traj_model) {
     type_str <- ""
     if (sum(traj_model@type == "test") == 0) {
         cli::cli_alert_warning("No test intervals found. Please run {.func infer_trajectory_motifs} first. Using train intervals instead.")
@@ -21,16 +40,37 @@ plot_prediction_scatter <- function(traj_model) {
         )
     }
 
-    limits <- c(min(plot_df$observed, plot_df$predicted), max(plot_df$observed, plot_df$predicted))
+    return(list(df = plot_df, type_str = type_str))
+}
 
-    p <- ggplot(plot_df, aes(x = observed, y = predicted)) +
-        geom_point(alpha = 0.5) +
-        geom_abline(intercept = 0, slope = 1, color = "red") +
-        labs(x = "Observed ATAC difference", y = "Predicted ATAC difference") +
-        xlim(limits) +
-        ylim(limits) +
-        ggtitle(paste0("R^2 = ", round(summary(lm(predicted ~ observed, data = plot_df))$r.squared, 2), type_str)) +
-        theme_classic()
+#' Plot a boxplot of observed vs predicted ATAC differences
+#'
+#' This function takes a trajectory model and plots a boxplot of the observed vs predicted ATAC differences.
+#' The plot is grouped by the observed ATAC difference, which is divided into n_groups quantiles.
+#'
+#' @param traj_model A trajectory model object
+#' @param n_groups The number of groups to divide the observed ATAC difference into
+#'
+#' @return A ggplot object representing the boxplot
+#'
+#' @export
+plot_prediction_boxplot <- function(traj_model, n_groups = 5) {
+    r <- get_obs_pred_df(traj_model)
+    plot_df <- r$df
+    type_str <- r$type_str
+
+    plot_df <- plot_df %>%
+        mutate(obs_group = cut(observed, quantile(observed, seq(0, 1, length.out = n_groups + 1)), include.lowest = TRUE)) %>%
+        gather(key = "type", value = "value", observed, predicted)
+
+    p <- plot_df %>%
+        ggplot(aes(x = obs_group, y = value, fill = type)) +
+        geom_boxplot() +
+        labs(x = "Observed ATAC difference", y = "ATAC difference") +
+        scale_fill_manual(name = "", values = c(observed = "blue", predicted = "darkred")) +
+        theme_classic() +
+        theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+
 
     return(p)
 }
@@ -151,6 +191,20 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
             theme_void())
     }
 
+    if ("k4me3" %in% colnames(spatial_freqs)) {
+        k4me3_p <- purrr::map(names(models), ~ plot_epi_spatial_freq(spatial_freqs, .x, "k4me3"))
+    } else {
+        k4me3_p <- purrr::map(names(models), ~ ggplot() +
+            theme_void())
+    }
+
+    if ("k27me3" %in% colnames(spatial_freqs)) {
+        k27me3_p <- purrr::map(names(models), ~ plot_epi_spatial_freq(spatial_freqs, .x, "k27me3"))
+    } else {
+        k27me3_p <- purrr::map(names(models), ~ ggplot() +
+            theme_void())
+    }
+
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
     p <- patchwork::wrap_plots(
@@ -159,8 +213,10 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
         C = patchwork::wrap_plots(spatial_p, ncol = 1),
         D = patchwork::wrap_plots(spat_freq_p, ncol = 1),
         E = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
-        design = "ABCDE",
-        widths = c(0.5, 0.1, 0.1, 0.3, 0.3)
+        F = patchwork::wrap_plots(k4me3_p, ncol = 1),
+        G = patchwork::wrap_plots(k27me3_p, ncol = 1),
+        design = "ABCDEFG",
+        widths = c(0.5, 0.1, 0.1, 0.3, 0.3, 0.3, 0.3)
     )
 
     if (!is.null(title)) {
@@ -169,7 +225,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
 
     if (!is.null(filename)) {
         if (is.null(width)) {
-            width <- 18
+            width <- 24
         }
         if (is.null(height)) {
             height <- motif_num * 1.8
@@ -261,4 +317,6 @@ plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL
     })
 
     system(glue("ml load python3/3.7.5; /home/aviezerl/tools/pdftools/pdfmerge.py -o {dir}/all.pdf {files}", files = paste0(glue::glue("{dir}/clust_"), 1:k, ".pdf", collapse = " ")))
+
+    invisible(clust_df)
 }
