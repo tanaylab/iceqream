@@ -13,7 +13,9 @@ learn_traj_prego(
   min_energy = -10,
   sample_fraction = 0.1,
   sequences = NULL,
-  seed = NULL
+  seed = NULL,
+  peaks_size = 300,
+  ...
 )
 }
 \arguments{
@@ -34,6 +36,10 @@ learn_traj_prego(
 \item{sequences}{A character vector of sequences to learn the motifs on. If NULL, the sequences of the peaks are used.}
 
 \item{seed}{Random seed}
+
+\item{peaks_size}{size of the peaks to extract sequences from. Default: 300bp}
+
+\item{...}{Additional arguments to be passed to \code{prego::regress_pwm}}
 }
 \description{
 Learn 'prego' models for ATAC difference of a trajectory
