@@ -20,15 +20,15 @@ compute_spat_pwm <- function(pssm, intervals = NULL, size = NULL, sequences = NU
     return(local_pwm_n)
 }
 
-direct_sequences <- function(sequences, pssm) {
+direct_sequences <- function(sequences, pssm, bidi_seqs = sequences) {
     sequences_rc <- chartr("acgtACGT", "tgcaTGCA", sequences) %>%
         stringi::stri_reverse()
 
-    size <- nchar(sequences[1])
+    size <- nchar(bidi_seqs[1])
     middle_point <- round(size / 2)
 
-    s_l <- substr(sequences, 1, middle_point)
-    s_r <- substr(sequences, (middle_point + 1), size)
+    s_l <- substr(bidi_seqs, 1, middle_point)
+    s_r <- substr(bidi_seqs, (middle_point + 1), size)
 
     l_pwm <- prego::compute_pwm(s_l, pssm, bidirect = TRUE)
     r_pwm <- prego::compute_pwm(s_r, pssm, bidirect = TRUE)
@@ -140,7 +140,7 @@ compute_traj_model_directional_hits <- function(traj_model, size, pwm_quantile =
 }
 
 
-compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_threshold = 7, sequences = NULL, atac_track = NULL, bidirect_size = NULL) {
+compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_threshold = 7, sequences = NULL, atac_track = NULL, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, ...) {
     if (is.null(sequences)) {
         if (is.null(intervals)) {
             cli_abort("Either {.field {intervals}} or {.field {sequences}} must be provided.")
@@ -155,15 +155,17 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
         sequences <- toupper(misha::gseq.extract(intervals))
     }
 
-    if (!is.null(bidirect_size)){
+    if (!is.null(bidirect_size)) {
         if (is.null(intervals)) {
             cli_abort("intervals must be provided providing {.field bidirect_size}.")
         }
 
-        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(intervals, bidirect_size)))
+        sequences_d <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(intervals, bidirect_size)))
+    } else {
+        sequences_d <- sequences
     }
 
-    sequences <- direct_sequences(sequences, pssm)
+    sequences <- direct_sequences(sequences, pssm, bidi_seqs = sequences_d)
 
     local_pwm <- prego::compute_local_pwm(sequences, pssm, bidirect = TRUE)
 
@@ -176,11 +178,13 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
     n <- nrow(freqs)
     n_hits <- sum(freqs, na.rm = TRUE)
 
+    res <- tibble::tibble(pos = 1:length(spat_freq), freq = spat_freq, n = n, n_hits = n_hits)
+
     if (!is.null(atac_track)) {
         if (is.null(intervals)) {
             cli_abort("Intervals must be provided when computing ATAC-seq frequency.")
         }
-        if (is.null(size)){
+        if (is.null(size)) {
             size <- intervals$end[1] - intervals$start[1]
         }
         # align the intervals to the maximum in every sequence
@@ -198,14 +202,49 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             select(-intervalID) %>%
             as.matrix()
         atac_freq <- colMeans(atac_mat, na.rm = TRUE)
-        return(
-            tibble::tibble(pos = 1:length(spat_freq), freq = spat_freq, n = n, n_hits = n_hits, atac_freq = atac_freq)
-        )
+        res$atac_freq <- atac_freq
     }
 
-    return(
-        tibble::tibble(pos = 1:length(spat_freq), freq = spat_freq, n = n, n_hits = n_hits)
-    )
+    dinucs <- calc_sequences_dinuc_dist(sequences)
+
+    res <- res %>%
+        left_join(dinucs, by = "pos")
+
+    # add additional features
+    if (!is.null(k4me3_track)) {
+        res <- res %>%
+            mutate(k4me3 = calc_track_pos_data(k4me3_track, atac_intervals))
+    }
+
+    if (!is.null(k27me3_track)) {
+        res <- res %>%
+            mutate(k27me3 = calc_track_pos_data(k27me3_track, atac_intervals))
+    }
+
+    if (!is.null(k27ac_track)) {
+        res <- res %>%
+            mutate(k27ac = calc_track_pos_data(k27ac_track, atac_intervals))
+    }
+
+    return(res)
+}
+
+calc_track_pos_data <- function(track, intervals, threshold = 7) {
+    withr::local_options(list(gmultitasking = FALSE, gmax.data.size = 1e7))
+    gvtrack.create("track", track, "global.percentile.max")
+    chip_data <- gextract(c("-log2(1-track)"), iterator = 1, intervals = intervals, colnames = "track") %>%
+        arrange(intervalID) %>%
+        mutate(pos = start - intervals$start[intervalID] + 1)
+
+    track_mat <- chip_data %>%
+        select(intervalID, pos, v = track) %>%
+        tidyr::spread(pos, v) %>%
+        select(-intervalID) %>%
+        as.matrix()
+
+    track_mat <- track_mat >= threshold
+    track <- colMeans(track_mat, na.rm = TRUE)
+    return(track)
 }
 
 #' Compute spatial frequency of motifs in trajectory model
@@ -217,11 +256,15 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
 #' @param pwm_threshold The threshold for the PWM score
 #' @param top_q The proportion of top peaks to select
 #' @param bottom_q The proportion of bottom peaks to select
+#' @param bidirect_size Size of the intervals to use for deciding the directionality of the sequence
+#' @param k4me3_track name of k4me3 track
+#' @param k27me3_track name of k27me3 track
+#' @param k27ac_track name of k27ac track
 #'
 #' @return A data frame with the spatial frequency of each motif
 #'
 #' @export
-compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE) {
+compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL) {
     intervals <- traj_model@peak_intervals
 
     # select top and bottom 10% of peaks using diff_score
@@ -241,6 +284,10 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
                 size = size,
                 pwm_threshold = pwm_threshold,
                 atac_track = atac_track,
+                bidirect_size = bidirect_size,
+                k4me3_track = k4me3_track,
+                k27me3_track = k27me3_track,
+                k27ac_track = k27ac_track
             ) %>%
                 mutate(type = "top"),
             compute_pssm_spatial_freq(
@@ -248,13 +295,39 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
                 intervals = intervals %>% filter(type == "bottom"),
                 size = size,
                 pwm_threshold = pwm_threshold,
-                atac_track = atac_track
+                atac_track = atac_track,
+                bidirect_size = bidirect_size,
+                k4me3_track = k4me3_track,
+                k27me3_track = k27me3_track,
+                k27ac_track = k27ac_track
             ) %>%
                 mutate(type = "bottom")
         ) %>% mutate(motif = motif)
     }, .parallel = parallel)
 
     return(spatial_freqs)
+}
+
+plot_epi_spatial_freq <- function(spatial_freqs, motif, mark, smooth = 10) {
+    spatial_freqs <- spatial_freqs %>%
+        filter(motif == !!motif)
+
+    spatial_freqs$mark <- spatial_freqs[, mark]
+
+    spatial_freqs <- spatial_freqs %>%
+        mutate(p = zoo::rollmean(mark, smooth, fill = NA, align = "center"))
+
+
+    p <- ggplot(spatial_freqs, aes(x = pos, y = p, color = type)) +
+        geom_line() +
+        scale_color_manual(name = "", values = c(top = "red", bottom = "blue")) +
+        theme_classic() +
+        theme(legend.position = "none") +
+        xlab("Position") +
+        ylab("Frequency") +
+        ggtitle(mark)
+
+    return(p)
 }
 
 #' Plot motif spatial frequency
@@ -316,6 +389,18 @@ plot_motif_spatial_freq <- function(spatial_freqs, motif, smooth = 10, plot_atac
         p <- p + annotate("text", x = 1, y = 0.9 * max(spatial_freqs$freq_roll, na.rm = TRUE), label = glue::glue("N = {n_hits_top} ({round(n_hits_top / n_top, 2)})"), hjust = 0, size = 3, color = "red")
         p <- p + annotate("text", x = 1, y = 0.75 * max(spatial_freqs$freq_roll, na.rm = TRUE), label = glue::glue("N = {n_bottom_hits} ({round(n_bottom_hits / n_bottom, 2)})"), hjust = 0, size = 3, color = "blue")
     }
+
+    # dinucs plot
+    # spatial_freqs %>%
+    #     select(pos, AA:TT, type) %>%
+    #     gather("dinuc", "p", -pos, -type) %>%
+    #     mutate(p = zoo::rollmean(p, smooth, fill = NA, align = "center")) %>%
+    #     as_tibble() %>%
+    #     ggplot(aes(x = pos, y = p, color = type)) +
+    #     geom_line() +
+    #     facet_wrap(~dinuc) +
+    #     theme_classic() +
+    #     scale_color_manual(name = "", values = c(top = "red", bottom = "blue"))
 
     return(p)
 }
