@@ -41,6 +41,7 @@
 #'  A data frame containing the additional features.
 #'
 #'
+#'
 #' @exportClass TrajectoryModel
 TrajectoryModel <- setClass(
     "TrajectoryModel",
@@ -213,7 +214,7 @@ regress_trajectory_motifs <- function(atac_scores,
             cli_abort("Please make sure the current genome ({.field {GROOT}}) has an intervals set called {.val intervs.global.tss}")
         }
 
-        tss_dist <- abs(misha::gintervals.neighbors(peak_intervals, "intervs.global.tss", na.if.notfound = TRUE)$dist)
+        tss_dist <- abs(misha::gintervals.neighbors(peak_intervals, "intervs.global.tss")$dist)
         enhancers_filter <- tss_dist > min_tss_distance
         if (sum(!enhancers_filter) > 0) {
             cli_alert_info("{.val {sum(!enhancers_filter)}} peaks were filtered out because they are too close to TSS (<= {.val min_tss_distance}bp)")
@@ -273,10 +274,11 @@ regress_trajectory_motifs <- function(atac_scores,
     cli_alert_info("Taking {.val {length(features)}} features with beta >= {.val {feature_selection_beta}}")
 
     cli_alert_info("Running second round of regression...")
-    glm_model2 <- glmnet::glmnet(motif_energies[, features], atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
+    additional_features[is.na(additional_features)] <- 0
+    glm_model2 <- glmnet::glmnet(as.matrix(cbind(motif_energies[, features], additional_features[rownames(motif_energies),])), atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
 
     chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
-    features <- motif_energies[, chosen_motifs]
+    features <- motif_energies[, setdiff(chosen_motifs, colnames(additional_features))]
 
     distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length)
     clust_energies <- distilled$energies
@@ -309,8 +311,7 @@ regress_trajectory_motifs <- function(atac_scores,
             lambda = lambda,
             peaks_size = peaks_size,
             spat_num_bins = spat_num_bins,
-            spat_bin_size = spat_bin_size,
-            distilled_features = distilled$features
+            spat_bin_size = spat_bin_size
         )
     )
 
@@ -372,7 +373,7 @@ validate_additional_features <- function(additional_features, peak_intervals) {
 calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datasets(), motif_energies = NULL) {
     if (is.null(motif_energies)) {
         cli_alert("Computing motif energies (this might take a while)")
-        motif_energies <- prego::gextract_pwm(peak_intervals %>% select(chrom, start, end), dataset = pssm_db, prior = 0.01) %>%
+        motif_energies <- prego::gextract_pwm(peak_intervals, dataset = pssm_db, prior = 0.01) %>%
             select(-chrom, -start, -end) %>%
             as.matrix()
     }
@@ -395,8 +396,8 @@ get_model_coefs <- function(model) {
         as.data.frame() %>%
         tibble::rownames_to_column("variable")
     df <- df %>% filter(variable != "(Intercept)")
-    colnames(df)[2] <- "s1"
-
+    colnames(df)[2] = "s1"
+    
     df <- df %>%
         mutate(type = sub(".*_", "", variable), variable = sub("_(early|late|linear)$", "", variable)) %>%
         tidyr::spread(type, s1)
