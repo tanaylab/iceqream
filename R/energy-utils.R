@@ -102,29 +102,27 @@ rescale <- function(x, new_min = -1, new_max = 1) {
 #' @return A numeric vector of logistic function values.
 #'
 #' @examples
-#' x_vals <- seq(-10, 10, by = 0.1)
+#' x_vals <- seq(0, 10, by = 0.1)
 #'
 #' # Calculate the features for each scenario
 #' features_early <- logist(x_vals, x_0 = 0, L = 2, k = 1) - 1
 #' features_linear <- logist(x_vals, x_0 = 0, L = 2, k = 0.5) - 1
-#' features_late <- logist(x_vals, x_0 = 0, L = 2, k = 0.25) - 1
-#' features_shifted <- logist(x_vals, x_0 = 5, L = 2, k = 1) - 1
+#' features_late <- logist(x_vals, x_0 = 0, L = 2, k = 0.25) - 1 #'
 #'
 #' # Base plot setup
 #' plot(x_vals, features_early,
 #'     type = "l", col = "blue",
 #'     main = "Variations of the Logistic Function",
-#'     xlab = "x", ylab = "y", ylim = c(-1, 1), lwd = 2
+#'     xlab = "x", ylab = "y", ylim = c(0, 1), lwd = 2
 #' )
 #'
 #' # Adding other variations
 #' lines(x_vals, features_linear, col = "red", lwd = 2)
 #' lines(x_vals, features_late, col = "green", lwd = 2)
-#' lines(x_vals, features_shifted, col = "purple", lwd = 2)
 #'
 #' legend("topleft",
-#'     legend = c("Early", "Linear", "Late", "Shifted x_0=5"),
-#'     col = c("blue", "red", "green", "purple"), lty = 1, lwd = 2
+#'     legend = c("Early", "Linear", "Late"),
+#'     col = c("blue", "red", "green"), lty = 1, lwd = 2
 #' )
 #'
 #' @export
@@ -177,5 +175,3 @@ create_logist_features <- function(features) {
 
     return(features)
 }
-
-
