@@ -275,7 +275,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
     cli_alert_info("Running second round of regression...")
     additional_features[is.na(additional_features)] <- 0
-    glm_model2 <- glmnet::glmnet(as.matrix(cbind(motif_energies[, features], additional_features[rownames(motif_energies),])), atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
+    glm_model2 <- glmnet::glmnet(as.matrix(cbind(motif_energies[, features], additional_features)), atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
 
     chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
     features <- motif_energies[, setdiff(chosen_motifs, colnames(additional_features))]
@@ -396,8 +396,8 @@ get_model_coefs <- function(model) {
         as.data.frame() %>%
         tibble::rownames_to_column("variable")
     df <- df %>% filter(variable != "(Intercept)")
-    colnames(df)[2] = "s1"
-    
+    colnames(df)[2] <- "s1"
+
     df <- df %>%
         mutate(type = sub(".*_", "", variable), variable = sub("_(low-energy|high-energy|higher-energy|sigmoid)$", "", variable)) %>%
         tidyr::spread(type, s1)
