@@ -74,3 +74,14 @@ pssm_rc <- function(pssm) {
         mutate(pos = n() - pos + 1)
     return(pssm)
 }
+
+
+compute_directed_pwm <- function(
+    sequences, pssm, spat = NULL, spat_min = 1, spat_max = NULL,
+    prior = 0.01, func = "logSumExp") {
+    sequences <- direct_sequences(sequences, pssm)
+    return(prego::compute_pwm(sequences, pssm,
+        spat = spat, spat_min = spat_min, spat_max = spat_max,
+        bidirect = TRUE, prior = prior, func = func
+    ))
+}
