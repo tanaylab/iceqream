@@ -195,7 +195,7 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {
 
     coef_df <- coef_df %>%
         gather("type", "value", -variable) %>%
-        mutate(type = factor(type, levels = c("late", "linear", "early")))
+        mutate(type = factor(type, levels = c("low-energy", "sigmoid", "high-energy", "higher-energy")))
 
     p <- ggplot(coef_df, aes(x = type, y = value)) +
         geom_col() +

@@ -165,14 +165,21 @@ create_logist_features <- function(features) {
         colnames(features) <- paste0("V", seq_len(ncol(features)))
     }
 
-    features1 <- logist(features, x_0 = 0, L = 2, k = 1) - 1
-    colnames(features1) <- paste0(colnames(features), "_early")
-    features2 <- logist(features, x_0 = 0, L = 2, k = 0.5) - 1
+    features1 <- logist(features, x_0 = 0, L = 2, k = 0.5) - 1
+    colnames(features1) <- paste0(colnames(features), "_low-energy")
+    features2 <- features#(logist(features, x_0 = 0, L = 2, k = 0.1) - 1)*2.15
     colnames(features2) <- paste0(colnames(features), "_linear")
-    features3 <- logist(features, x_0 = 0, L = 2, k = 0.25) - 1
-    colnames(features3) <- paste0(colnames(features), "_late")
-
-    features <- as.matrix(cbind(features1, features2, features3))
+    features3 <- logist(features, x_0 = 10, L = 2, k = 0.50)
+    colnames(features3) <- paste0(colnames(features), "_high-energy")
+    features4 <- logist(features-5, x_0 = 0, L = 1, k = 1)
+    colnames(features4) <- paste0(colnames(features), "_sigmoid")
+    features5 <- logist(features, x_0 = 10, L = 2, k = 1)
+    colnames(features5) <- paste0(colnames(features), "_higher-energy")
+    features6 <- logist(features, x_0 = 0, L = 2, k = 1) - 1
+    colnames(features6) <- paste0(colnames(features), "_early-2")
+    
+    # features <- as.matrix(cbind(features1, features2, features3, features4))
+    features <- as.matrix(cbind(features1, features3, features4, features5))
     features <- features[, order(colnames(features))]
 
     return(features)
