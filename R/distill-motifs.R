@@ -29,7 +29,6 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, addition
 
     cli_alert_info("Learning a model for each motif cluster...")
     library(glmnet)
-
     best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
         run_prego_on_clust_residuals(
             x$feat,
@@ -54,7 +53,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, addition
     cli_alert_info("Infering energies...")
     clust_energies <- plyr::llply(purrr::discard(best_motifs_prego, is.null), function(x) {
         prego::compute_pwm(seqs, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = FALSE)
+    }, .parallel = TRUE)
 
     names(clust_energies) <- best_clust_map$feat
     clust_energies_raw <- do.call(cbind, clust_energies)
@@ -89,9 +88,7 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
     #     return(NULL)
     # }
 
-
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
-
 
     cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, symmetrize_spat = TRUE))
 
