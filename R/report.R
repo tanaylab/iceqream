@@ -174,7 +174,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
     if (free_coef_axis) {
         coef_limits <- NULL
     } else {
-        coef_limits <- c(min(as.matrix(traj_model@coefs[, c("early", "linear", "late")])), max(as.matrix(traj_model@coefs[, c("early", "linear", "late")])))
+        coef_limits <- c(min(as.matrix(traj_model@coefs[, c("low-energy", "sigmoid", "high-energy", "higher-energy")])), max(as.matrix(traj_model@coefs[, c("low-energy", "sigmoid", "high-energy", "higher-energy")])))
     }
     coefs_p <- purrr::map(names(models), ~ plot_coefs(traj_model, .x, limits = coef_limits, title = ""))
 
@@ -256,11 +256,12 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {
     if (nrow(coef_df) == 0) {
         cli_abort("Coefficient for variable {.val {variable}} not found.")
     }
-
+    
     coef_df <- coef_df %>%
         gather("type", "value", -variable) %>%
-        mutate(type = factor(type, levels = c("late", "linear", "early")))
-
+        mutate(type = factor(type, levels = c("low-energy", "sigmoid", "high-energy", "higher-energy")))
+    cli_alert_info("Plotting report motifs")
+    
     p <- ggplot(coef_df, aes(x = type, y = value)) +
         geom_col() +
         labs(x = "", y = "Coefficient") +
