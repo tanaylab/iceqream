@@ -102,29 +102,34 @@ rescale <- function(x, new_min = -1, new_max = 1) {
 #' @return A numeric vector of logistic function values.
 #'
 #' @examples
-#' x_vals <- seq(-10, 10, by = 0.1)
+#' x_vals <- seq(0, 10, by = 0.1)
 #'
 #' # Calculate the features for each scenario
-#' features_early <- logist(x_vals, x_0 = 0, L = 2, k = 1) - 1
-#' features_linear <- logist(x_vals, x_0 = 0, L = 2, k = 0.5) - 1
-#' features_late <- logist(x_vals, x_0 = 0, L = 2, k = 0.25) - 1
-#' features_shifted <- logist(x_vals, x_0 = 5, L = 2, k = 1) - 1
+#' features_low_energy <- logist(x_vals, x_0 = 0, L = 2, k = 0.5) - 1
+#' features_high_energy <- logist(x_vals, x_0 = 10, L = 2, k = 0.5)
+#' features_sigmoid <- logist(x_vals, x_0 = 0, L = 1, k = 1)
+#' features_higher_energy <- logist(x_vals, x_0 = 10, L = 2, k = 1)
+#' features_early2 <- logist(x_vals, x_0 = 0, L = 2, k = 1) - 1
 #'
 #' # Base plot setup
-#' plot(x_vals, features_early,
+#' plot(x_vals, features_low_energy * 10,
 #'     type = "l", col = "blue",
 #'     main = "Variations of the Logistic Function",
-#'     xlab = "x", ylab = "y", ylim = c(-1, 1), lwd = 2
+#'     xlab = "x", ylab = "y", ylim = c(0, 10), lwd = 2
 #' )
 #'
 #' # Adding other variations
-#' lines(x_vals, features_linear, col = "red", lwd = 2)
-#' lines(x_vals, features_late, col = "green", lwd = 2)
-#' lines(x_vals, features_shifted, col = "purple", lwd = 2)
+#' lines(x_vals, features_high_energy * 10, col = "orange", lwd = 2)
+#' lines(x_vals, features_sigmoid * 10, col = "purple", lwd = 2)
+#' lines(x_vals, features_higher_energy * 10, col = "brown", lwd = 2)
+#' lines(x_vals, features_early2 * 10, col = "green", lwd = 2)
+#' lines(x_vals, x_vals, col = "black", lwd = 2, lty = 2)
 #'
-#' legend("topleft",
-#'     legend = c("Early", "Linear", "Late", "Shifted x_0=5"),
-#'     col = c("blue", "red", "green", "purple"), lty = 1, lwd = 2
+#' legend("bottomright",
+#'     legend = c("Low Energy", "High Energy", "Sigmoid", "Higher Energy", "Early 2", "Linear"),
+#'     col = c("blue", "orange", "purple", "brown", "green", "black"),
+#'     lty = 1,
+#'     lwd = 2
 #' )
 #'
 #' @export
@@ -167,18 +172,17 @@ create_logist_features <- function(features) {
 
     features1 <- logist(features, x_0 = 0, L = 2, k = 0.5) - 1
     colnames(features1) <- paste0(colnames(features), "_low-energy")
-    features2 <- features#(logist(features, x_0 = 0, L = 2, k = 0.1) - 1)*2.15
-    colnames(features2) <- paste0(colnames(features), "_linear")
+    # features2 <- features
+    # colnames(features2) <- paste0(colnames(features), "_linear")
     features3 <- logist(features, x_0 = 10, L = 2, k = 0.50)
     colnames(features3) <- paste0(colnames(features), "_high-energy")
-    features4 <- logist(features-5, x_0 = 0, L = 1, k = 1)
+    features4 <- logist(features - 5, x_0 = 0, L = 1, k = 1)
     colnames(features4) <- paste0(colnames(features), "_sigmoid")
     features5 <- logist(features, x_0 = 10, L = 2, k = 1)
     colnames(features5) <- paste0(colnames(features), "_higher-energy")
-    features6 <- logist(features, x_0 = 0, L = 2, k = 1) - 1
-    colnames(features6) <- paste0(colnames(features), "_early-2")
-    
-    # features <- as.matrix(cbind(features1, features2, features3, features4))
+    # features6 <- logist(features, x_0 = 0, L = 2, k = 1) - 1
+    # colnames(features6) <- paste0(colnames(features), "_early-2")
+
     features <- as.matrix(cbind(features1, features3, features4, features5))
     features <- features[, order(colnames(features))]
 
