@@ -399,7 +399,7 @@ get_model_coefs <- function(model) {
     colnames(df)[2] = "s1"
     
     df <- df %>%
-        mutate(type = sub(".*_", "", variable), variable = sub("_(early|late|linear)$", "", variable)) %>%
+        mutate(type = sub(".*_", "", variable), variable = sub("_(low-energy|high-energy|higher-energy|sigmoid)$", "", variable)) %>%
         tidyr::spread(type, s1)
 
     df[is.na(df)] <- 0
