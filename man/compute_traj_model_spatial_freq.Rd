@@ -15,7 +15,8 @@ compute_traj_model_spatial_freq(
   bidirect_size = NULL,
   k4me3_track = NULL,
   k27me3_track = NULL,
-  k27ac_track = NULL
+  k27ac_track = NULL,
+  orient_to_intervals = NULL
 )
 }
 \arguments{
@@ -36,6 +37,8 @@ compute_traj_model_spatial_freq(
 \item{k27me3_track}{name of k27me3 track}
 
 \item{k27ac_track}{name of k27ac track}
+
+\item{orient_to_intervals}{A data frame containing the intervals to orient the sequences to}
 }
 \value{
 A data frame with the spatial frequency of each motif

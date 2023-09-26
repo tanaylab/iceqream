@@ -177,7 +177,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             cli_abort("Intervals must be provided when orienting to intervals.")
         }
 
-        intervals <- misha.ext::gintervals.neighbors1(intervals, orient_to_intervals) %>%
+        intervals <- misha.ext::gintervals.neighbors1(intervals, orient_to_intervals, mindist = 1) %>%
             mutate(strand = ifelse(dist < 0, -1, 1)) %>%
             select(chrom, start, end, strand)
     }
