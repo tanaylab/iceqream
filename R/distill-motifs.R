@@ -84,9 +84,9 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
     pssm <- pssm_db %>%
         filter(motif == !!motif)
 
-    if (nrow(pssm) == 0) { # Motif is part of additional features
-        return(NULL)
-    }
+    # if (nrow(pssm) == 0) { # Motif is part of additional features
+    #     return(NULL)
+    # }
 
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
 
