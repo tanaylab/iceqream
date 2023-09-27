@@ -52,7 +52,7 @@ norm_energy <- function(x, min_energy = -10, q = 1) {
     y <- log2(x / quantile(x, q, na.rm = TRUE))
     y[y > 0] <- 0
     y[y < min_energy] <- min_energy
-    y <- y - min(y, na.rm = TRUE)
+    y <- y - min_energy
     return(y)
 }
 
