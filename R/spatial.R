@@ -239,7 +239,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
         res$atac_freq <- atac_freq
     }
 
-    dinucs <- calc_sequences_dinuc_dist(sequences)
+    dinucs <- prego::calc_sequences_dinuc_dist(sequences)
 
     res <- res %>%
         left_join(dinucs, by = "pos")
