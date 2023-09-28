@@ -1,5 +1,65 @@
-distill_motifs <- function(features, target_number, glm_model, y, seqs, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL) {
-    nclust <- min(ncol(features), target_number * 2)
+#' Distill trajectory model
+#'
+#' @description This function takes a trajectory model and reduces the number of motifs using 'prego'.
+#'
+#' @param traj_model A trajectory model object
+#' @param max_motif_num The maximum number of motifs to select
+#' @param parallel Whether to use parallel processing
+#'
+#' @return A distilled trajectory model object with \code{max_motif_num} models + additional features.
+#'
+#' @export
+distill_traj_model <- function(traj_model, max_motif_num, parallel = TRUE) {
+    if (any(traj_model@type == "test")) {
+        cli_abort("Cannot distill a trajectory model with test peaks.")
+    }
+
+    pssm_db <- purrr::imap_dfr(traj_model@motif_models, ~ .x$pssm %>% mutate(motif = .y)) %>%
+        select(motif, pos, everything())
+    params <- traj_model@params
+    withr::local_options(list(gmax.data.size = 1e9))
+    seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@peak_intervals, params$peaks_size)))
+    atac_diff <- traj_model@diff_score
+    atac_diff_n <- norm01(atac_diff)
+
+    glm_linear <- glmnet::glmnet(as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features)), atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
+
+    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, seqs = seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num)
+
+    clust_energies <- distilled$energies
+    clust_energies_logist <- create_logist_features(clust_energies)
+
+    model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
+
+    predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = params$lambda))[, 1]
+    predicted_diff_score <- (predicted_diff_score * max(atac_diff)) + min(atac_diff)
+
+
+    cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
+
+    traj_model_distilled <- TrajectoryModel(
+        model = model,
+        motif_models = homogenize_pssm_models(distilled$motifs),
+        coefs = get_model_coefs(model),
+        normalized_energies = as.matrix(clust_energies),
+        model_features = clust_energies_logist,
+        type = traj_model@type,
+        additional_features = traj_model@additional_features,
+        diff_score = atac_diff,
+        predicted_diff_score = predicted_diff_score,
+        initial_prego_models = traj_model@initial_prego_models,
+        peak_intervals = traj_model@peak_intervals,
+        params = traj_model@params
+    )
+
+    return(traj_model_distilled)
+}
+
+distill_motifs <- function(features, target_number, glm_model, y, seqs, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL) {
+    if (is.null(nclust)) {
+        nclust <- min(ncol(features), target_number * 2)
+    }
+
     cli_alert_info("Clustering {.val {ncol(features)}} features into {.val {nclust}} clusters...")
     features_cm <- tgs_cor(features, pairwise.complete.obs = TRUE)
     hc <- tgs_dist(features_cm) %>% hclust(method = "ward.D2")
@@ -29,6 +89,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, addition
 
     cli_alert_info("Learning a model for each motif cluster...")
     library(glmnet)
+
     best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
         run_prego_on_clust_residuals(
             x$feat,
@@ -83,10 +144,6 @@ run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, s
     cli_alert("Running {.field prego} on cluster {.val {motif}}...")
     pssm <- pssm_db %>%
         filter(motif == !!motif)
-
-    # if (nrow(pssm) == 0) { # Motif is part of additional features
-    #     return(NULL)
-    # }
 
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
 

@@ -3,6 +3,7 @@
 export(compute_motif_directional_hits)
 export(compute_traj_model_spatial_freq)
 export(create_logist_features)
+export(distill_traj_model)
 export(filter_traj_model)
 export(homogenize_pssm_models)
 export(infer_trajectory_motifs)
