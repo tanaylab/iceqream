@@ -83,7 +83,7 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         if (length(object@features_r2) > 0) {
             cli_ul(c("{.field @features_r2}: A numeric vector of R^2 values for each feature ({.val {length(object@features_r2)}} elements)"))
         } else {
-            cli_ul(c("{.field @features_r2}: Please run {.code filter_traj_model} in order to calculate the R^2 values for each feature"))
+            cli_ul(c("{.field @features_r2}: Model was not filtered, no R^2 values available."))
         }
         cli_ul(c("{.field @params}: A list of parameters used for training (including: {.val {names(object@params)}})"))
 
@@ -311,7 +311,8 @@ regress_trajectory_motifs <- function(atac_scores,
             lambda = lambda,
             peaks_size = peaks_size,
             spat_num_bins = spat_num_bins,
-            spat_bin_size = spat_bin_size
+            spat_bin_size = spat_bin_size,
+            seed = seed
         )
     )
 
