@@ -36,12 +36,12 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
 
         rownames(additional_features) <- peaks_df$id
     }
- 
+
     peaks_df <- peaks_df %>%
         mutate(score = atac_diff) %>%
         filter(abs(score) >= min_diff)
 
-    if (has_name(peak_intervals, "const")) {         
+    if (has_name(peak_intervals, "const")) {
         peaks_df <- peaks_df %>%
             filter(!const) %>%
             select(-const)

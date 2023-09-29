@@ -15,6 +15,7 @@ learn_traj_prego(
   sequences = NULL,
   seed = NULL,
   peaks_size = 300,
+  additional_features = NULL,
   ...
 )
 }
@@ -38,6 +39,8 @@ learn_traj_prego(
 \item{seed}{Random seed}
 
 \item{peaks_size}{size of the peaks to extract sequences from. Default: 300bp}
+
+\item{additional_features}{A matrix of additional features to filter out before learning the motifs (e.g. CpG content, dinucleotide content, etc.)}
 
 \item{...}{Additional arguments to be passed to \code{prego::regress_pwm}}
 }
