@@ -53,7 +53,8 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     clust_energies <- do.call(cbind, clust_energies)
 
-    clust_energies <- apply(clust_energies, 2, norm_energy, min_energy = -10, q = traj_model@params$energy_norm_quantile)
+    clust_energies <- apply(clust_energies, 2, norm_energy, min_energy = -7, q = traj_model@params$energy_norm_quantile)
+    clust_energies <- apply(clust_energies, 2, norm01) * 10
 
     idxs <- peak_intervals %>%
         select(chrom, start, end) %>%

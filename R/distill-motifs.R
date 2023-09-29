@@ -118,7 +118,8 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, addition
 
     names(clust_energies) <- best_clust_map$feat
     clust_energies_raw <- do.call(cbind, clust_energies)
-    clust_energies <- apply(clust_energies_raw, 2, norm_energy, min_energy = -10, q = energy_norm_quantile)
+    clust_energies <- apply(clust_energies_raw, 2, norm_energy, min_energy = -7, q = energy_norm_quantile)
+    clust_energies <- apply(clust_energies, 2, norm01) * 10
 
     # add missing features
     missing_features <- setdiff(best_clust_map$feat, colnames(clust_energies))
