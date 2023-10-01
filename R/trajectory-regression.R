@@ -214,8 +214,9 @@ regress_trajectory_motifs <- function(atac_scores,
             cli_abort("Please make sure the current genome ({.field {GROOT}}) has an intervals set called {.val intervs.global.tss}")
         }
 
-        tss_dist <- abs(misha::gintervals.neighbors(peak_intervals, "intervs.global.tss")$dist)
+        tss_dist <- abs(misha::gintervals.neighbors(peak_intervals, "intervs.global.tss",na.if.notfound = TRUE)$dist)
         enhancers_filter <- tss_dist > min_tss_distance
+        enhancers_filter[is.na(enhancers_filter)] = FALSE
         if (sum(!enhancers_filter) > 0) {
             cli_alert_info("{.val {sum(!enhancers_filter)}} peaks were filtered out because they are too close to TSS (<= {.val min_tss_distance}bp)")
         }
@@ -265,6 +266,7 @@ regress_trajectory_motifs <- function(atac_scores,
     motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
 
     cli_alert_info("Selected {.val {length(motifs)}} (out of {.val {ncol(motif_energies)}}) features with absolute correlation >= {.val {min_initial_energy_cor}}")
+    motifs <- motifs[!is.na(motifs)]
     motif_energies <- motif_energies[, motifs]
 
     cli_alert_info("Running first round of regression, # of features: {.val {ncol(motif_energies)}}")
