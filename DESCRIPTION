@@ -33,7 +33,8 @@ Imports:
     zoo,
     glue,
     stringi,
-    doMC
+    doMC,
+    scattermore
 Suggests: 
     testthat (>= 3.0.0)
 Remotes: 

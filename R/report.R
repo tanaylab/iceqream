@@ -191,26 +191,24 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
             theme_void())
     }
 
-    if ("k4me3" %in% colnames(spatial_freqs)) {
-        k4me3_p <- purrr::map(names(models), ~ plot_epi_spatial_freq(spatial_freqs, .x, "k4me3"))
-    } else {
-        k4me3_p <- purrr::map(names(models), ~ ggplot() +
-            theme_void())
+    pr <- compute_partial_response(traj_model)
+    plot_e_vs_pr <- function(motif, ylim = NULL) {
+        p <- tibble(
+            e = traj_model@normalized_energies[, motif],
+            pr = pr[, motif]
+        ) %>%
+            ggplot(aes(x = e, y = pr)) +
+            scattermore::geom_scattermore(pointsize = 3) +
+            labs(x = "Energy", y = "Partial response") +
+            theme_classic() +
+            theme(aspect.ratio = 1)
+        if (!is.null(ylim)) {
+            p <- p + ylim(ylim)
+        }
+        return(p)
     }
 
-    if ("k27me3" %in% colnames(spatial_freqs)) {
-        k27me3_p <- purrr::map(names(models), ~ plot_epi_spatial_freq(spatial_freqs, .x, "k27me3"))
-    } else {
-        k27me3_p <- purrr::map(names(models), ~ ggplot() +
-            theme_void())
-    }
-
-    if ("k27ac" %in% colnames(spatial_freqs)) {
-        k27ac_p <- purrr::map(names(models), ~ plot_epi_spatial_freq(spatial_freqs, .x, "k27ac"))
-    } else {
-        k27ac_p <- purrr::map(names(models), ~ ggplot() +
-            theme_void())
-    }
+    e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x))
 
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
@@ -218,13 +216,11 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
         A = patchwork::wrap_plots(motifs_p, ncol = 1),
         B = patchwork::wrap_plots(coefs_p, ncol = 1),
         C = patchwork::wrap_plots(spatial_p, ncol = 1),
-        D = patchwork::wrap_plots(spat_freq_p, ncol = 1),
-        E = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
-        F = patchwork::wrap_plots(k27ac_p, ncol = 1),
-        G = patchwork::wrap_plots(k4me3_p, ncol = 1),
-        H = patchwork::wrap_plots(k27me3_p, ncol = 1),
-        design = "ABCDEFGH",
-        widths = c(0.5, 0.1, 0.1, 0.3, 0.3, 0.3, 0.3, 0.3)
+        D = patchwork::wrap_plots(spat_freq_p, ncol = 1),        
+        E = patchwork::wrap_plots(e_vs_pr_p, ncol = 1),
+        F = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
+        design = "ABCDEF",
+        widths = c(0.5, 0.1, 0.1, 0.3, 0.3, 0.3)
     )
 
     if (!is.null(title)) {
@@ -233,7 +229,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
 
     if (!is.null(filename)) {
         if (is.null(width)) {
-            width <- 27
+            width <- 24
         }
         if (is.null(height)) {
             height <- motif_num * 1.8
