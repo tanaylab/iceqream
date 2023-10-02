@@ -39,8 +39,22 @@ direct_sequences <- function(sequences, pssm, bidi_seqs = sequences) {
     return(new_sequences)
 }
 
+direct_intervals <- function(intervals, pssm, bidi_seqs = NULL) {
+    if (is.null(bidi_seqs)) {
+        bidi_seqs <- toupper(misha::gseq.extract(intervals))
+    }
+
+    bidi_seqs <- direct_sequences(bidi_seqs, pssm)
+
+    intervals <- intervals %>%
+        mutate(strand = ifelse(bidi_seqs == toupper(bidi_seqs), 1, -1))
+
+    return(intervals)
+}
+
 direct_traj_model <- function(traj_model, size = 500) {
     max_motifs <- apply(traj_model@normalized_energies, 1, function(x) colnames(traj_model@normalized_energies)[which.max(x)])
+    withr::local_options(list(gmax.data.size = 1e9))
 
     bidi_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@peak_intervals, size)))
 
@@ -56,7 +70,6 @@ direct_traj_model <- function(traj_model, size = 500) {
         prego::compute_pwm(s_r, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
     }, .parallel = TRUE)
     r_e <- do.call(cbind, r_e)
-
     r_ge_l <- r_e > l_e
 
     ge <- rep(NA, nrow(traj_model@peak_intervals))
@@ -263,12 +276,18 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
     return(res)
 }
 
-calc_track_pos_data <- function(track, intervals, threshold = 7) {
+calc_track_pos_data <- function(track, intervals, threshold = 7, direction = NULL) {
     withr::local_options(list(gmultitasking = FALSE, gmax.data.size = 1e7))
     gvtrack.create("track", track, "global.percentile.max")
     chip_data <- gextract(c("-log2(1-track)"), iterator = 1, intervals = intervals, colnames = "track") %>%
         arrange(intervalID) %>%
         mutate(pos = start - intervals$start[intervalID] + 1)
+
+    if (!is.null(direction)) {
+        # reverse the positions if the direction is negative
+        chip_data <- chip_data %>%
+            mutate(pos = ifelse(direction[intervalID] == -1, intervals$end[intervalID] - start + 1, pos))
+    }
 
     track_mat <- chip_data %>%
         select(intervalID, pos, v = track) %>%
@@ -341,6 +360,47 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
     }, .parallel = parallel)
 
     return(spatial_freqs)
+}
+
+compute_epi_features_spatial_dist <- function(traj_model, size, chip_tracks, chip_track_names = chip_tracks, atac_track = NULL, quantiles = c(0.1, 0.9), pwm_threshold = 7, parallel = TRUE) {
+    all_intervals <- traj_model@peak_intervals
+    all_intervals <- misha.ext::gintervals.normalize(all_intervals, size)
+
+
+    # traj_model <- direct_traj_model(traj_model)
+
+    spatial_d <- plyr::ldply(names(traj_model@motif_models), function(motif) {
+        q_thresh <- quantile(traj_model@normalized_energies[, motif], quantiles)
+        intervals <- all_intervals %>%
+            mutate(motif = traj_model@normalized_energies[, motif]) %>%
+            filter(motif <= q_thresh[1] | motif >= q_thresh[2]) %>%
+            mutate(type = ifelse(motif <= q_thresh[1], "bottom", "top"))
+        # intervals <- direct_intervals(intervals, traj_model@motif_models[[motif]]$pssm, bidi_seqs = NULL)
+        intervals$strand <- 1
+        local_pwm_n <- compute_spat_pwm(traj_model@motif_models[[motif]]$pssm, intervals, size, bidirect = TRUE)
+
+        # pwm_maxs <- apply(local_pwm_n, 1, max, na.rm = TRUE)
+        # # atac_intervals <- intervals[pwm_maxs >= pwm_threshold, ]
+
+        # # align the intervals to the maximum in every sequence
+        # max_pwms <- apply(local_pwm_n, 1, which.max)
+        # intervals_aligned <- intervals %>%
+        #     mutate(start = start + max_pwms) %>%
+        #     misha.ext::gintervals.normalize(size) %>%
+        #     select(chrom, start, end, type)
+
+        res <- purrr::map2_dfr(chip_tracks, chip_track_names, ~ {
+            bind_rows(
+                tibble::tibble(type = "top", pos = 1:size, value = calc_track_pos_data(.x, intervals %>% filter(type == "top"), direction = intervals$strand[intervals$type == "top"]), motif = motif, track = .y),
+                tibble::tibble(type = "bottom", pos = 1:size, value = calc_track_pos_data(.x, intervals %>% filter(type == "bottom"), direction = intervals$strand[intervals$type == "bottom"]), motif = motif, track = .y)
+            )
+        })
+    }, .parallel = parallel)
+
+    spatial_d <- spatial_d %>%
+        spread(track, value)
+
+    return(spatial_d)
 }
 
 plot_epi_spatial_freq <- function(spatial_freqs, motif, mark, smooth = 10) {
