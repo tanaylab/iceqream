@@ -216,7 +216,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
         A = patchwork::wrap_plots(motifs_p, ncol = 1),
         B = patchwork::wrap_plots(coefs_p, ncol = 1),
         C = patchwork::wrap_plots(spatial_p, ncol = 1),
-        D = patchwork::wrap_plots(spat_freq_p, ncol = 1),        
+        D = patchwork::wrap_plots(spat_freq_p, ncol = 1),
         E = patchwork::wrap_plots(e_vs_pr_p, ncol = 1),
         F = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
         design = "ABCDEF",
