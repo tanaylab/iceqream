@@ -36,7 +36,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     intervals_unique <- all_intervals %>%
         distinct(chrom, start, end) %>%
-        mutate(id = 1:n())
+        mutate(id = seq_len(n()))
 
     cli_alert_info("Extracting sequences...")
     if (!is.null(traj_model@params$peaks_size)) {
