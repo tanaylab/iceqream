@@ -48,7 +48,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
     }
 
     if (nrow(peaks_df) < 200) {
-        cli_warn("Not enough peaks to run prego. Please consider increasing {.field {min_diff}} (current value: {.val {min_prego_diff}})")
+        cli_warn("Not enough peaks to run prego. Please consider increasing {.field {min_diff}} (current value: {.val {min_diff}})")
         return(NULL)
     }
 

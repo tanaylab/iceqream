@@ -141,6 +141,16 @@ regress_trajectory_motifs <- function(atac_scores,
     cli_alert_info("Calculating correlations between {.val {ncol(motif_energies)}} motif energies and ATAC difference...")
     cm <- tgs_cor(motif_energies, as.matrix(atac_diff), pairwise.complete.obs = TRUE)[, 1]
     motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
+    if (length(motifs) == 0){
+        min_initial_energy_cor <- min_initial_energy_cor / 2
+        cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with {.val {min_initial_energy_cor}}")
+        motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
+        if (length(motifs) == 0){
+            n <- min(30, length(motifs))
+            motifs <- names(sort(abs(cm), decreasing = TRUE)[1:n])
+            cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with top {.val {n}} features")
+        }
+    }
 
     cli_alert_info("Selected {.val {length(motifs)}} (out of {.val {ncol(motif_energies)}}) features with absolute correlation >= {.val {min_initial_energy_cor}}")
     motifs <- motifs[!is.na(motifs)]
@@ -151,12 +161,20 @@ regress_trajectory_motifs <- function(atac_scores,
 
     features <- rownames(glm_model1$beta)[abs(glm_model1$beta[, 1]) >= feature_selection_beta]
     cli_alert_info("Taking {.val {length(features)}} features with beta >= {.val {feature_selection_beta}}")
+    if (length(features) == 0){
+        cli::cli_alert_warning("No features with beta >= {.val {feature_selection_beta}}. Using all features.")
+        features <- rownames(glm_model1$beta)
+    }
 
     cli_alert_info("Running second round of regression...")
     additional_features[is.na(additional_features)] <- 0
     glm_model2 <- glmnet::glmnet(as.matrix(cbind(motif_energies[, features], additional_features)), atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
 
     chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
+    if (length(chosen_motifs) == 0){
+        cli::cli_alert_warning("No features with beta > 0. Using all features.")
+        chosen_motifs <- rownames(glm_model2$beta)
+    }
     features <- motif_energies[, setdiff(chosen_motifs, colnames(additional_features))]
 
     distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length)

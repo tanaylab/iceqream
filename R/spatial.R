@@ -184,7 +184,7 @@ compute_traj_model_directional_hits <- function(traj_model, size, pwm_quantile =
 }
 
 
-compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_threshold = 7, sequences = NULL, atac_track = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, ...) {
+compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_threshold = 7, sequences = NULL, atac_track = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, align_to_max = TRUE, ...) {
     if (!is.null(orient_to_intervals)) {
         if (is.null(intervals)) {
             cli_abort("Intervals must be provided when orienting to intervals.")
@@ -230,16 +230,22 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             size <- intervals$end[1] - intervals$start[1]
         }
 
-        # take only intervals with an occurence of the motif
-        pwm_maxs <- apply(local_pwm_n, 1, max, na.rm = TRUE)
-        atac_intervals <- intervals[pwm_maxs >= pwm_threshold, ]
+        if (align_to_max){
+            # take only intervals with an occurence of the motif
+            pwm_maxs <- apply(local_pwm_n, 1, max, na.rm = TRUE)
+            atac_intervals <- intervals[pwm_maxs >= pwm_threshold, ]
 
-        # align the intervals to the maximum in every sequence
-        max_pwms <- apply(local_pwm_n[pwm_maxs >= pwm_threshold, ], 1, which.max)
-        atac_intervals <- atac_intervals %>%
-            mutate(start = start + max_pwms) %>%
-            misha.ext::gintervals.normalize(size) %>%
-            select(chrom, start, end)
+            # align the intervals to the maximum in every sequence
+            max_pwms <- apply(local_pwm_n[pwm_maxs >= pwm_threshold, ], 1, which.max)
+            atac_intervals <- atac_intervals %>%
+                mutate(start = start + max_pwms) %>%
+                misha.ext::gintervals.normalize(size) %>%
+                select(chrom, start, end)
+        } else {
+            atac_intervals <- misha.ext::gintervals.normalize(intervals, size) %>%
+                select(chrom, start, end)
+        }
+        
         atac <- gextract(atac_track, iterator = 1, intervals = atac_intervals, colnames = "v")
         atac_mat <- atac %>%
             arrange(intervalID) %>%
@@ -314,11 +320,12 @@ calc_track_pos_data <- function(track, intervals, threshold = 7, direction = NUL
 #' @param k27me3_track name of k27me3 track
 #' @param k27ac_track name of k27ac track
 #' @param orient_to_intervals A data frame containing the intervals to orient the sequences to
+#' @param align_to_max A logical indicating whether to align the sequences to the maximum in each sequence at the epigenetic tracks and atac signla
 #'
 #' @return A data frame with the spatial frequency of each motif
 #'
 #' @export
-compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL) {
+compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, align_to_max = TRUE) {
     intervals <- traj_model@peak_intervals
 
     # select top and bottom 10% of peaks using diff_score
@@ -341,7 +348,8 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
                 k4me3_track = k4me3_track,
                 k27me3_track = k27me3_track,
                 k27ac_track = k27ac_track,
-                orient_to_intervals = orient_to_intervals
+                orient_to_intervals = orient_to_intervals,
+                align_to_max = align_to_max
             ) %>%
                 mutate(type = "top"),
             compute_pssm_spatial_freq(
@@ -353,7 +361,8 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
                 k4me3_track = k4me3_track,
                 k27me3_track = k27me3_track,
                 k27ac_track = k27ac_track,
-                orient_to_intervals = orient_to_intervals
+                orient_to_intervals = orient_to_intervals,
+                align_to_max = align_to_max
             ) %>%
                 mutate(type = "bottom")
         ) %>% mutate(motif = motif)
