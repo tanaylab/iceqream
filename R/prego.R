@@ -26,7 +26,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
     }
 
     peaks_df <- peak_intervals %>%
-        select(chrom, start, end, const) %>%
+        select(chrom, start, end, any_of("const")) %>%
         mutate(id = seq_len(n()))
 
     if (!is.null(additional_features)) {
