@@ -10,7 +10,8 @@ learn_traj_prego(
   n_motifs,
   min_diff = 0.2,
   energy_norm_quantile = 1,
-  min_energy = -10,
+  norm_energy_max = 10,
+  min_energy = -7,
   sample_fraction = 0.1,
   sequences = NULL,
   seed = NULL,
@@ -30,7 +31,9 @@ learn_traj_prego(
 
 \item{energy_norm_quantile}{quantile of the energy used for normalization. Default: 1}
 
-\item{min_energy}{Minimum energy value after normalization (default: -10)}
+\item{norm_energy_max}{maximum value of the normalized energy. Default: 10}
+
+\item{min_energy}{Minimum energy value after normalization (default: -7)}
 
 \item{sample_fraction}{Fraction of peaks to sample for training. Default: 0.1}
 
