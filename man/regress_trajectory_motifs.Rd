@@ -18,6 +18,7 @@ regress_trajectory_motifs(
   min_initial_energy_cor = 0.05,
   normalize_energies = TRUE,
   energy_norm_quantile = 1,
+  norm_energy_max = 10,
   n_prego_motifs = 4,
   traj_prego = NULL,
   min_diff = 0.2,
@@ -62,6 +63,8 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 \item{normalize_energies}{whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.}
 
 \item{energy_norm_quantile}{quantile of the energy used for normalization. Default: 1}
+
+\item{norm_energy_max}{maximum value of the normalized energy. Default: 10}
 
 \item{n_prego_motifs}{number of prego motifs to consider.}
 

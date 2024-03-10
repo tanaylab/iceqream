@@ -16,6 +16,7 @@
 #' @param normalize_energies whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
+#' @param norm_energy_max maximum value of the normalized energy. Default: 10
 #' @param n_prego_motifs number of prego motifs to consider.
 #' @param traj_prego output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.
 #' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference.
@@ -57,6 +58,7 @@ regress_trajectory_motifs <- function(atac_scores,
                                       min_initial_energy_cor = 0.05,
                                       normalize_energies = TRUE,
                                       energy_norm_quantile = 1,
+                                      norm_energy_max = 10,
                                       n_prego_motifs = 4,
                                       traj_prego = NULL,
                                       min_diff = 0.2,
@@ -84,7 +86,8 @@ regress_trajectory_motifs <- function(atac_scores,
 
     if (normalize_energies) {
         cli_alert_info("Normalizing motif energies...")
-        motif_energies <- apply(motif_energies, 2, norm_energy, min_energy = -10, q = energy_norm_quantile)
+        motif_energies <- apply(motif_energies, 2, norm_energy, min_energy = -7, q = energy_norm_quantile)
+        motif_energies <- apply(motif_energies, 2, norm01) * norm_energy_max
     }
 
     # filter peaks that are too close to TSS

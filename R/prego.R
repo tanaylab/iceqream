@@ -5,7 +5,8 @@
 #' @param n_motifs Number of motifs to learn
 #' @param min_diff Minimum ATAC difference to include a peak in the training
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
-#' @param min_energy Minimum energy value after normalization (default: -10)
+#' @param norm_energy_max maximum value of the normalized energy. Default: 10
+#' @param min_energy Minimum energy value after normalization (default: -7)
 #' @param sample_fraction Fraction of peaks to sample for training. Default: 0.1
 #' @param sequences A character vector of sequences to learn the motifs on. If NULL, the sequences of the peaks are used.
 #' @param seed Random seed
@@ -14,7 +15,7 @@
 #' @param ... Additional arguments to be passed to \code{prego::regress_pwm}
 #'
 #' @export
-learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, min_energy = -10, sample_fraction = 0.1, sequences = NULL, seed = NULL, peaks_size = 300, additional_features = NULL, ...) {
+learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, sample_fraction = 0.1, sequences = NULL, seed = NULL, peaks_size = 300, additional_features = NULL, ...) {
     withr::local_options(list(gmax.data.size = 1e9))
     if (length(atac_diff) != nrow(peak_intervals)) {
         cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows of {.field {peak_intervals}}. Current lengths: {.val {length(atac_diff)}} and {.val {nrow(peak_intervals)}}")
@@ -70,6 +71,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
 
     prego_e <- reg$predict_multi(sequences)
     prego_e <- apply(prego_e, 2, norm_energy, min_energy = min_energy, q = energy_norm_quantile)
+    prego_e <- apply(prego_e, 2, norm01) * norm_energy_max
 
     prego_models <- prego::export_multi_regression(reg)$models
     names(prego_models) <- colnames(prego_e)
