@@ -8,6 +8,7 @@ regress_trajectory_motifs(
   atac_scores,
   peak_intervals,
   max_motif_num = 50,
+  n_clust_factor = 1,
   motif_energies = NULL,
   pssm_db = prego::all_motif_datasets(),
   additional_features = NULL,
@@ -40,6 +41,8 @@ regress_trajectory_motifs(
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
 
 \item{max_motif_num}{maximum number of motifs to consider. Default: 50}
+
+\item{n_clust_factor}{factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1}
 
 \item{motif_energies}{A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
 

@@ -27,7 +27,7 @@ x_vals <- seq(0, 10, by = 0.1)
 # Calculate the features for each scenario
 features_low_energy <- logist(x_vals, x_0 = 0, L = 2, k = 0.5) - 1
 features_high_energy <- logist(x_vals, x_0 = 10, L = 2, k = 0.5)
-features_sigmoid <- logist(x_vals, x_0 = 0, L = 1, k = 1)
+features_sigmoid <- logist(x_vals - 5, x_0 = 0, L = 1, k = 1)
 features_higher_energy <- logist(x_vals, x_0 = 10, L = 2, k = 1)
 features_early2 <- logist(x_vals, x_0 = 0, L = 2, k = 1) - 1
 

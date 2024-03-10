@@ -8,6 +8,7 @@
 #' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
 #' @param max_motif_num maximum number of motifs to consider. Default: 50
+#' @param n_clust_factor factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1
 #' @param min_tss_distance distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 #' Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.
 #' @param bin_start the start of the trajectory. Default: 1
@@ -46,6 +47,7 @@
 regress_trajectory_motifs <- function(atac_scores,
                                       peak_intervals,
                                       max_motif_num = 50,
+                                      n_clust_factor = 1,
                                       motif_energies = NULL,
                                       pssm_db = prego::all_motif_datasets(),
                                       additional_features = NULL,
@@ -141,11 +143,11 @@ regress_trajectory_motifs <- function(atac_scores,
     cli_alert_info("Calculating correlations between {.val {ncol(motif_energies)}} motif energies and ATAC difference...")
     cm <- tgs_cor(motif_energies, as.matrix(atac_diff), pairwise.complete.obs = TRUE)[, 1]
     motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
-    if (length(motifs) == 0){
+    if (length(motifs) == 0) {
         min_initial_energy_cor <- min_initial_energy_cor / 2
         cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with {.val {min_initial_energy_cor}}")
         motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
-        if (length(motifs) == 0){
+        if (length(motifs) == 0) {
             n <- min(30, length(motifs))
             motifs <- names(sort(abs(cm), decreasing = TRUE)[1:n])
             cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with top {.val {n}} features")
@@ -161,7 +163,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
     features <- rownames(glm_model1$beta)[abs(glm_model1$beta[, 1]) >= feature_selection_beta]
     cli_alert_info("Taking {.val {length(features)}} features with beta >= {.val {feature_selection_beta}}")
-    if (length(features) == 0){
+    if (length(features) == 0) {
         cli::cli_alert_warning("No features with beta >= {.val {feature_selection_beta}}. Using all features.")
         features <- rownames(glm_model1$beta)
     }
@@ -171,13 +173,13 @@ regress_trajectory_motifs <- function(atac_scores,
     glm_model2 <- glmnet::glmnet(as.matrix(cbind(motif_energies[, features], additional_features)), atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
 
     chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
-    if (length(chosen_motifs) == 0){
+    if (length(chosen_motifs) == 0) {
         cli::cli_alert_warning("No features with beta > 0. Using all features.")
         chosen_motifs <- rownames(glm_model2$beta)
     }
     features <- motif_energies[, setdiff(chosen_motifs, colnames(additional_features))]
 
-    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length)
+    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor)
     clust_energies <- distilled$energies
 
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -209,6 +211,7 @@ regress_trajectory_motifs <- function(atac_scores,
             peaks_size = peaks_size,
             spat_num_bins = spat_num_bins,
             spat_bin_size = spat_bin_size,
+            n_clust_factor = n_clust_factor,
             seed = seed
         )
     )
