@@ -16,7 +16,8 @@ compute_traj_model_spatial_freq(
   k4me3_track = NULL,
   k27me3_track = NULL,
   k27ac_track = NULL,
-  orient_to_intervals = NULL
+  orient_to_intervals = NULL,
+  align_to_max = TRUE
 )
 }
 \arguments{
@@ -39,6 +40,8 @@ compute_traj_model_spatial_freq(
 \item{k27ac_track}{name of k27ac track}
 
 \item{orient_to_intervals}{A data frame containing the intervals to orient the sequences to}
+
+\item{align_to_max}{A logical indicating whether to align the sequences to the maximum in each sequence at the epigenetic tracks and atac signla}
 }
 \value{
 A data frame with the spatial frequency of each motif

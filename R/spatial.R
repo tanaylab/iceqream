@@ -230,7 +230,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             size <- intervals$end[1] - intervals$start[1]
         }
 
-        if (align_to_max){
+        if (align_to_max) {
             # take only intervals with an occurence of the motif
             pwm_maxs <- apply(local_pwm_n, 1, max, na.rm = TRUE)
             atac_intervals <- intervals[pwm_maxs >= pwm_threshold, ]
@@ -245,7 +245,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             atac_intervals <- misha.ext::gintervals.normalize(intervals, size) %>%
                 select(chrom, start, end)
         }
-        
+
         atac <- gextract(atac_track, iterator = 1, intervals = atac_intervals, colnames = "v")
         atac_mat <- atac %>%
             arrange(intervalID) %>%

@@ -24,7 +24,7 @@ distill_traj_model <- function(traj_model, max_motif_num, parallel = TRUE) {
 
     glm_linear <- glmnet::glmnet(as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features)), atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
 
-    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, seqs = seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num)
+    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, seqs = seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor)
 
     clust_energies <- distilled$energies
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -55,9 +55,9 @@ distill_traj_model <- function(traj_model, max_motif_num, parallel = TRUE) {
     return(traj_model_distilled)
 }
 
-distill_motifs <- function(features, target_number, glm_model, y, seqs, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL) {
+distill_motifs <- function(features, target_number, glm_model, y, seqs, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1) {
     if (is.null(nclust)) {
-        nclust <- min(ncol(features), target_number * 2)
+        nclust <- min(ncol(features), target_number * n_clust_factor)
     }
 
     cli_alert_info("Clustering {.val {ncol(features)}} features into {.val {nclust}} clusters...")
