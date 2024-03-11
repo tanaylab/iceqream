@@ -209,6 +209,7 @@ regress_trajectory_motifs <- function(atac_scores,
         peak_intervals = peak_intervals,
         params = list(
             energy_norm_quantile = energy_norm_quantile,
+            norm_energy_max = norm_energy_max,
             alpha = alpha,
             lambda = lambda,
             peaks_size = peaks_size,
