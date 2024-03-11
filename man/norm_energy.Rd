@@ -4,13 +4,13 @@
 \alias{norm_energy}
 \title{Normalize Energy Values of a Vector}
 \usage{
-norm_energy(x, min_energy = -10, q = 1)
+norm_energy(x, min_energy = -7, q = 1)
 }
 \arguments{
 \item{x}{A numeric vector containing the energy values to be normalized.}
 
 \item{min_energy}{A numeric value representing the minimum energy value after normalization.
-Default is set to -10.}
+Default is set to -7.}
 
 \item{q}{A numeric value between 0 and 1, representing the quantile of the energy values
 to be used as the maximum after normalization. Default is set to 1 (max).}
