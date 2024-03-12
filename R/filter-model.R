@@ -20,7 +20,7 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, ignor
 
     vars_f <- variables[(full_model_r2 - vars_r2) > r2_threshold]
 
-    X_f <- X[, grep(paste0("(", paste(c(vars_f, ignore_variables), collapse = "|"), ").+"), colnames(X))]
+    X_f <- X[, grep(paste0("(", paste(c(vars_f, ignore_variables), collapse = "|"), ")(_low-energy|_high-energy|_higher-energy|_sigmoid)"), colnames(X))]
     cli_alert_info("Number of features left: {.val {length(vars_f)}}")
 
     model_f <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
