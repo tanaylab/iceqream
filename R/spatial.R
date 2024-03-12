@@ -211,7 +211,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
 
     local_pwm <- prego::compute_local_pwm(sequences, pssm, bidirect = TRUE)
 
-    local_pwm_n <- norm_energy(local_pwm, min_energy = -7, q = 1)
+    local_pwm_n <- norm_energy(local_pwm, min_energy = -10, q = 1)
 
     freqs <- local_pwm_n >= pwm_threshold
 
