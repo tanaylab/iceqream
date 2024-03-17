@@ -61,7 +61,8 @@ regress_trajectory_motifs <- function(atac_scores,
                                       norm_energy_max = 10,
                                       n_prego_motifs = 4,
                                       traj_prego = NULL,
-                                      min_diff = 0.2,
+                                      min_diff = 0.1,
+                                      distill_on_diff = FALSE,
                                       prego_sample_fraction = 0.1,
                                       seed = 60427,
                                       feature_selection_beta = 0.003,
@@ -120,6 +121,9 @@ regress_trajectory_motifs <- function(atac_scores,
     # calculate differential accessibility
     atac_diff <- atac_scores[, bin_end] - atac_scores[, bin_start]
     atac_diff_n <- norm01(atac_diff)
+    
+    diff_filter = abs(atac_diff) >= min_diff
+    diff_filter[is.na(diff_filter)] <- FALSE
 
     cli_alert("Extracting sequences...")
     all_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals_all, peaks_size)))
@@ -181,8 +185,15 @@ regress_trajectory_motifs <- function(atac_scores,
         chosen_motifs <- rownames(glm_model2$beta)
     }
     features <- motif_energies[, setdiff(chosen_motifs, colnames(additional_features))]
-
-    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor)
+    
+    if (distill_on_diff){
+        diff_filter = abs(atac_diff) >= min_diff
+        diff_filter[is.na(diff_filter)] <- FALSE
+    }
+    else{
+        diff_filter <- rep(TRUE, nrow(peak_intervals))
+    }
+    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], diff_filter, additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor)
     clust_energies <- distilled$energies
 
     clust_energies_logist <- create_logist_features(clust_energies)
