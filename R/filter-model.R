@@ -1,7 +1,21 @@
-filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, ignore_variables = NULL, r2_threshold = 0.0005) {
+filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif_models, ignore_variables = NULL, r2_threshold = 0.0005, bits_threshold=1.75) {
     if (!is.null(ignore_variables)) {
         variables <- variables[!(variables %in% ignore_variables)]
     }
+    
+        
+    bits_vec = rep(0, times=length(names(traj_model@motif_models)))
+    names(bits_vec) = names(motif_models)
+    for (cc in names(motif_models)){
+        pfm <- t(pssm_to_mat(motif_models[[cc]]$pssm))
+        bits <- bits_per_pos(t(pfm))
+        bits_vec[cc] = sum(bits)
+    }
+    bits_vec = bits_vec[variables]
+    print(bits_vec)
+    
+         
+
     # for each variable of X calculate the r^2 of a GLM model without it
     vars_r2 <- plyr::llply(variables, function(var) {
         cli_alert("Testing variable {.field {var}}...")
@@ -17,8 +31,10 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, ignor
     names(vars_r2) <- variables
 
     full_model_r2 <- cor(logist(glmnet::predict.glmnet(full_model, newx = X, type = "link", s = lambda))[, 1], y)^2
-
-    vars_f <- variables[(full_model_r2 - vars_r2) > r2_threshold]
+    
+    print(sum(bits_vec > bits_threshold))
+    print(sum((full_model_r2 - vars_r2) > r2_threshold))
+    vars_f <- variables[(full_model_r2 - vars_r2) > r2_threshold & bits_vec > bits_threshold]
 
     X_f <- X[, grep(paste0("(", paste(c(vars_f, ignore_variables), collapse = "|"), ")(_low-energy|_high-energy|_higher-energy|_sigmoid)"), colnames(X))]
     cli_alert_info("Number of features left: {.val {length(vars_f)}}")
@@ -81,7 +97,7 @@ filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_mode
 #'
 #' @export
 filter_traj_model <- function(traj_model, r2_threshold = 0.0005) {
-    res <- filter_model(traj_model@model_features, traj_model@coefs$variable, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold)
+    res <- filter_model(traj_model@model_features, traj_model@coefs$variable, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, traj_model@motif_models, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold)
 
     traj_model@model <- res$model
     traj_model@motif_models <- traj_model@motif_models[res$vars]

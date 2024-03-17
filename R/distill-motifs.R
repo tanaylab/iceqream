@@ -55,7 +55,7 @@ distill_traj_model <- function(traj_model, max_motif_num, parallel = TRUE) {
     return(traj_model_distilled)
 }
 
-distill_motifs <- function(features, target_number, glm_model, y, seqs, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1) {
+distill_motifs <- function(features, target_number, glm_model, y, seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1) {
     if (is.null(nclust)) {
         nclust <- min(ncol(features), target_number * n_clust_factor)
     }
@@ -95,9 +95,9 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, addition
             x$feat,
             model = glm_model,
             y = y,
-            feats = features,
+            feats = features[diff_filter,],
             clust_motifs = clust_map %>% filter(clust == x$clust) %>% pull(feat),
-            sequences = seqs,
+            sequences = seqs[diff_filter],
             lambda = lambda,
             pssm_db = pssm_db,
             spat_db = prego_models %>% purrr::map("spat"),
