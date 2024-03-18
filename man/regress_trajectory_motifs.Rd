@@ -21,7 +21,8 @@ regress_trajectory_motifs(
   norm_energy_max = 10,
   n_prego_motifs = 4,
   traj_prego = NULL,
-  min_diff = 0.2,
+  min_diff = 0.1,
+  distill_on_diff = FALSE,
   prego_sample_fraction = 0.1,
   seed = 60427,
   feature_selection_beta = 0.003,
@@ -70,7 +71,9 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{traj_prego}{output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.}
 
-\item{min_diff}{minimal ATAC difference for a peak to participate in the initial prego motif inference.}
+\item{min_diff}{minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).}
+
+\item{distill_on_diff}{whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.}
 
 \item{prego_sample_fraction}{Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1}
 

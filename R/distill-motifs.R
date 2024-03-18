@@ -95,7 +95,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, diff_fil
             x$feat,
             model = glm_model,
             y = y,
-            feats = features[diff_filter,],
+            feats = features[diff_filter, ],
             clust_motifs = clust_map %>% filter(clust == x$clust) %>% pull(feat),
             sequences = seqs[diff_filter],
             lambda = lambda,
