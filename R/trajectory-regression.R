@@ -19,7 +19,8 @@
 #' @param norm_energy_max maximum value of the normalized energy. Default: 10
 #' @param n_prego_motifs number of prego motifs to consider.
 #' @param traj_prego output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.
-#' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference.
+#' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).
+#' @param distill_on_diff whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
 #' @param seed random seed for reproducibility.
 #' @param feature_selection_beta beta parameter used for feature selection.
@@ -121,8 +122,8 @@ regress_trajectory_motifs <- function(atac_scores,
     # calculate differential accessibility
     atac_diff <- atac_scores[, bin_end] - atac_scores[, bin_start]
     atac_diff_n <- norm01(atac_diff)
-    
-    diff_filter = abs(atac_diff) >= min_diff
+
+    diff_filter <- abs(atac_diff) >= min_diff
     diff_filter[is.na(diff_filter)] <- FALSE
 
     cli_alert("Extracting sequences...")
@@ -185,12 +186,11 @@ regress_trajectory_motifs <- function(atac_scores,
         chosen_motifs <- rownames(glm_model2$beta)
     }
     features <- motif_energies[, setdiff(chosen_motifs, colnames(additional_features))]
-    
-    if (distill_on_diff){
-        diff_filter = abs(atac_diff) >= min_diff
+
+    if (distill_on_diff) {
+        diff_filter <- abs(atac_diff) >= min_diff
         diff_filter[is.na(diff_filter)] <- FALSE
-    }
-    else{
+    } else {
         diff_filter <- rep(TRUE, nrow(peak_intervals))
     }
     distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], diff_filter, additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor)

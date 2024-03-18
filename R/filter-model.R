@@ -1,20 +1,20 @@
-filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif_models, ignore_variables = NULL, r2_threshold = 0.0005, bits_threshold=1.75) {
+filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif_models, ignore_variables = NULL, r2_threshold = 0.0005, bits_threshold = 1.75) {
     if (!is.null(ignore_variables)) {
         variables <- variables[!(variables %in% ignore_variables)]
     }
-    
-        
-    bits_vec = rep(0, times=length(names(traj_model@motif_models)))
-    names(bits_vec) = names(motif_models)
-    for (cc in names(motif_models)){
+
+
+    bits_vec <- rep(0, times = length(names(traj_model@motif_models)))
+    names(bits_vec) <- names(motif_models)
+    for (cc in names(motif_models)) {
         pfm <- t(pssm_to_mat(motif_models[[cc]]$pssm))
         bits <- bits_per_pos(t(pfm))
-        bits_vec[cc] = sum(bits)
+        bits_vec[cc] <- sum(bits)
     }
-    bits_vec = bits_vec[variables]
+    bits_vec <- bits_vec[variables]
     print(bits_vec)
-    
-         
+
+
 
     # for each variable of X calculate the r^2 of a GLM model without it
     vars_r2 <- plyr::llply(variables, function(var) {
@@ -31,7 +31,7 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif
     names(vars_r2) <- variables
 
     full_model_r2 <- cor(logist(glmnet::predict.glmnet(full_model, newx = X, type = "link", s = lambda))[, 1], y)^2
-    
+
     print(sum(bits_vec > bits_threshold))
     print(sum((full_model_r2 - vars_r2) > r2_threshold))
     vars_f <- variables[(full_model_r2 - vars_r2) > r2_threshold & bits_vec > bits_threshold]
