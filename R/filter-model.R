@@ -92,12 +92,13 @@ filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_mode
 #'
 #' @param traj_model An instance of \code{TrajectoryModel}.
 #' @param r2_threshold minimal R^2 for a feature to be included in the model.
+#' @param bits_threshold minimal sum of bits for a feature to be included in the model.
 #'
 #' @return An instance of \code{TrajectoryModel} with the filtered model.
 #'
 #' @export
-filter_traj_model <- function(traj_model, r2_threshold = 0.0005) {
-    res <- filter_model(traj_model@model_features, traj_model@coefs$variable, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, traj_model@motif_models, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold)
+filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75) {
+    res <- filter_model(traj_model@model_features, traj_model@coefs$variable, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, traj_model@motif_models, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold, bits_threshold = bits_threshold)
 
     traj_model@model <- res$model
     traj_model@motif_models <- traj_model@motif_models[res$vars]
@@ -106,6 +107,8 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005) {
     traj_model@coefs <- get_model_coefs(res$model)
     traj_model@normalized_energies <- traj_model@normalized_energies[, res$vars, drop = FALSE]
     traj_model@features_r2 <- res$vars_r2
+    traj_model@params$r2_threshold <- r2_threshold
+    traj_model@params$bits_threshold <- bits_threshold
 
     cli_alert_success("After filtering: Number of non-zero coefficients: {.val {sum(traj_model@model$beta != 0)}} (out of {.val {ncol(traj_model@model_features)}}). R^2: {.val {cor(traj_model@predicted_diff_score, norm01(traj_model@diff_score))^2}}")
 
