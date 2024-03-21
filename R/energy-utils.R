@@ -56,14 +56,66 @@ norm_energy <- function(x, min_energy = -7, q = 1) {
     return(y)
 }
 
-
-norm_energy_dataset <- function(x, ds_x, min_energy = -7, q = 1) {
-    x_both <- c(x, ds_x)
-    x_idx <- seq_along(x)
-    y_both <- norm_energy(x_both, min_energy, q)
-    y <- y_both[x_idx]
+norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+    dataset_x <- exp(1)^dataset_x
+    max_x <- quantile(dataset_x, q, na.rm = TRUE)
+    x <- exp(1)^x
+    y <- log2(x / max_x)
+    y[y > 0] <- 0
+    y[y < min_energy] <- min_energy
+    y <- y - min_energy
+    y <- norm01(y) * norm_energy_max
     return(y)
 }
+
+#' Normalize Energy Matrix
+#'
+#' This function normalizes an energy matrix by applying logarithmic transformation and scaling.
+#'
+#' @param x The input matrix to be normalized.
+#' @param dataset_x The reference dataset matrix used for normalization.
+#' @param min_energy The minimum energy value to be assigned after normalization. Default is -7.
+#' @param q The quantile value used for calculating the maximum value in the reference dataset. Default is 1.
+#' @param norm_energy_max The maximum value to which the normalized energy values are scaled. Default is 10.
+#'
+#' @return A normalized energy matrix with the same dimensions as the input matrix.
+#'
+#' @examples
+#' # Example usage:
+#' data <- matrix(rnorm(100), nrow = 10)
+#' normalized_data <- norm_energy_matrix(data, data, min_energy = -7, q = 1, norm_energy_max = 10)
+#'
+#' @export
+norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+    not_in_x <- colnames(dataset_x)[!(colnames(dataset_x) %in% colnames(x))]
+    if (length(not_in_x) > 0) {
+        cli_abort("The following columns are missing in the input matrix: {.val {not_in_x}}")
+    }
+    dataset_x <- dataset_x[, colnames(x)]
+    dataset_x <- exp(1)^dataset_x
+    max_x <- matrixStats::colQuantiles(dataset_x, probs = q, na.rm = TRUE)
+    x <- exp(1)^x
+    y <- log2(t(t(x) / max_x))
+    y[y > 0] <- 0
+    y[y < min_energy] <- min_energy
+    y <- y - min_energy
+    y <- norm01(y) * norm_energy_max
+    colnames(y) <- colnames(x)
+    return(y)
+}
+
+
+norm_energy_sequences <- function(x, norm_sequences, pssm, spat, spat_min = NULL, spat_max = NULL, min_energy = -7, q = 1, norm_energy_max = 10) {
+    dataset_e <- prego::compute_pwm(norm_sequences, pssm, spat = spat, spat_min = spat_min, spat_max = spat_max)
+    norm_energy_dataset(x, dataset_e, min_energy = min_energy, q = q)
+}
+
+norm_energy_intervals <- function(x, norm_intervals, pssm, spat, spat_min = NULL, spat_max = NULL, min_energy = -7, q = 1, norm_energy_max = 10) {
+    norm_sequences <- toupper(misha::gseq.extract(norm_intervals))
+    norm_energy_sequences(x, norm_sequences, pssm = pssm, spat = spat, spat_min = spat_min, spat_max = spat_max, min_energy = min_energy, q = q, norm_energy_max = norm_energy_max)
+}
+
+
 
 #' Rescale numeric values to a specified range
 #'

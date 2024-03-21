@@ -4,7 +4,9 @@
 #'
 #' @param atac_scores A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
+#' @param norm_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.
 #' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
+#' @param norm_motif_energies A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
 #' @param max_motif_num maximum number of motifs to consider. Default: 50
@@ -48,9 +50,11 @@
 #' @export
 regress_trajectory_motifs <- function(atac_scores,
                                       peak_intervals,
+                                      norm_intervals = peak_intervals,
                                       max_motif_num = 50,
                                       n_clust_factor = 1,
                                       motif_energies = NULL,
+                                      norm_motif_energies = NULL,
                                       pssm_db = prego::all_motif_datasets(),
                                       additional_features = NULL,
                                       min_tss_distance = 5000,
@@ -84,12 +88,14 @@ regress_trajectory_motifs <- function(atac_scores,
     validate_additional_features(additional_features, peak_intervals)
 
     # Extract features
-    motif_energies <- calc_motif_energies(peak_intervals, pssm_db, motif_energies)
+    motif_energies <- calc_motif_energies(peak_intervals, pssm_db, motif_energies, field_name = "motif_energies", intervals_field_name = "peak_intervals")
+    norm_motif_energies <- calc_motif_energies(norm_intervals, pssm_db, norm_motif_energies, field_name = "norm_motif_energies", intervals_field_name = "norm_intervals")
+
+    min_energy <- -7
 
     if (normalize_energies) {
         cli_alert_info("Normalizing motif energies...")
-        motif_energies <- apply(motif_energies, 2, norm_energy, min_energy = -7, q = energy_norm_quantile)
-        motif_energies <- apply(motif_energies, 2, norm01) * norm_energy_max
+        motif_energies <- norm_energy_matrix(motif_energies, norm_motif_energies, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
     }
 
     # filter peaks that are too close to TSS
@@ -114,6 +120,7 @@ regress_trajectory_motifs <- function(atac_scores,
             additional_features <- additional_features[enhancers_filter, ]
         }
     } else {
+        peak_intervals_all <- peak_intervals
         enhancers_filter <- rep(TRUE, nrow(peak_intervals))
     }
 
@@ -128,10 +135,11 @@ regress_trajectory_motifs <- function(atac_scores,
 
     cli_alert("Extracting sequences...")
     all_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals_all, peaks_size)))
+    norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(norm_intervals, peaks_size)))
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
-        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, seed = seed)
+        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_seqeunces = norm_seqs, seed = seed)
     }
 
     if (!is.null(traj_prego)) {
@@ -193,7 +201,7 @@ regress_trajectory_motifs <- function(atac_scores,
     } else {
         diff_filter <- rep(TRUE, nrow(peak_intervals))
     }
-    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], diff_filter, additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor)
+    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], norm_seqs = norm_seqs, diff_filter, additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, norm_energy_max = norm_energy_max, min_energy = min_energy, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor)
     clust_energies <- distilled$energies
 
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -221,6 +229,7 @@ regress_trajectory_motifs <- function(atac_scores,
         params = list(
             energy_norm_quantile = energy_norm_quantile,
             norm_energy_max = norm_energy_max,
+            min_energy = min_energy,
             alpha = alpha,
             lambda = lambda,
             peaks_size = peaks_size,
@@ -286,7 +295,7 @@ validate_additional_features <- function(additional_features, peak_intervals) {
 }
 
 
-calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datasets(), motif_energies = NULL) {
+calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datasets(), motif_energies = NULL, field_name = "motif_energies", intervals_field_name = "peak_intervals") {
     if (is.null(motif_energies)) {
         cli_alert("Computing motif energies (this might take a while)")
         motif_energies <- prego::gextract_pwm(peak_intervals, dataset = pssm_db, prior = 0.01) %>%
@@ -295,7 +304,7 @@ calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datas
     }
 
     if (nrow(motif_energies) != nrow(peak_intervals)) {
-        cli_abort("{.field 'motif_energies'} must have the same number of rows as {.field 'peak_intervals'}. intervals number of rows {.val {nrow(peak_intervals)}} != motif_energies number of rows {.val {nrow(motif_energies)}}}}", call = parent.frame(1))
+        cli_abort("{.field '{field_name}'} must have the same number of rows as {.field '{intervals_field_name}'}. {intervals_field_name} number of rows {.val {nrow(peak_intervals)}} != {field_name} number of rows {.val {nrow(motif_energies)}}}}", call = parent.frame(1))
     }
 
     missing_motifs <- colnames(motif_energies)[!(colnames(motif_energies) %in% pssm_db$motif)]

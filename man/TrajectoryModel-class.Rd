@@ -45,6 +45,9 @@ A list of initial pre-go models.}
 \item{\code{peak_intervals}}{data.frame
 A data frame containing the peak intervals.}
 
+\item{\code{norm_intervals}}{data.frame
+A data frame containing the intervals used for energy normalization.}
+
 \item{\code{params}}{list
 A list of parameters used for training.}
 
