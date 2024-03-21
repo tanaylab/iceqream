@@ -89,12 +89,12 @@ regress_trajectory_motifs <- function(atac_scores,
 
     # Extract features
     motif_energies <- calc_motif_energies(peak_intervals, pssm_db, motif_energies, field_name = "motif_energies", intervals_field_name = "peak_intervals")
-    norm_motif_energies <- calc_motif_energies(norm_intervals, pssm_db, norm_motif_energies, field_name = "norm_motif_energies", intervals_field_name = "norm_intervals")
 
     min_energy <- -7
 
     if (normalize_energies) {
         cli_alert_info("Normalizing motif energies...")
+        norm_motif_energies <- calc_motif_energies(norm_intervals, pssm_db, norm_motif_energies, field_name = "norm_motif_energies", intervals_field_name = "norm_intervals")
         motif_energies <- norm_energy_matrix(motif_energies, norm_motif_energies, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
     }
 
