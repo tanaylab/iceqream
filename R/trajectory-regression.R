@@ -226,6 +226,7 @@ regress_trajectory_motifs <- function(atac_scores,
         predicted_diff_score = predicted_diff_score,
         initial_prego_models = prego_models,
         peak_intervals = peak_intervals,
+        normalization_intervals = norm_intervals,
         params = list(
             energy_norm_quantile = energy_norm_quantile,
             norm_energy_max = norm_energy_max,
