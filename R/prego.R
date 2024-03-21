@@ -72,7 +72,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
     reg <- prego::regress_pwm(seqs, score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = TRUE, sample_frac = sample_fraction, ...)
 
     prego_e <- reg$predict_multi(sequences)
-    prego_norm_e <- res$predict_multi(norm_seqs)
+    prego_norm_e <- reg$predict_multi(norm_seqs)
     prego_e <- norm_energy_matrix(prego_e, prego_norm_e, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
 
     prego_models <- prego::export_multi_regression(reg)$models
