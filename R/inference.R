@@ -11,6 +11,7 @@
 infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL) {
     validate_traj_model(traj_model)
     validate_additional_features(additional_features, peak_intervals)
+
     if (ncol(traj_model@additional_features) > 0) {
         if (is.null(additional_features)) {
             additional_features <- matrix(0, nrow = nrow(peak_intervals), ncol = length(traj_model@additional_features))
@@ -44,17 +45,21 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     } else {
         sequences <- toupper(misha::gseq.extract(intervals_unique))
     }
+    norm_sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, traj_model@params$peaks_size)))
 
 
     cli_alert_info("Computing motif energies for {.val {nrow(intervals_unique)}} intervals (train: {.val {sum(all_intervals$type == 'train')}}, test: {.val {sum(all_intervals$type == 'test')}})")
     clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
         prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
     }, .parallel = TRUE)
-
     clust_energies <- do.call(cbind, clust_energies)
 
-    clust_energies <- apply(clust_energies, 2, norm_energy, min_energy = -7, q = traj_model@params$energy_norm_quantile)
-    clust_energies <- apply(clust_energies, 2, norm01) * 10
+    norm_clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
+        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
+    }, .parallel = TRUE)
+    norm_clust_energies <- do.call(cbind, norm_clust_energies)
+
+    clust_energies <- norm_energy_matrix(clust_energies, norm_clust_energies, min_energy = traj_model@params$min_energy, q = traj_model@params$energy_norm_quantile, norm_energy_max = traj_model@params$norm_energy_max)
 
     idxs <- peak_intervals %>%
         select(chrom, start, end) %>%

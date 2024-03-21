@@ -34,6 +34,9 @@
 #' @slot peak_intervals data.frame
 #'  A data frame containing the peak intervals.
 #'
+#' @slot norm_intervals data.frame
+#'  A data frame containing the intervals used for energy normalization.
+#'
 #' @slot params list
 #'  A list of parameters used for training.
 #'
@@ -56,6 +59,7 @@ TrajectoryModel <- setClass(
         predicted_diff_score = "numeric",
         initial_prego_models = "list",
         peak_intervals = "data.frame",
+        normalization_intervals = "data.frame",
         additional_features = "data.frame",
         features_r2 = "numeric",
         params = "list"
@@ -80,6 +84,9 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score"))
         cli_ul(c("{.field @initial_prego_models}: A list of prego models used in the initial phase of the algorithm ({.val {length(object@initial_prego_models)}} models)"))
         cli_ul(c("{.field @peak_intervals}: A data frame containing the peak intervals ({.val {nrow(object@peak_intervals)}} elements)"))
+        if ("norm_intervals" %in% slotNames(object)) { # here for backwards compatibility
+            cli_ul(c("{.field @normalization_intervals}: A data frame containing the intervals used for energy normalization ({.val {nrow(object@normalization_intervals)}} elements)"))
+        }
         if (length(object@features_r2) > 0) {
             cli_ul(c("{.field @features_r2}: A numeric vector of R^2 values for each feature ({.val {length(object@features_r2)}} elements)"))
         } else {

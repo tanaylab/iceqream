@@ -4,12 +4,14 @@
 \alias{distill_traj_model}
 \title{Distill trajectory model}
 \usage{
-distill_traj_model(traj_model, max_motif_num, parallel = TRUE)
+distill_traj_model(traj_model, max_motif_num, min_diff = 0.1, parallel = TRUE)
 }
 \arguments{
 \item{traj_model}{A trajectory model object}
 
 \item{max_motif_num}{The maximum number of motifs to select}
+
+\item{min_diff}{The minimum difference of scores to use for distillation}
 
 \item{parallel}{Whether to use parallel processing}
 }
