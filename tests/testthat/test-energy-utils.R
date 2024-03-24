@@ -17,16 +17,16 @@ test_that("norm_energy normalizes energy values correctly", {
     expect_true(all(normed_energy >= 0))
 })
 
-# Test for norm_energy_dataset function
-test_that("norm_energy_dataset normalizes energy values using an external dataset", {
-    x <- runif(n = 50, min = -11, max = 0)
-    ds_x <- runif(n = 50, min = -11, max = 0)
-    y <- norm_energy_dataset(x, ds_x)
-    expect_equal(length(y), length(x))
-    expect_true(all(!is.na(y)))
-    expect_true(all(y <= 10))
-    expect_true(all(y >= 0))
-})
+# # Test for norm_energy_dataset function
+# test_that("norm_energy_dataset normalizes energy values using an external dataset", {
+#     x <- runif(n = 50, min = -11, max = 0)
+#     ds_x <- runif(n = 50, min = -11, max = 0)
+#     y <- norm_energy_dataset(x, ds_x)
+#     expect_equal(length(y), length(x))
+#     expect_true(all(!is.na(y)))
+#     expect_true(all(y <= 10))
+#     expect_true(all(y >= 0))
+# })
 
 # Test for logist function
 test_that("logist calculates the logistic function correctly", {

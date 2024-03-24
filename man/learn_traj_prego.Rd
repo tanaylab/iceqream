@@ -17,6 +17,7 @@ learn_traj_prego(
   seed = NULL,
   peaks_size = 300,
   additional_features = NULL,
+  norm_intervals = peak_intervals,
   ...
 )
 }
@@ -44,6 +45,8 @@ learn_traj_prego(
 \item{peaks_size}{size of the peaks to extract sequences from. Default: 300bp}
 
 \item{additional_features}{A matrix of additional features to filter out before learning the motifs (e.g. CpG content, dinucleotide content, etc.)}
+
+\item{norm_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.}
 
 \item{...}{Additional arguments to be passed to \code{prego::regress_pwm}}
 }
