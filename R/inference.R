@@ -29,26 +29,16 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     withr::local_options(list(gmax.data.size = 1e9))
 
-    all_intervals <- bind_rows(
-        traj_model@peak_intervals %>% mutate(type = "train"),
-        peak_intervals %>% mutate(type = "test")
-    ) %>%
-        select(chrom, start, end, type)
-
-    intervals_unique <- all_intervals %>%
-        distinct(chrom, start, end) %>%
-        mutate(id = seq_len(n()))
-
     cli_alert_info("Extracting sequences...")
     if (!is.null(traj_model@params$peaks_size)) {
-        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(intervals_unique, traj_model@params$peaks_size)))
+        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals, traj_model@params$peaks_size)))
     } else {
-        sequences <- toupper(misha::gseq.extract(intervals_unique))
+        sequences <- toupper(misha::gseq.extract(peak_intervals))
     }
     norm_sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, traj_model@params$peaks_size)))
 
 
-    cli_alert_info("Computing motif energies for {.val {nrow(intervals_unique)}} intervals (train: {.val {sum(all_intervals$type == 'train')}}, test: {.val {sum(all_intervals$type == 'test')}})")
+    cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals")
     clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
         prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
     }, .parallel = TRUE)
@@ -59,14 +49,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     }, .parallel = TRUE)
     norm_clust_energies <- do.call(cbind, norm_clust_energies)
 
-    clust_energies <- norm_energy_matrix(clust_energies, norm_clust_energies, min_energy = traj_model@params$min_energy, q = traj_model@params$energy_norm_quantile, norm_energy_max = traj_model@params$norm_energy_max)
-
-    idxs <- peak_intervals %>%
-        select(chrom, start, end) %>%
-        left_join(intervals_unique, by = c("chrom", "start", "end")) %>%
-        pull(id)
-
-    e_test <- clust_energies[idxs, , drop = FALSE]
+    e_test <- norm_energy_matrix(clust_energies, norm_clust_energies, min_energy = traj_model@params$min_energy, q = traj_model@params$energy_norm_quantile, norm_energy_max = traj_model@params$norm_energy_max)
 
     if (!is.null(additional_features)) {
         additional_features[is.na(additional_features)] <- 0
@@ -77,7 +60,6 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     e_test_logist <- e_test_logist[, colnames(traj_model@model_features), drop = FALSE]
 
     predicted_diff_score <- logist(glmnet::predict.glmnet(traj_model@model, newx = e_test_logist, type = "link", s = traj_model@params$lambda))[, 1]
-    # predicted_diff_score <- (predicted_diff_score * max(traj_model@diff_score)) + min(traj_model@diff_score)
 
     predicted_diff_score <- rescale(predicted_diff_score, min(traj_model@diff_score), max(traj_model@diff_score))
 
