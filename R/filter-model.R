@@ -12,9 +12,6 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif
         bits_vec[cc] <- sum(bits)
     }
     bits_vec <- bits_vec[variables]
-    print(bits_vec)
-
-
 
     # for each variable of X calculate the r^2 of a GLM model without it
     vars_r2 <- plyr::llply(variables, function(var) {
@@ -32,8 +29,6 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif
 
     full_model_r2 <- cor(logist(glmnet::predict.glmnet(full_model, newx = X, type = "link", s = lambda))[, 1], y)^2
 
-    print(sum(bits_vec > bits_threshold))
-    print(sum((full_model_r2 - vars_r2) > r2_threshold))
     vars_f <- variables[(full_model_r2 - vars_r2) > r2_threshold & bits_vec > bits_threshold]
 
     X_f <- X[, grep(paste0("(", paste(c(vars_f, ignore_variables), collapse = "|"), ")(_low-energy|_high-energy|_higher-energy|_sigmoid)"), colnames(X))]
