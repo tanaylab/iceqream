@@ -1,12 +1,13 @@
 #' Plot scatter plot of observed vs predicted ATAC difference
 #'
 #' @param traj_model Trajectory model object. Please run \code{\link{regress_trajectory_motifs}} first.
+#' @param type "train" or "test". If NULL - "test" would be used if available, otherwise "train".
 #' @return ggplot2 object
 #'
 #'
 #' @export
-plot_prediction_scatter <- function(traj_model) {
-    r <- get_obs_pred_df(traj_model)
+plot_prediction_scatter <- function(traj_model, type = NULL) {
+    r <- get_obs_pred_df(traj_model, type = type)
     plot_df <- r$df
     type_str <- r$type_str
 
@@ -24,21 +25,29 @@ plot_prediction_scatter <- function(traj_model) {
     return(p)
 }
 
-get_obs_pred_df <- function(traj_model) {
+get_obs_pred_df <- function(traj_model, type = NULL) {
+    if (!is.null(type) && !(type %in% c("train", "test"))) {
+        cli_abort("{.field type} must be one of {.val train} or {.val test}")
+    }
+
     type_str <- ""
     if (sum(traj_model@type == "test") == 0) {
-        cli::cli_alert_warning("No test intervals found. Please run {.func infer_trajectory_motifs} first. Using train intervals instead.")
-        plot_df <- data.frame(
-            observed = traj_model@diff_score[traj_model@type == "train"],
-            predicted = traj_model@predicted_diff_score[traj_model@type == "train"]
-        )
-        type_str <- " (train)"
-    } else {
-        plot_df <- data.frame(
-            observed = traj_model@diff_score[traj_model@type == "test"],
-            predicted = traj_model@predicted_diff_score[traj_model@type == "test"]
-        )
+        if (type == "test") {
+            cli::cli_alert_warning("No test intervals found. Please run {.func infer_trajectory_motifs} first. Using train intervals instead.")
+        }
+        type <- "train"
+    } else if (is.null(type)) {
+        type <- "test"
     }
+
+    if (type == "train") {
+        type_str <- " (train)"
+    }
+
+    plot_df <- data.frame(
+        observed = traj_model@diff_score[traj_model@type == type],
+        predicted = traj_model@predicted_diff_score[traj_model@type == type]
+    )
 
     return(list(df = plot_df, type_str = type_str))
 }
