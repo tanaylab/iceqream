@@ -27,6 +27,35 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         }
     }
 
+    e_test <- calc_traj_model_energies(traj_model, peak_intervals)
+
+    if (!is.null(additional_features)) {
+        additional_features[is.na(additional_features)] <- 0
+        e_test <- cbind(e_test, additional_features)
+    }
+
+    e_test_logist <- create_logist_features(e_test)
+    e_test_logist <- e_test_logist[, colnames(traj_model@model_features), drop = FALSE]
+
+    pred <- predict_traj_model(traj_model, e_test_logist)
+
+    traj_model@model_features <- rbind(traj_model@model_features, e_test_logist[, intersect(colnames(e_test_logist), colnames(traj_model@model_features))])
+    traj_model@normalized_energies <- rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))])
+    if (!is.null(atac_scores)) {
+        traj_model@diff_score <- c(traj_model@diff_score, atac_scores[, bin_end] - atac_scores[, bin_start])
+    }
+    traj_model@predicted_diff_score <- c(traj_model@predicted_diff_score, pred)
+    traj_model@type <- c(traj_model@type, rep("test", nrow(e_test_logist)))
+    traj_model@peak_intervals <- bind_rows(traj_model@peak_intervals, peak_intervals)
+    if (!is.null(additional_features)) {
+        traj_model@additional_features <- bind_rows(traj_model@additional_features, as.data.frame(additional_features))
+    }
+
+
+    return(traj_model)
+}
+
+calc_traj_model_energies <- function(traj_model, peak_intervals) {
     withr::local_options(list(gmax.data.size = 1e9))
 
     cli_alert_info("Extracting sequences...")
@@ -51,30 +80,20 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     e_test <- norm_energy_matrix(clust_energies, norm_clust_energies, min_energy = traj_model@params$min_energy, q = traj_model@params$energy_norm_quantile, norm_energy_max = traj_model@params$norm_energy_max)
 
-    if (!is.null(additional_features)) {
-        additional_features[is.na(additional_features)] <- 0
-        e_test <- cbind(e_test, additional_features)
-    }
+    return(e_test)
+}
 
-    e_test_logist <- create_logist_features(e_test)
-    e_test_logist <- e_test_logist[, colnames(traj_model@model_features), drop = FALSE]
+predict_traj_model <- function(traj_model, feats) {
+    pred <- logist(glmnet::predict.glmnet(traj_model@model, newx = feats, type = "link", s = traj_model@params$lambda))[, 1]
+    pred_train <- logist(glmnet::predict.glmnet(traj_model@model, newx = traj_model@model_features, type = "link", s = traj_model@params$lambda))[, 1]
 
-    predicted_diff_score <- logist(glmnet::predict.glmnet(traj_model@model, newx = e_test_logist, type = "link", s = traj_model@params$lambda))[, 1]
+    min_val <- min(pred_train)
+    max_val <- max(pred_train)
+    normalized_pred_train <- (pred_train - min_val) / (max_val - min_val)
 
-    predicted_diff_score <- rescale(predicted_diff_score, min(traj_model@diff_score), max(traj_model@diff_score))
+    pred <- (pred - min_val) / (max_val - min_val)
+    pred[pred > max_val] <- max_val
+    pred <- rescale(pred, traj_model@diff_score)
 
-    traj_model@model_features <- rbind(traj_model@model_features, e_test_logist[, intersect(colnames(e_test_logist), colnames(traj_model@model_features))])
-    traj_model@normalized_energies <- rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))])
-    if (!is.null(atac_scores)) {
-        traj_model@diff_score <- c(traj_model@diff_score, atac_scores[, bin_end] - atac_scores[, bin_start])
-    }
-    traj_model@predicted_diff_score <- c(traj_model@predicted_diff_score, predicted_diff_score)
-    traj_model@type <- c(traj_model@type, rep("test", nrow(e_test_logist)))
-    traj_model@peak_intervals <- bind_rows(traj_model@peak_intervals, peak_intervals)
-    if (!is.null(additional_features)) {
-        traj_model@additional_features <- bind_rows(traj_model@additional_features, as.data.frame(additional_features))
-    }
-
-
-    return(traj_model)
+    return(pred)
 }

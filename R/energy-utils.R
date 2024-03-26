@@ -24,6 +24,41 @@ norm01 <- function(x) {
     x / max(x, na.rm = TRUE)
 }
 
+#' Rescale Values Based on Original Scale Factors
+#'
+#' This function applies a reverse operation of normalization for a numeric vector `x`
+#' based on the scale factors derived from an original vector `orig_x`. It effectively
+#' attempts to map the values in `x` back to their original scale by applying
+#' the inverse operations of scaling and translation based on the minimum and
+#' maximum values found in `orig_x`. The process involves scaling `x` by the
+#' maximum value (after subtracting the minimum value) of `orig_x` and then
+#' adding the minimum value of `orig_x` to each element.
+#'
+#' @param x A numeric vector that needs to be rescaled to its original range.
+#' @param orig_x The original numeric vector from which the scale factors are derived.
+#'
+#' @return A numeric vector with values rescaled to their original range based
+#' on the scale factors from `orig_x`.
+#'
+#' @examples
+#' # Generate random values and normalize
+#' orig_x <- rnorm(100)
+#' normed_x <- norm01(orig_x)
+#' # Rescale normalized values back to original range
+#' rescaled_x <- rescale(normed_x, orig_x)
+#' range(rescaled_x) # This should closely match the range of orig_x
+#' range(orig_x)
+#'
+#' @export
+rescale <- function(x, orig_x) {
+    norm_factors <- min(orig_x, na.rm = TRUE)
+    norm_factors <- c(norm_factors, max(orig_x - norm_factors, na.rm = TRUE))
+    x <- x * norm_factors[2]
+    x <- x + norm_factors[1]
+    return(x)
+}
+
+
 
 #' Normalize Energy Values of a Vector
 #'
@@ -115,31 +150,6 @@ norm_energy_intervals <- function(x, norm_intervals, pssm, spat, spat_min = NULL
     norm_energy_sequences(x, norm_sequences, pssm = pssm, spat = spat, spat_min = spat_min, spat_max = spat_max, min_energy = min_energy, q = q, norm_energy_max = norm_energy_max)
 }
 
-
-
-#' Rescale numeric values to a specified range
-#'
-#' This function rescales numeric values from their original range to a specified
-#' new range, which defaults to between -1 and 1.
-#'
-#' @param x A numeric vector of values to be rescaled.
-#' @param new_min The minimum value of the desired output range. Defaults to -1.
-#' @param new_max The maximum value of the desired output range. Defaults to 1.
-#'
-#' @return A numeric vector of rescaled values.
-#' @examples
-#' values <- c(2, 3, 5, 6, 8, 10)
-#' rescale(values)
-#' rescale(values, 0, 100)
-#' rescale(values, 5, 50)
-#'
-#' @export
-rescale <- function(x, new_min = -1, new_max = 1) {
-    old_min <- min(x)
-    old_max <- max(x)
-
-    return(((x - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min)
-}
 
 
 #' Logistic Function

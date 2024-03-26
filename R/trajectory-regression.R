@@ -209,7 +209,8 @@ regress_trajectory_motifs <- function(atac_scores,
     model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
 
     predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = lambda))[, 1]
-    predicted_diff_score <- rescale(predicted_diff_score, min(atac_diff), max(atac_diff))
+    predicted_diff_score <- norm01(predicted_diff_score)
+    predicted_diff_score <- rescale(predicted_diff_score, atac_diff)
 
 
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
