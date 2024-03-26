@@ -2,28 +2,35 @@
 % Please edit documentation in R/energy-utils.R
 \name{rescale}
 \alias{rescale}
-\title{Rescale numeric values to a specified range}
+\title{Rescale Values Based on Original Scale Factors}
 \usage{
-rescale(x, new_min = -1, new_max = 1)
+rescale(x, orig_x)
 }
 \arguments{
-\item{x}{A numeric vector of values to be rescaled.}
+\item{x}{A numeric vector that needs to be rescaled to its original range.}
 
-\item{new_min}{The minimum value of the desired output range. Defaults to -1.}
-
-\item{new_max}{The maximum value of the desired output range. Defaults to 1.}
+\item{orig_x}{The original numeric vector from which the scale factors are derived.}
 }
 \value{
-A numeric vector of rescaled values.
+A numeric vector with values rescaled to their original range based
+on the scale factors from \code{orig_x}.
 }
 \description{
-This function rescales numeric values from their original range to a specified
-new range, which defaults to between -1 and 1.
+This function applies a reverse operation of normalization for a numeric vector \code{x}
+based on the scale factors derived from an original vector \code{orig_x}. It effectively
+attempts to map the values in \code{x} back to their original scale by applying
+the inverse operations of scaling and translation based on the minimum and
+maximum values found in \code{orig_x}. The process involves scaling \code{x} by the
+maximum value (after subtracting the minimum value) of \code{orig_x} and then
+adding the minimum value of \code{orig_x} to each element.
 }
 \examples{
-values <- c(2, 3, 5, 6, 8, 10)
-rescale(values)
-rescale(values, 0, 100)
-rescale(values, 5, 50)
+# Generate random values and normalize
+orig_x <- rnorm(100)
+normed_x <- norm01(orig_x)
+# Rescale normalized values back to original range
+rescaled_x <- rescale(normed_x, orig_x)
+range(rescaled_x) # This should closely match the range of orig_x
+range(orig_x)
 
 }
