@@ -34,6 +34,8 @@ plot_motifs_report(
 
 \item{dev}{Device to use for saving the plot. Default: \code{grDevices::pdf}.}
 
+\item{title}{Title of the plot.}
+
 \item{...}{Additional arguments to pass to the device.}
 }
 \value{

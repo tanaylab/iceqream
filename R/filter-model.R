@@ -56,7 +56,7 @@ filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_mode
         variables <- variables[!(variables %in% ignore_variables)]
     }
     coefs_max <- coefs %>%
-        column_to_rownames("variable") %>%
+        tibble::column_to_rownames("variable") %>%
         .[variables, ] %>%
         apply(1, max) %>%
         sort(decreasing = TRUE)

@@ -95,7 +95,7 @@ plot_prediction_boxplot <- function(traj_model, n_groups = 5) {
 #' @export
 plot_variable_vs_response <- function(traj_model, variable, point_size = 0.5) {
     validate_traj_model(traj_model)
-    if (!(variable %in% traj_model_all@coefs$variable)) {
+    if (!(variable %in% traj_model@coefs$variable)) {
         cli_abort("Variable {.val {variable}} not found in the model.")
     }
 
@@ -136,6 +136,7 @@ plot_variable_vs_response <- function(traj_model, variable, point_size = 0.5) {
 #' @param height Height of the plot.
 #' @param dev Device to use for saving the plot. Default: \code{grDevices::pdf}.
 #' @param ... Additional arguments to pass to the device.
+#' @param title Title of the plot.
 #'
 #' @return ggplot2 object. If filename is not NULL, the plot will be saved to the file and the function will return \code{invisible(NULL)}.
 #'
@@ -320,7 +321,7 @@ plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL
     dev.off()
 
     clust_df <- ComplexHeatmap::row_order(hm) %>%
-        purrr:::imap_dfr(~ tibble(ord = .x, clust = .y)) %>%
+        purrr::imap_dfr(~ tibble(ord = .x, clust = .y)) %>%
         mutate(motif = rownames(cm)[ord])
 
     plyr::d_ply(clust_df, "clust", function(x) {

@@ -31,6 +31,10 @@ compute_traj_model_spatial_freq(
 
 \item{bottom_q}{The proportion of bottom peaks to select}
 
+\item{atac_track}{name of ATAC-seq marginal track}
+
+\item{parallel}{Whether to use parallel processing}
+
 \item{bidirect_size}{Size of the intervals to use for deciding the directionality of the sequence}
 
 \item{k4me3_track}{name of k4me3 track}
