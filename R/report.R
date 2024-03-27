@@ -2,11 +2,13 @@
 #'
 #' @param traj_model Trajectory model object. Please run \code{\link{regress_trajectory_motifs}} first.
 #' @param type "train" or "test". If NULL - "test" would be used if available, otherwise "train".
+#' @param point_size Size of the points.
+#' @param alpha Transparency of the points.
 #' @return ggplot2 object
 #'
 #'
 #' @export
-plot_prediction_scatter <- function(traj_model, type = NULL) {
+plot_prediction_scatter <- function(traj_model, type = NULL, point_size = 1, alpha = 0.5) {
     r <- get_obs_pred_df(traj_model, type = type)
     plot_df <- r$df
     type_str <- r$type_str
@@ -14,7 +16,7 @@ plot_prediction_scatter <- function(traj_model, type = NULL) {
     limits <- c(min(plot_df$observed, plot_df$predicted), max(plot_df$observed, plot_df$predicted))
 
     p <- ggplot(plot_df, aes(x = observed, y = predicted)) +
-        geom_point(alpha = 0.5) +
+        geom_point(alpha = alpha, size = point_size) +
         geom_abline(intercept = 0, slope = 1, color = "red") +
         labs(x = "Observed ATAC difference", y = "Predicted ATAC difference") +
         xlim(limits) +
@@ -122,6 +124,37 @@ plot_variable_vs_response <- function(traj_model, variable, point_size = 0.5) {
             theme_classic()
     }
 
+    return(p)
+}
+
+#' Plot Partial Response
+#'
+#' This function plots the partial response for a given trajectory model and motif.
+#'
+#' @param traj_model The trajectory model object.
+#' @param motif The motif to plot the partial response for.
+#' @param ylim The y-axis limits for the plot (optional).
+#' @param xlab The label for the x-axis (optional, default is "Energy").
+#' @param ylab The label for the y-axis (optional, default is "Partial response").
+#' @param pointsize The size of the points in the scatter plot (optional, default is 3).
+#'
+#' @return A ggplot object representing the partial response plot.
+#'
+#' @export
+plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy", ylab = "Partial response", pointsize = 3) {
+    pr <- compute_partial_response(traj_model)
+    p <- tibble(
+        e = traj_model@normalized_energies[, motif],
+        pr = pr[, motif]
+    ) %>%
+        ggplot(aes(x = e, y = pr)) +
+        scattermore::geom_scattermore(pointsize = pointsize) +
+        labs(x = xlab, y = ylab) +
+        theme_classic() +
+        theme(aspect.ratio = 1)
+    if (!is.null(ylim)) {
+        p <- p + ylim(ylim)
+    }
     return(p)
 }
 
