@@ -3,33 +3,41 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif
         variables <- variables[!(variables %in% ignore_variables)]
     }
 
-
-    bits_vec <- rep(0, times = length(names(traj_model@motif_models)))
-    names(bits_vec) <- names(motif_models)
-    for (cc in names(motif_models)) {
-        pfm <- t(pssm_to_mat(motif_models[[cc]]$pssm))
-        bits <- bits_per_pos(t(pfm))
-        bits_vec[cc] <- sum(bits)
-    }
-    bits_vec <- bits_vec[variables]
+    full_model_r2 <- cor(logist(glmnet::predict.glmnet(full_model, newx = X, type = "link", s = lambda))[, 1], y)^2
 
     # for each variable of X calculate the r^2 of a GLM model without it
-    vars_r2 <- plyr::llply(variables, function(var) {
-        cli_alert("Testing variable {.field {var}}...")
+    var_stats <- plyr::llply(variables, function(var) {
+        pssm <- motif_models[[var]]$pssm
+        bits <- sum(prego::bits_per_pos(pssm))
+
+        # cli_alert("Testing variable {.field {var}}...")
         X_f <- X[, grep(var, colnames(X), value = TRUE, invert = TRUE)]
         m <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
         pred <- logist(glmnet::predict.glmnet(m, newx = X_f, type = "link", s = lambda))[, 1]
         r2 <- cor(pred, y)^2
-        cli::cli_alert_info("R^2 without {.field {var}}: {.val {r2}}")
-        r2
+        cli::cli_alert("R^2 added by {.field {var}}: {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
+        if (full_model_r2 - r2 < r2_threshold) {
+            cli::cli_alert_info("Variable {.field {var}} removed due to low R^2")
+        }
+        if (bits < bits_threshold) {
+            cli::cli_alert_info("Variable {.field {var}} removed due to low information content")
+        }
+        list(r2 = r2, bits = bits)
     }, .parallel = FALSE)
 
-    vars_r2 <- purrr::map_dbl(vars_r2, ~.x)
+    vars_r2 <- purrr::map_dbl(var_stats, ~ .x$r2)
     names(vars_r2) <- variables
 
-    full_model_r2 <- cor(logist(glmnet::predict.glmnet(full_model, newx = X, type = "link", s = lambda))[, 1], y)^2
+    vars_bits <- purrr::map_dbl(var_stats, ~ .x$bits)
+    names(vars_bits) <- variables
 
-    vars_f <- variables[(full_model_r2 - vars_r2) > r2_threshold & bits_vec > bits_threshold]
+    f_bits <- vars_bits > bits_threshold
+    f_r2 <- (full_model_r2 - vars_r2) > r2_threshold
+
+    cli_alert_info("Removed {.val {sum(!f_bits)}} features with bits < {.val {bits_threshold}}")
+    cli_alert_info("Removed {.val {sum(!f_r2)}} features with R^2 < {.val {r2_threshold}}")
+
+    vars_f <- variables[f_bits & f_r2]
 
     X_f <- X[, grep(paste0("(", paste(c(vars_f, ignore_variables), collapse = "|"), ")(_low-energy|_high-energy|_higher-energy|_sigmoid)"), colnames(X))]
     cli_alert_info("Number of features left: {.val {length(vars_f)}}")
@@ -37,14 +45,7 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif
     model_f <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
     pred_f <- logist(glmnet::predict.glmnet(model_f, newx = X_f, type = "link", s = lambda))[, 1]
     r2_f <- cor(pred_f, y)^2
-    cli_alert_info("R^2 after filtering: {.val {r2_f}}")
-
-    # tibble(var = variables, r2 = full_model_r2 - vars_r2) %>%
-    #     ggplot(aes(x = reorder(var, r2), y = r2)) +
-    #     geom_col() +
-    #     theme_classic() +
-    #     vertical_labs() +
-    #     geom_hline(yintercept = r2_threshold, color = "red", linetype = "dashed")
+    cli_alert_info("R^2 after filtering: {.val {r2_f}}. (Before: {.val {full_model_r2}})")
 
     return(list(model = model_f, pred = pred_f, X = X_f, vars_r2 = full_model_r2 - vars_r2, vars = vars_f))
 }
@@ -69,13 +70,6 @@ filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_mode
     pred_f <- logist(glmnet::predict.glmnet(model_f, newx = X_f, type = "link", s = lambda))[, 1]
     r2_f <- cor(pred_f, y)^2
     cli_alert_info("R^2 after filtering: {.val {r2_f}}")
-
-    # tibble(var = variables, r2 = full_model_r2 - vars_r2) %>%
-    #     ggplot(aes(x = reorder(var, r2), y = r2)) +
-    #     geom_col() +
-    #     theme_classic() +
-    #     vertical_labs() +
-    #     geom_hline(yintercept = r2_threshold, color = "red", linetype = "dashed")
 
     return(list(model = model_f, pred = pred_f, X = X_f, r2 = r2_f, vars = vars_f))
 }
