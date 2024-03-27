@@ -4,12 +4,16 @@
 \alias{plot_prediction_scatter}
 \title{Plot scatter plot of observed vs predicted ATAC difference}
 \usage{
-plot_prediction_scatter(traj_model, type = NULL)
+plot_prediction_scatter(traj_model, type = NULL, point_size = 1, alpha = 0.5)
 }
 \arguments{
 \item{traj_model}{Trajectory model object. Please run \code{\link{regress_trajectory_motifs}} first.}
 
 \item{type}{"train" or "test". If NULL - "test" would be used if available, otherwise "train".}
+
+\item{point_size}{Size of the points.}
+
+\item{alpha}{Transparency of the points.}
 }
 \value{
 ggplot2 object
