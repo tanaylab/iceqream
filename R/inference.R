@@ -92,7 +92,7 @@ predict_traj_model <- function(traj_model, feats) {
     normalized_pred_train <- (pred_train - min_val) / (max_val - min_val)
 
     pred <- (pred - min_val) / (max_val - min_val)
-    pred[pred > max_val] <- max_val
+    # pred[pred > max_val] <- max_val
     pred <- rescale(pred, traj_model@diff_score)
 
     return(pred)
