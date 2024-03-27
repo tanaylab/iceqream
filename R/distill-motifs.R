@@ -92,7 +92,6 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
         as.data.frame()
 
     cli_alert_info("Learning a model for each motif cluster...")
-    library(glmnet)
 
     best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
         run_prego_on_clust_residuals(

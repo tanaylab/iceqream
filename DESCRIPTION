@@ -30,12 +30,12 @@ Imports:
     rlang,
     stats,
     ComplexHeatmap,
-    princurve,
     zoo,
     glue,
     stringi,
-    doMC,
-    scattermore
+    scattermore,
+    magrittr,
+    circlize
 Suggests: 
     testthat (>= 3.0.0)
 Remotes: 

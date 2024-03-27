@@ -7,10 +7,10 @@
 norm01(x)
 }
 \arguments{
-\item{x}{A numeric vector that needs to be normalized to the \link{0, 1} range.}
+\item{x}{A numeric vector that needs to be normalized to the [0, 1] range.}
 }
 \value{
-A numeric vector with values normalized to the \link{0, 1} range.
+A numeric vector with values normalized to the [0, 1] range.
 }
 \description{
 This function scales and translates the values in the input vector \code{x}

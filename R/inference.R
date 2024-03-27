@@ -3,7 +3,7 @@
 #' @description This function infers the motif energies for a set of peaks using a pre-trained trajectory model.
 #'
 #' @param traj_model A trajectory model object, as returned by \code{regress_trajectory_motifs}
-#' @inheritParams infer_trajectory_motifs
+#' @inheritParams regress_trajectory_motifs
 #'
 #' @return a `TrajectoryModel` object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field `@type` indicates whether a peak is a 'train' or 'test' peak.
 #'

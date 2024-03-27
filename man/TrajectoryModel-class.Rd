@@ -9,6 +9,9 @@
 \usage{
 \S4method{show}{TrajectoryModel}(object)
 }
+\arguments{
+\item{object}{An instance of \code{TrajectoryModel}.}
+}
 \description{
 An S4 class to represent a trajectory model.
 }
@@ -45,13 +48,16 @@ A list of initial pre-go models.}
 \item{\code{peak_intervals}}{data.frame
 A data frame containing the peak intervals.}
 
-\item{\code{norm_intervals}}{data.frame
-A data frame containing the intervals used for energy normalization.}
-
 \item{\code{params}}{list
 A list of parameters used for training.}
 
 \item{\code{additional_features}}{data.frame
 A data frame containing the additional features.}
+
+\item{\code{features_r2}}{numeric
+A numeric vector of R^2 values for each feature.}
+
+\item{\code{normalization_intervals}}{data.frame
+A data frame containing the intervals used for energy normalization.}
 }}
 

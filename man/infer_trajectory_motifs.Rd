@@ -15,6 +15,16 @@ infer_trajectory_motifs(
 }
 \arguments{
 \item{traj_model}{A trajectory model object, as returned by \code{regress_trajectory_motifs}}
+
+\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
+
+\item{atac_scores}{A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.}
+
+\item{bin_start}{the start of the trajectory. Default: 1}
+
+\item{bin_end}{the end of the trajectory. Default: the last bin}
+
+\item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
 }
 \value{
 a \code{TrajectoryModel} object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field \verb{@type} indicates whether a peak is a 'train' or 'test' peak.

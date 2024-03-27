@@ -6,9 +6,9 @@
 #' from each element (translation) and then dividing each element by
 #' the new maximum value (scaling).
 #'
-#' @param x A numeric vector that needs to be normalized to the [0, 1] range.
+#' @param x A numeric vector that needs to be normalized to the \[0, 1\] range.
 #'
-#' @return A numeric vector with values normalized to the [0, 1] range.
+#' @return A numeric vector with values normalized to the \[0, 1\] range.
 #'
 #' @examples
 #' # Generate random values

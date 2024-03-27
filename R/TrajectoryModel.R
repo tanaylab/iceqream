@@ -34,14 +34,17 @@
 #' @slot peak_intervals data.frame
 #'  A data frame containing the peak intervals.
 #'
-#' @slot norm_intervals data.frame
-#'  A data frame containing the intervals used for energy normalization.
-#'
 #' @slot params list
 #'  A list of parameters used for training.
 #'
 #' @slot additional_features data.frame
 #'  A data frame containing the additional features.
+#'
+#' @slot features_r2 numeric
+#'  A numeric vector of R^2 values for each feature.
+#'
+#' @slot normalization_intervals data.frame
+#'  A data frame containing the intervals used for energy normalization.
 #'
 #'
 #'
@@ -66,7 +69,7 @@ TrajectoryModel <- setClass(
     )
 )
 
-#' @export
+#' @param object An instance of `TrajectoryModel`.
 #' @rdname TrajectoryModel-class
 setMethod("show", signature = "TrajectoryModel", definition = function(object) {
     cli::cli({
