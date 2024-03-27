@@ -24,6 +24,31 @@ norm01 <- function(x) {
     x / max(x, na.rm = TRUE)
 }
 
+
+#' Normalize a vector to a specified quantile
+#'
+#' This function takes a vector \code{x} and normalizes it to a specified quantile.
+#' The normalization is done by subtracting the minimum value of \code{x} and dividing
+#' the result by the specified quantile of \code{x}. Values greater than 1 are capped
+#' at 1.
+#'
+#' @param x A numeric vector to be normalized
+#' @param quant The quantile to normalize to (default is 0.99)
+#' @return A normalized vector
+#' @examples
+#' x <- rnorm(100)
+#' normed_x <- norm0q(x)
+#'
+#' range(normed_x) # This should show values between 0 and 1
+#'
+#' @export
+norm0q <- function(x, quant = 0.99) {
+    x <- x - min(x, na.rm = TRUE)
+    x <- x / quantile(x, quant, na.rm = TRUE)
+    x[x > 1] <- 1
+    return(x)
+}
+
 #' Rescale Values Based on Original Scale Factors
 #'
 #' This function applies a reverse operation of normalization for a numeric vector `x`
@@ -138,19 +163,6 @@ norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy
     colnames(y) <- colnames(x)
     return(y)
 }
-
-
-norm_energy_sequences <- function(x, norm_sequences, pssm, spat, spat_min = NULL, spat_max = NULL, min_energy = -7, q = 1, norm_energy_max = 10) {
-    dataset_e <- prego::compute_pwm(norm_sequences, pssm, spat = spat, spat_min = spat_min, spat_max = spat_max)
-    norm_energy_dataset(x, dataset_e, min_energy = min_energy, q = q)
-}
-
-norm_energy_intervals <- function(x, norm_intervals, pssm, spat, spat_min = NULL, spat_max = NULL, min_energy = -7, q = 1, norm_energy_max = 10) {
-    norm_sequences <- toupper(misha::gseq.extract(norm_intervals))
-    norm_energy_sequences(x, norm_sequences, pssm = pssm, spat = spat, spat_min = spat_min, spat_max = spat_max, min_energy = min_energy, q = q, norm_energy_max = norm_energy_max)
-}
-
-
 
 #' Logistic Function
 #'
