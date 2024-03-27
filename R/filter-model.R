@@ -15,7 +15,7 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif
         m <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
         pred <- logist(glmnet::predict.glmnet(m, newx = X_f, type = "link", s = lambda))[, 1]
         r2 <- cor(pred, y)^2
-        cli::cli_alert("R^2 added by {.field {var}}: {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
+        cli::cli_alert("R^2 added by {.field {var}} ({.strong {prego::consensus_from_pssm(pssm)}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
         if (full_model_r2 - r2 < r2_threshold) {
             cli::cli_alert_info("Variable {.field {var}} removed due to low R^2")
         }
