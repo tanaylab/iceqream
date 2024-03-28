@@ -55,7 +55,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     return(traj_model)
 }
 
-calc_traj_model_energies <- function(traj_model, peak_intervals) {
+calc_traj_model_energies <- function(traj_model, peak_intervals, func = "logSumExp") {
     withr::local_options(list(gmax.data.size = 1e9))
 
     cli_alert_info("Extracting sequences...")
@@ -69,12 +69,12 @@ calc_traj_model_energies <- function(traj_model, peak_intervals) {
 
     cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals")
     clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
-        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
+        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
     }, .parallel = TRUE)
     clust_energies <- do.call(cbind, clust_energies)
 
     norm_clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
-        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
+        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
     }, .parallel = TRUE)
     norm_clust_energies <- do.call(cbind, norm_clust_energies)
 

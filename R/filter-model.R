@@ -1,4 +1,5 @@
-filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif_models, ignore_variables = NULL, r2_threshold = 0.0005, bits_threshold = 1.75) {
+filter_model <- function(X, variables, diff_score, alpha, lambda, seed, full_model, motif_models, ignore_variables = NULL, r2_threshold = 0.0005, bits_threshold = 1.75) {
+    y <- norm01(diff_score)
     if (!is.null(ignore_variables)) {
         variables <- variables[!(variables %in% ignore_variables)]
     }
@@ -44,13 +45,16 @@ filter_model <- function(X, variables, y, alpha, lambda, seed, full_model, motif
 
     model_f <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
     pred_f <- logist(glmnet::predict.glmnet(model_f, newx = X_f, type = "link", s = lambda))[, 1]
+    pred_f <- norm01(pred_f)
+    pred_f <- rescale(pred_f, diff_score)
     r2_f <- cor(pred_f, y)^2
     cli_alert_info("R^2 after filtering: {.val {r2_f}}. (Before: {.val {full_model_r2}})")
 
     return(list(model = model_f, pred = pred_f, X = X_f, vars_r2 = full_model_r2 - vars_r2, vars = vars_f))
 }
 
-filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_model, n_motifs, ignore_variables = NULL) {
+filter_model_using_coefs <- function(X, coefs, diff_score, alpha, lambda, seed, full_model, n_motifs, ignore_variables = NULL) {
+    y <- norm01(diff_score)
     variables <- coefs$variable
     if (!is.null(ignore_variables)) {
         variables <- variables[!(variables %in% ignore_variables)]
@@ -68,6 +72,8 @@ filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_mode
 
     model_f <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = FALSE, seed = seed)
     pred_f <- logist(glmnet::predict.glmnet(model_f, newx = X_f, type = "link", s = lambda))[, 1]
+    pred_f <- norm01(pred_f)
+    pred_f <- rescale(pred_f, diff_score)
     r2_f <- cor(pred_f, y)^2
     cli_alert_info("R^2 after filtering: {.val {r2_f}}")
 
@@ -87,7 +93,7 @@ filter_model_using_coefs <- function(X, coefs, y, alpha, lambda, seed, full_mode
 #'
 #' @export
 filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75) {
-    res <- filter_model(traj_model@model_features, traj_model@coefs$variable, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, traj_model@motif_models, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold, bits_threshold = bits_threshold)
+    res <- filter_model(traj_model@model_features, traj_model@coefs$variable, traj_model@diff_score, traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, traj_model@motif_models, ignore_variables = colnames(traj_model@additional_features), r2_threshold = r2_threshold, bits_threshold = bits_threshold)
 
     traj_model@model <- res$model
     traj_model@motif_models <- traj_model@motif_models[res$vars]
@@ -105,7 +111,7 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
 }
 
 filter_traj_model_using_coefs <- function(traj_model, n_motifs) {
-    res <- filter_model_using_coefs(traj_model@model_features, traj_model@coefs, norm01(traj_model@diff_score), traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, ignore_variables = colnames(traj_model@additional_features), n_motifs = n_motifs)
+    res <- filter_model_using_coefs(traj_model@model_features, traj_model@coefs, traj_model@diff_score, traj_model@params$alpha, traj_model@params$lambda, traj_model@params$seed, traj_model@model, ignore_variables = colnames(traj_model@additional_features), n_motifs = n_motifs)
 
     traj_model@model <- res$model
     traj_model@predicted_diff_score <- res$pred

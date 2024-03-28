@@ -6,6 +6,8 @@
 \alias{iceqream-package}
 \title{iceqream: Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs}
 \description{
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
 What the package does (one paragraph).
 }
 \author{
