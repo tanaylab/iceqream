@@ -66,7 +66,8 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 
     cli_alert_info("Clustering {.val {ncol(features)}} features into {.val {nclust}} clusters...")
     features_cm <- tgs_cor(features, pairwise.complete.obs = TRUE)
-    hc <- tgs_dist(features_cm) %>% hclust(method = "ward.D2")
+
+    hc <- hclust(as.dist(1 - features_cm), method = "complete")
     clust_map <- data.frame(feat = colnames(features), clust = cutree(hc, k = nclust), beta = glm_model$beta[colnames(features), 1])
 
     cli_alert_info("Choosing top {.val {target_number}} features clusters")
@@ -94,23 +95,20 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     cli_alert_info("Learning a model for each motif cluster...")
 
     best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
-        run_prego_on_clust_residuals(
-            x$feat,
+        cli_alert("Running {.field prego} on cluster {.val {x$feat}}...")
+        res <- run_prego_on_clust_residuals(
             model = glm_model,
-            y = y,
             feats = features[diff_filter, ],
             clust_motifs = clust_map %>% filter(clust == x$clust) %>% pull(feat),
             sequences = seqs[diff_filter],
             lambda = lambda,
-            pssm_db = pssm_db,
-            spat_db = prego_models %>% purrr::map("spat"),
-            spat_min = prego_models %>% purrr::map("spat_min"),
-            spat_max = prego_models %>% purrr::map("spat_max"),
             seed = seed,
             spat_num_bins = spat_num_bins,
             spat_bin_size = spat_bin_size,
             kmer_sequence_length = kmer_sequence_length
         )
+        cli::cli_alert_success("Finished running {.field prego} on cluster {.val {x$feat}}")
+        return(res)
     }, .parallel = TRUE)
     names(best_motifs_prego) <- best_clust_map$feat
 
@@ -149,15 +147,10 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     return(list(energies = clust_energies, motifs = best_motifs_prego, features = distilled_features))
 }
 
-run_prego_on_clust_residuals <- function(motif, model, y, feats, clust_motifs, sequences, pssm_db, spat_db = NULL, spat_min = NULL, spat_max = NULL, lambda = 1e-5, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL) {
-    cli_alert("Running {.field prego} on cluster {.val {motif}}...")
-    pssm <- pssm_db %>%
-        filter(motif == !!motif)
-
+run_prego_on_clust_residuals <- function(model, feats, clust_motifs, sequences, lambda = 1e-5, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL) {
     partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
 
     cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, symmetrize_spat = TRUE))
 
-    cli::cli_alert_success("Finished running {.field prego} on cluster {.val {motif}}")
     return(prego::export_regression_model(prego_model))
 }
