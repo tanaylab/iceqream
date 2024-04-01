@@ -85,7 +85,7 @@ calc_traj_model_energies <- function(traj_model, peak_intervals, func = "logSumE
 
 predict_traj_model <- function(traj_model, feats) {
     pred <- logist(glmnet::predict.glmnet(traj_model@model, newx = feats, type = "link", s = traj_model@params$lambda))[, 1]
-    pred_train <- logist(glmnet::predict.glmnet(traj_model@model, newx = traj_model@model_features, type = "link", s = traj_model@params$lambda))[, 1]
+    pred_train <- logist(glmnet::predict.glmnet(traj_model@model, newx = traj_model@model_features[, colnames(feats), drop = FALSE], type = "link", s = traj_model@params$lambda))[, 1]
 
     min_val <- min(pred_train)
     max_val <- max(pred_train)

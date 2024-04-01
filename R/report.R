@@ -331,9 +331,7 @@ plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL
     e_mat <- traj_model@normalized_energies
     e_mat <- e_mat[, setdiff(colnames(e_mat), colnames(traj_model@additional_features))]
     cm <- tgs_cor(e_mat, pairwise.complete.obs = TRUE)
-    cm_no_diag <- cm
-    diag(cm_no_diag) <- 0
-    hc <- tgs_dist(cm_no_diag) %>% hclust(method = "ward.D2")
+    hc <- hclust(as.dist(1 - cm), method = "complete")
 
     hm <- ComplexHeatmap::Heatmap(cm, name = "features", cluster_rows = hc, cluster_columns = hc, col = circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red")), split = k, column_split = k)
 
