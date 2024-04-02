@@ -6,9 +6,9 @@
 #' from each element (translation) and then dividing each element by
 #' the new maximum value (scaling).
 #'
-#' @param x A numeric vector that needs to be normalized to the \[0, 1\] range.
+#' @param x A numeric vector that needs to be normalized to the \[0, 1\] range. IF `x` is a matrix, the normalization is applied column-wise.
 #'
-#' @return A numeric vector with values normalized to the \[0, 1\] range.
+#' @return A numeric vector with values normalized to the \[0, 1\] range. If `x` is a matrix, the function returns a matrix with columns normalized to the \[0, 1\] range.
 #'
 #' @examples
 #' # Generate random values
@@ -20,6 +20,10 @@
 #'
 #' @export
 norm01 <- function(x) {
+    if (is.matrix(x)) {
+        x <- apply(x, 2, norm01)
+        return(x)
+    }
     x <- x - min(x, na.rm = TRUE)
     x / max(x, na.rm = TRUE)
 }
