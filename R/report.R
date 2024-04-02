@@ -177,10 +177,10 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
 #' @export
 plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, ...) {
     validate_traj_model(traj_model)
-
     models <- traj_model@motif_models
+    use_features_r2 <- length(traj_model@features_r2) > 0 && setequal(names(traj_model@motif_models), names(traj_model@features_r2))
 
-    if (length(traj_model@features_r2) > 0) {
+    if (use_features_r2) {
         sorted_vars <- names(sort(traj_model@features_r2, decreasing = TRUE))
     } else {
         sorted_vars <- traj_model@coefs %>%
@@ -191,8 +191,6 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
             sort(decreasing = TRUE) %>%
             names()
     }
-
-
     sorted_vars <- sorted_vars[!(sorted_vars %in% colnames(traj_model@additional_features))]
 
     if (!is.null(motif_num)) {
@@ -206,7 +204,7 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
     cli_alert_info("Plotting {.val {motif_num}} motifs")
     models <- models[sorted_vars[1:motif_num]]
 
-    if (length(traj_model@features_r2) > 0) {
+    if (use_features_r2) {
         spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat, title = paste0("R^2=", round(traj_model@features_r2[.y], 6))))
     } else {
         spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat))
