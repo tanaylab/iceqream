@@ -95,12 +95,12 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
         traj_model_new <- traj_model
     }
 
-    traj_model@features_r2 <- vars_r2
-    traj_model@params$features_bits <- vars_bits
-    traj_model@params$r2_threshold <- r2_threshold
-    traj_model@params$bits_threshold <- bits_threshold
+    traj_model_new@features_r2 <- vars_r2
+    traj_model_new@params$features_bits <- vars_bits
+    traj_model_new@params$r2_threshold <- r2_threshold
+    traj_model_new@params$bits_threshold <- bits_threshold
 
-    cli_alert_success("After filtering: Number of non-zero coefficients: {.val {sum(traj_model@model$beta != 0)}} (out of {.val {ncol(traj_model@model_features)}}). R^2: {.val {cor(traj_model@predicted_diff_score, norm01(traj_model@diff_score))^2}}")
+    cli_alert_success("After filtering: Number of non-zero coefficients: {.val {sum(traj_model_new@model$beta != 0)}} (out of {.val {ncol(traj_model_new@model_features)}}). R^2: {.val {cor(traj_model_new@predicted_diff_score, norm01(traj_model_new@diff_score))^2}}")
 
     return(traj_model_new)
 }
