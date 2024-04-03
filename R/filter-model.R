@@ -61,8 +61,8 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
     full_model_r2 <- cor(traj_model@predicted_diff_score, traj_model@diff_score)^2
 
     motif_models <- names(traj_model@motif_models)
-    
-    if (!is.null(r2_threshold)){
+
+    if (!is.null(r2_threshold)) {
         var_stats <- plyr::llply(motif_models, function(var) {
             pssm <- traj_model@motif_models[[var]]$pssm
             traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
@@ -79,25 +79,24 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
         })
         vars_r2 <- purrr::map_dbl(var_stats, ~ .x$r2)
         names(vars_r2) <- motif_models
-    }
-    else{
-        r2_threshold = 0
-        vars_r2 = rep(0, length(motif_models))
+    } else {
+        r2_threshold <- 0
+        vars_r2 <- rep(0, length(motif_models))
         names(vars_r2) <- motif_models
-        
-        
+
+
         var_stats <- plyr::llply(motif_models, function(var) {
             pssm <- traj_model@motif_models[[var]]$pssm
             bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
             list(bits = bits)
         })
     }
-    
+
     vars_bits <- purrr::map_dbl(var_stats, ~ .x$bits)
     names(vars_bits) <- motif_models
-    
+
     f_r2 <- (full_model_r2 - vars_r2) > r2_threshold
-    
+
     f_bits <- vars_bits > bits_threshold
 
 

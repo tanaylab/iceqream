@@ -195,7 +195,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 
     distilled_features <- clust_map %>%
         left_join(best_clust_map %>% select(clust, name = feat), by = "clust") %>%
-        select(distilled = name, model = feat, beta, max_beta) %>%
+        select(distilled = name, model = feat, beta, max_beta, any_of("intra_cor")) %>%
         arrange(distilled)
 
     return(list(energies = clust_energies, motifs = best_motifs_prego, features = distilled_features))
