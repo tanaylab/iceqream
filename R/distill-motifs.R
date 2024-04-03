@@ -107,7 +107,10 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
             if (!is.null(prev_models[[x$feat]])) {
                 return(prev_models[[x$feat]])
             } else if (nrow(pssm_db %>% filter(motif == x$feat)) > 0) {
-                return(pssm_db %>% filter(motif == x$feat))
+                pssm <- pssm_db %>%
+                    filter(motif == x$feat) %>%
+                    select(pos, A, C, G, T)
+                return(list(pssm = pssm, spat = NULL))
             } else {
                 cli::cli_alert_warning("No current model found for {.val {x$feat}}. Distilling on a single motif")
             }
