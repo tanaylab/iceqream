@@ -65,7 +65,7 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
     var_stats <- plyr::llply(motif_models, function(var) {
         pssm <- traj_model@motif_models[[var]]$pssm
         traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
-        bits <- sum(prego::bits_per_pos(pssm))
+        bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
         r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
         cli::cli_alert("R^2 added by {.field {var}} ({.strong {prego::consensus_from_pssm(pssm)}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
         if (full_model_r2 - r2 < r2_threshold) {
