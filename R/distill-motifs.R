@@ -5,12 +5,13 @@
 #' @param traj_model A trajectory model object
 #' @param max_motif_num The maximum number of motifs to select
 #' @param min_diff The minimum difference of scores to use for distillation
+#' @param intra_cor_thresh The threshold for the average intra-cluster correlation to split clusters. If NULL, no splitting is done.
 #' @param parallel Whether to use parallel processing
 #'
 #' @return A distilled trajectory model object with \code{max_motif_num} models + additional features.
 #'
 #' @export
-distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, parallel = TRUE) {
+distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_cor_thresh = 0.6, parallel = TRUE) {
     if (any(traj_model@type == "test")) {
         cli_abort("Cannot distill a trajectory model with test peaks.")
     }
@@ -29,7 +30,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, parall
 
     glm_linear <- glmnet::glmnet(as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features)), atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
 
-    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prev_models = traj_model@motif_models, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor, distill_single = FALSE)
+    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prev_models = traj_model@motif_models, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor, distill_single = FALSE, intra_cor_thresh = intra_cor_thresh)
 
     clust_energies <- distilled$energies
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -64,7 +65,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, parall
     return(traj_model_distilled)
 }
 
-distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prev_models = list(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1, distill_single = TRUE) {
+distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prev_models = list(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1, distill_single = TRUE, intra_cor_thresh = NULL) {
     if (is.null(nclust)) {
         nclust <- min(ncol(features), target_number * n_clust_factor)
     }
@@ -74,6 +75,39 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 
     hc <- hclust(as.dist(1 - features_cm), method = "complete")
     clust_map <- data.frame(feat = colnames(features), clust = cutree(hc, k = nclust), beta = glm_model$beta[colnames(features), 1])
+
+    if (!is.null(intra_cor_thresh)) {
+        avg_intra_cluster_cor <- function(cluster_id, clust_map, corr_matrix) {
+            features_in_cluster <- clust_map$feat[clust_map$clust == cluster_id]
+            cluster_corr <- corr_matrix[features_in_cluster, features_in_cluster]
+            mean(cluster_corr[upper.tri(cluster_corr)], na.rm = TRUE)
+        }
+        clust_map <- clust_map %>%
+            group_by(clust) %>%
+            mutate(intra_cor = avg_intra_cluster_cor(clust[1], clust_map, features_cm)) %>%
+            ungroup() %>%
+            mutate(intra_cor = ifelse(is.na(intra_cor), 1, intra_cor)) %>%
+            add_count(clust)
+
+        to_split <- clust_map %>%
+            filter(intra_cor < intra_cor_thresh, n > 1) %>%
+            pull(clust) %>%
+            unique()
+
+        if (length(to_split) > 0) {
+            cli_alert_info("Splitting {.val {length(to_split)}} cluster{?s} with average intra-cluster correlation < {.val {intra_cor_thresh}}")
+            clust_map <- clust_map %>%
+                group_by(clust) %>%
+                mutate(clust_i = ifelse(clust %in% to_split, 1:n(), 1)) %>%
+                ungroup() %>%
+                tidyr::unite(clust, clust, clust_i, sep = "_") %>%
+                mutate(clust = as.integer(as.factor(clust)))
+            nclust <- length(unique(clust_map$clust))
+            if (target_number < nclust) {
+                target_number <- nclust
+            }
+        }
+    }
 
     cli_alert_info("Choosing top {.val {target_number}} features clusters")
     selected_clust <- clust_map %>%
