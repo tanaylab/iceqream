@@ -17,6 +17,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, parall
 
     pssm_db <- purrr::imap_dfr(traj_model@motif_models, ~ .x$pssm %>% mutate(motif = .y)) %>%
         select(motif, pos, everything())
+
     params <- traj_model@params
     withr::local_options(list(gmax.data.size = 1e9))
     seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@peak_intervals, params$peaks_size)))
@@ -28,7 +29,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, parall
 
     glm_linear <- glmnet::glmnet(as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features)), atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
 
-    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor)
+    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prev_models = traj_model@motif_models, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor, distill_single = FALSE)
 
     clust_energies <- distilled$energies
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -41,6 +42,8 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, parall
 
 
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
+    params <- traj_model@params
+    params$distilled_features <- distilled$features
 
     traj_model_distilled <- TrajectoryModel(
         model = model,
@@ -55,14 +58,13 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, parall
         predicted_diff_score = predicted_diff_score,
         initial_prego_models = traj_model@initial_prego_models,
         peak_intervals = traj_model@peak_intervals,
-        features_r2 = traj_model@features_r2,
-        params = traj_model@params
+        params = params
     )
 
     return(traj_model_distilled)
 }
 
-distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1) {
+distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prev_models = list(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1, distill_single = TRUE) {
     if (is.null(nclust)) {
         nclust <- min(ncol(features), target_number * n_clust_factor)
     }
@@ -98,7 +100,19 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     cli_alert_info("Learning a model for each motif cluster...")
 
     best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
-        cli_alert("Running {.field prego} on cluster {.val {x$feat}}...")
+        n_feats <- nrow(clust_map %>% filter(clust == x$clust))
+        if (!distill_single &&
+            n_feats == 1) {
+            cli_alert("Cluster {.val {x$feat}} has only one feature, skipping...")
+            if (!is.null(prev_models[[x$feat]])) {
+                return(prev_models[[x$feat]])
+            } else if (nrow(pssm_db %>% filter(motif == x$feat)) > 0) {
+                return(pssm_db %>% filter(motif == x$feat))
+            } else {
+                cli::cli_alert_warning("No current model found for {.val {x$feat}}. Distilling on a single motif")
+            }
+        }
+        cli_alert_info("Running {.field prego} on cluster {.val {x$feat}} (distilling {.val {n_feats}} features)")
         res <- run_prego_on_clust_residuals(
             model = glm_model,
             feats = features[diff_filter, ],
@@ -144,8 +158,8 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 
     distilled_features <- clust_map %>%
         left_join(best_clust_map %>% select(clust, name = feat), by = "clust") %>%
-        select(clust = name, feat, beta, max_beta) %>%
-        arrange(clust)
+        select(distilled = name, model = feat, beta, max_beta) %>%
+        arrange(distilled)
 
     return(list(energies = clust_energies, motifs = best_motifs_prego, features = distilled_features))
 }
