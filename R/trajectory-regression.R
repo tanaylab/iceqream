@@ -201,7 +201,7 @@ regress_trajectory_motifs <- function(atac_scores,
     } else {
         diff_filter <- rep(TRUE, nrow(peak_intervals))
     }
-    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], norm_seqs = norm_seqs, diff_filter, additional_features = additional_features, pssm_db = pssm_db, prego_models = prego_models, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, norm_energy_max = norm_energy_max, min_energy = min_energy, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor, distill_single = FALSE)
+    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], norm_seqs = norm_seqs, diff_filter, additional_features = additional_features, pssm_db = pssm_db, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, norm_energy_max = norm_energy_max, min_energy = min_energy, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor, distill_single = FALSE)
     clust_energies <- distilled$energies
 
     clust_energies_logist <- create_logist_features(clust_energies)

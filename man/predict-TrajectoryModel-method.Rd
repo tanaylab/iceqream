@@ -4,12 +4,25 @@
 \alias{predict,TrajectoryModel-method}
 \title{Predict TrajectoryModel on new data}
 \usage{
-\S4method{predict}{TrajectoryModel}(object, peak_intervals, additional_features = NULL)
+\S4method{predict}{TrajectoryModel}(
+  object,
+  peak_intervals,
+  atac_scores = NULL,
+  bin_start = 1,
+  bin_end = ncol(atac_scores),
+  additional_features = NULL
+)
 }
 \arguments{
 \item{object}{An instance of \code{TrajectoryModel}.}
 
 \item{peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak to predict.}
+
+\item{atac_scores}{A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.}
+
+\item{bin_start}{the start of the trajectory. Default: 1}
+
+\item{bin_end}{the end of the trajectory. Default: the last bin}
 
 \item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
 }

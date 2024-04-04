@@ -168,6 +168,7 @@ norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy
     return(y)
 }
 
+
 #' Logistic Function
 #'
 #' Calculates the logistic function value given parameters and input.
