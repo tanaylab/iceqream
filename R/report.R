@@ -170,28 +170,34 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
 #' @param dev Device to use for saving the plot. Default: \code{grDevices::pdf}.
 #' @param ... Additional arguments to pass to the device.
 #' @param title Title of the plot.
+#' @param motif_titles Titles for the motifs. If NULL, the motif names will be used.
+#' @param sort_motifs Whether to sort the motifs by the absolute value of the coefficients / r2 values.
 #'
 #' @return ggplot2 object. If filename is not NULL, the plot will be saved to the file and the function will return \code{invisible(NULL)}.
 #'
 #'
 #' @export
-plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, ...) {
+plot_traj_model_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, ...) {
     validate_traj_model(traj_model)
     models <- traj_model@motif_models
-    use_features_r2 <- length(traj_model@features_r2) > 0 && setequal(names(traj_model@motif_models), names(traj_model@features_r2))
+    has_features_r2 <- length(traj_model@features_r2) > 0 && all(names(models) %in% names(traj_model@features_r2))
 
-    if (use_features_r2) {
-        sorted_vars <- names(sort(traj_model@features_r2, decreasing = TRUE))
+    if (sort_motifs) {
+        if (has_features_r2) {
+            sorted_vars <- names(sort(traj_model@features_r2, decreasing = TRUE))
+        } else {
+            sorted_vars <- traj_model@coefs %>%
+                tibble::column_to_rownames("variable") %>%
+                as.matrix() %>%
+                abs() %>%
+                apply(1, max) %>%
+                sort(decreasing = TRUE) %>%
+                names()
+        }
+        sorted_vars <- sorted_vars[!(sorted_vars %in% colnames(traj_model@additional_features))]
     } else {
-        sorted_vars <- traj_model@coefs %>%
-            tibble::column_to_rownames("variable") %>%
-            as.matrix() %>%
-            abs() %>%
-            apply(1, max) %>%
-            sort(decreasing = TRUE) %>%
-            names()
+        sorted_vars <- names(models)
     }
-    sorted_vars <- sorted_vars[!(sorted_vars %in% colnames(traj_model@additional_features))]
 
     if (!is.null(motif_num)) {
         if (motif_num > length(models)) {
@@ -204,13 +210,23 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
     cli_alert_info("Plotting {.val {motif_num}} motifs")
     models <- models[sorted_vars[1:motif_num]]
 
-    if (use_features_r2) {
+    if (has_features_r2) {
         spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat, title = paste0("R^2=", round(traj_model@features_r2[.y], 6))))
     } else {
         spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat))
     }
 
-    motifs_p <- purrr::imap(models, ~ prego::plot_pssm_logo(.x$pssm, title = .y))
+
+    if (is.null(motif_titles)) {
+        motif_titles <- sorted_vars
+    } else {
+        if (length(motif_titles) != length(models)) {
+            cli_abort("Length of text must be equal to the number of motifs")
+        }
+    }
+
+    motifs_p <- purrr::map2(models, motif_titles, ~ prego::plot_pssm_logo(.x$pssm, title = .y) +
+        theme(plot.title = ggtext::element_markdown()))
 
     if (free_coef_axis) {
         coef_limits <- NULL
@@ -255,13 +271,13 @@ plot_motifs_report <- function(traj_model, motif_num = NULL, free_coef_axis = TR
 
     p <- patchwork::wrap_plots(
         A = patchwork::wrap_plots(motifs_p, ncol = 1),
-        B = patchwork::wrap_plots(coefs_p, ncol = 1),
-        C = patchwork::wrap_plots(spatial_p, ncol = 1),
-        D = patchwork::wrap_plots(spat_freq_p, ncol = 1),
-        E = patchwork::wrap_plots(e_vs_pr_p, ncol = 1),
+        B = patchwork::wrap_plots(e_vs_pr_p, ncol = 1),
+        C = patchwork::wrap_plots(coefs_p, ncol = 1),
+        D = patchwork::wrap_plots(spatial_p, ncol = 1),
+        E = patchwork::wrap_plots(spat_freq_p, ncol = 1),
         F = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
         design = "ABCDEF",
-        widths = c(0.5, 0.1, 0.1, 0.3, 0.3, 0.3)
+        widths = c(0.5, 0.1, 0.1, 0.1, 0.3, 0.3)
     )
 
     if (!is.null(title)) {
@@ -314,17 +330,17 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {
     return(p)
 }
 
-#' Plot trajectory model report
+#' Plot trajectory model clusters report
 #'
 #' @param traj_model A trajectory model object
 #' @param dir A directory to save the report files
 #' @param k Number of clusters to split the heatmap into
 #' @param spatial_freqs A vector of spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.
 #'
-#' @return None.
+#' @return None. A file called \code{heatmap.png} with the heatmap and a file called \code{motifs_report.pdf} with the motifs report will be saved to the directory.
 #'
 #' @export
-plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL) {
+plot_traj_model_clusters_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL) {
     validate_traj_model(traj_model)
     e_mat <- traj_model@normalized_energies
     e_mat <- e_mat[, setdiff(colnames(e_mat), colnames(traj_model@additional_features))]
@@ -353,14 +369,13 @@ plot_traj_model_report <- function(traj_model, dir, k = 10, spatial_freqs = NULL
         purrr::imap_dfr(~ tibble(ord = .x, clust = .y)) %>%
         mutate(motif = rownames(cm)[ord])
 
-    plyr::d_ply(clust_df, "clust", function(x) {
-        traj_model_clust <- traj_model
-        traj_model_clust@motif_models <- traj_model@motif_models[x$motif]
-        traj_model_clust@coefs <- traj_model@coefs %>% filter(variable %in% x$motif)
-        traj_model_clust@features_r2 <- traj_model@features_r2[x$motif]
-        plot_motifs_report(traj_model_clust, filename = file.path(dir, paste0("clust_", x$clust[1], ".pdf")), title = paste0("Cluster ", x$clust[1], " (", nrow(x), " motifs)"), spatial_freqs = spatial_freqs)
-    })
+    traj_model_clust <- traj_model
+    traj_model_clust@motif_models <- traj_model@motif_models[clust_df$motif]
 
+    cluster_colors <- chameleon::distinct_colors(n = length(unique(clust_df$clust)))$name
+    titles <- glue::glue("<span style='color:{cluster_colors[clust_df$clust]}; font-weight: bold;'>C{clust_df$clust}: {clust_df$motif}</span>")
+
+    plot_traj_model_report(traj_model_clust, spatial_freqs = spatial_freqs, filename = file.path(dir, "motifs_report.pdf"), motif_titles = titles, sort_motifs = FALSE)
 
 
     invisible(clust_df)

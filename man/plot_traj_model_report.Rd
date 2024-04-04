@@ -2,22 +2,51 @@
 % Please edit documentation in R/report.R
 \name{plot_traj_model_report}
 \alias{plot_traj_model_report}
-\title{Plot trajectory model report}
+\title{Plot a report of trajectory motifs}
 \usage{
-plot_traj_model_report(traj_model, dir, k = 10, spatial_freqs = NULL)
+plot_traj_model_report(
+  traj_model,
+  motif_num = NULL,
+  free_coef_axis = TRUE,
+  spatial_freqs = NULL,
+  filename = NULL,
+  width = NULL,
+  height = NULL,
+  dev = grDevices::pdf,
+  title = NULL,
+  motif_titles = NULL,
+  sort_motifs = TRUE,
+  ...
+)
 }
 \arguments{
-\item{traj_model}{A trajectory model object}
+\item{traj_model}{Trajectory model object. Please run \code{regress_trajectory_motifs} first.}
 
-\item{dir}{A directory to save the report files}
+\item{motif_num}{Number of motifs to plot. If NULL, all motifs will be plotted.}
 
-\item{k}{Number of clusters to split the heatmap into}
+\item{free_coef_axis}{Whether to use a free axis for the coefficient plots.}
 
-\item{spatial_freqs}{A vector of spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.}
+\item{spatial_freqs}{Pre-computed spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.}
+
+\item{filename}{Filename to save the plot to. If NULL, the plot will be returned.}
+
+\item{width}{Width of the plot.}
+
+\item{height}{Height of the plot.}
+
+\item{dev}{Device to use for saving the plot. Default: \code{grDevices::pdf}.}
+
+\item{title}{Title of the plot.}
+
+\item{motif_titles}{Titles for the motifs. If NULL, the motif names will be used.}
+
+\item{sort_motifs}{Whether to sort the motifs by the absolute value of the coefficients / r2 values.}
+
+\item{...}{Additional arguments to pass to the device.}
 }
 \value{
-None.
+ggplot2 object. If filename is not NULL, the plot will be saved to the file and the function will return \code{invisible(NULL)}.
 }
 \description{
-Plot trajectory model report
+Plot a report of trajectory motifs
 }
