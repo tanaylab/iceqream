@@ -55,7 +55,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     return(traj_model)
 }
 
-calc_traj_model_energies <- function(traj_model, peak_intervals, func = "logSumExp") {
+calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp") {
     withr::local_options(list(gmax.data.size = 1e9))
 
     cli_alert_info("Extracting sequences...")
@@ -66,21 +66,28 @@ calc_traj_model_energies <- function(traj_model, peak_intervals, func = "logSumE
     }
     norm_sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, traj_model@params$peaks_size)))
 
-
     cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals")
-    clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
-        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
-    }, .parallel = TRUE)
-    clust_energies <- do.call(cbind, clust_energies)
-
-    norm_clust_energies <- plyr::llply(purrr::discard(traj_model@motif_models, is.null), function(x) {
-        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
-    }, .parallel = TRUE)
-    norm_clust_energies <- do.call(cbind, norm_clust_energies)
-
-    e_test <- norm_energy_matrix(clust_energies, norm_clust_energies, min_energy = traj_model@params$min_energy, q = traj_model@params$energy_norm_quantile, norm_energy_max = traj_model@params$norm_energy_max)
+    e_test <- infer_energies(sequences, norm_sequences, traj_model@motif_models, traj_model@params$min_energy, traj_model@params$energy_norm_quantile, traj_model@params$norm_energy_max, func)
 
     return(e_test)
+}
+
+infer_energies <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp") {
+    ml <- purrr::discard(motif_list, is.null)
+    energies <- plyr::llply(ml, function(x) {
+        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
+    }, .parallel = TRUE)
+    names(energies) <- names(ml)
+    energies <- do.call(cbind, energies)
+
+    norm_energies <- plyr::llply(ml, function(x) {
+        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
+    }, .parallel = TRUE)
+    names(norm_energies) <- names(ml)
+    norm_energies <- do.call(cbind, norm_energies)
+
+    energies <- norm_energy_matrix(energies, norm_energies, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
+    return(energies)
 }
 
 predict_traj_model <- function(traj_model, feats) {

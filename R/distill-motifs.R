@@ -30,7 +30,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
 
     glm_linear <- glmnet::glmnet(as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features)), atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
 
-    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prev_models = traj_model@motif_models, prego_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor, distill_single = FALSE, intra_cor_thresh = intra_cor_thresh)
+    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_linear, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prev_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor, distill_single = FALSE, intra_cor_thresh = intra_cor_thresh)
 
     clust_energies <- distilled$energies
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -65,7 +65,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
     return(traj_model_distilled)
 }
 
-distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prev_models = list(), prego_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1, distill_single = TRUE, intra_cor_thresh = NULL) {
+distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prev_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1, distill_single = TRUE, intra_cor_thresh = NULL) {
     if (is.null(nclust)) {
         nclust <- min(ncol(features), target_number * n_clust_factor)
     }
@@ -82,6 +82,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
             cluster_corr <- corr_matrix[features_in_cluster, features_in_cluster]
             mean(cluster_corr[upper.tri(cluster_corr)], na.rm = TRUE)
         }
+
         clust_map <- clust_map %>%
             group_by(clust) %>%
             mutate(intra_cor = avg_intra_cluster_cor(clust[1], clust_map, features_cm)) %>%
@@ -167,19 +168,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     names(best_motifs_prego) <- best_clust_map$feat
 
     cli_alert_info("Infering energies...")
-    clust_energies <- plyr::llply(purrr::discard(best_motifs_prego, is.null), function(x) {
-        prego::compute_pwm(seqs, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = TRUE)
-    names(clust_energies) <- best_clust_map$feat
-    clust_energies_raw <- do.call(cbind, clust_energies)
-
-    norm_clust_energies <- plyr::llply(purrr::discard(best_motifs_prego, is.null), function(x) {
-        prego::compute_pwm(norm_seqs, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = TRUE)
-    names(norm_clust_energies) <- best_clust_map$feat
-    norm_clust_energies <- do.call(cbind, norm_clust_energies)
-
-    clust_energies <- norm_energy_matrix(clust_energies_raw, norm_clust_energies, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
+    clust_energies <- infer_energies(seqs, norm_seqs, best_motifs_prego, min_energy, energy_norm_quantile, norm_energy_max)
 
     # add missing features
     missing_features <- setdiff(best_clust_map$feat, colnames(clust_energies))
