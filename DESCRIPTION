@@ -35,7 +35,9 @@ Imports:
     stringi,
     scattermore,
     magrittr,
-    circlize
+    circlize,
+    chameleon,
+    ggtext
 Suggests: 
     testthat (>= 3.0.0)
 Remotes: 
