@@ -215,11 +215,14 @@ regress_trajectory_motifs <- function(atac_scores,
 
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
 
+    # remove additional features from clust_energies
+    normalized_energies <- clust_energies[, setdiff(colnames(clust_energies), colnames(additional_features))]
+
     traj_model <- TrajectoryModel(
         model = model,
         motif_models = homogenize_pssm_models(distilled$motifs),
         coefs = get_model_coefs(model),
-        normalized_energies = clust_energies,
+        normalized_energies = normalized_energies,
         model_features = clust_energies_logist,
         type = rep("train", nrow(atac_scores)),
         additional_features = as.data.frame(additional_features),

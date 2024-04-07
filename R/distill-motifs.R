@@ -46,11 +46,14 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
     params <- traj_model@params
     params$distilled_features <- distilled$features
 
+    # remove additional features from clust_energies
+    normalized_energies <- clust_energies[, setdiff(colnames(clust_energies), names(traj_model@additional_features)), drop = FALSE]
+
     traj_model_distilled <- TrajectoryModel(
         model = model,
         motif_models = homogenize_pssm_models(distilled$motifs),
         coefs = get_model_coefs(model),
-        normalized_energies = as.matrix(clust_energies),
+        normalized_energies = as.matrix(normalized_energies),
         model_features = clust_energies_logist,
         type = traj_model@type,
         normalization_intervals = traj_model@normalization_intervals,
