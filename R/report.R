@@ -249,23 +249,7 @@ plot_traj_model_report <- function(traj_model, motif_num = NULL, free_coef_axis 
     }
 
     pr <- compute_partial_response(traj_model)
-    plot_e_vs_pr <- function(motif, ylim = NULL) {
-        p <- tibble(
-            e = traj_model@normalized_energies[, motif],
-            pr = pr[, motif]
-        ) %>%
-            ggplot(aes(x = e, y = pr)) +
-            scattermore::geom_scattermore(pointsize = 3) +
-            labs(x = "Energy", y = "Partial response") +
-            theme_classic() +
-            theme(aspect.ratio = 1)
-        if (!is.null(ylim)) {
-            p <- p + ylim(ylim)
-        }
-        return(p)
-    }
-
-    e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x))
+    e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x, pr, traj_model))
 
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
@@ -300,6 +284,22 @@ plot_traj_model_report <- function(traj_model, motif_num = NULL, free_coef_axis 
     } else {
         return(p)
     }
+}
+
+plot_e_vs_pr <- function(motif, pr, traj_model, ylim = NULL) {
+    p <- tibble(
+        e = traj_model@normalized_energies[, motif],
+        pr = pr[, motif]
+    ) %>%
+        ggplot(aes(x = e, y = pr)) +
+        scattermore::geom_scattermore(pointsize = 3) +
+        labs(x = "Energy", y = "Partial response") +
+        theme_classic() +
+        theme(aspect.ratio = 1)
+    if (!is.null(ylim)) {
+        p <- p + ylim(ylim)
+    }
+    return(p)
 }
 
 plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {

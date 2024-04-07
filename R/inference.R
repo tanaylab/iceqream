@@ -113,9 +113,12 @@ add_traj_model_stats <- function(traj_model) {
     train_idxs <- traj_model@type == "train"
     test_idxs <- traj_model@type == "test"
     traj_model@params$stats <- list(
-        r2_train = cor(pred[train_idxs], obs[train_idxs], use = "pairwise.complete.obs")^2,
-        r2_test = cor(pred[test_idxs], obs[test_idxs], use = "pairwise.complete.obs")^2,
-        r2_all = cor(pred, obs, use = "pairwise.complete.obs")^2
+        r2_train = cor(pred[train_idxs], obs[train_idxs], use = "pairwise.complete.obs")^2
     )
+    if (sum(test_idxs) > 0) {
+        traj_model@params$stats$r2_test <- cor(pred[test_idxs], obs[test_idxs], use = "pairwise.complete.obs")^2
+    }
+
+    traj_model@params$stats$r2_all <- cor(pred, obs, use = "pairwise.complete.obs")^2
     return(traj_model)
 }
