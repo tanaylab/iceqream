@@ -5,7 +5,7 @@
 #' @param traj_model A trajectory model object, as returned by \code{regress_trajectory_motifs}
 #' @inheritParams regress_trajectory_motifs
 #'
-#' @return a `TrajectoryModel` object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field `@type` indicates whether a peak is a 'train' or 'test' peak.
+#' @return a `TrajectoryModel` object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field `@type` indicates whether a peak is a 'train' or 'test' peak. R^2 statistics are computed at `object@params$stats`.
 #'
 #' @export
 infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL) {
@@ -51,6 +51,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         traj_model@additional_features <- bind_rows(traj_model@additional_features, as.data.frame(additional_features))
     }
 
+    traj_model <- add_traj_model_stats(traj_model)
 
     return(traj_model)
 }
@@ -103,4 +104,18 @@ predict_traj_model <- function(traj_model, feats) {
     pred <- rescale(pred, traj_model@diff_score)
 
     return(pred)
+}
+
+
+add_traj_model_stats <- function(traj_model) {
+    obs <- traj_model@diff_score
+    pred <- traj_model@predicted_diff_score[names(obs)]
+    train_idxs <- traj_model@type == "train"
+    test_idxs <- traj_model@type == "test"
+    traj_model@params$stats <- list(
+        r2_train = cor(pred[train_idxs], obs[train_idxs], use = "pairwise.complete.obs")^2,
+        r2_test = cor(pred[test_idxs], obs[test_idxs], use = "pairwise.complete.obs")^2,
+        r2_all = cor(pred, obs, use = "pairwise.complete.obs")^2
+    )
+    return(traj_model)
 }
