@@ -27,7 +27,7 @@ infer_trajectory_motifs(
 \item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
 }
 \value{
-a \code{TrajectoryModel} object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field \verb{@type} indicates whether a peak is a 'train' or 'test' peak.
+a \code{TrajectoryModel} object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field \verb{@type} indicates whether a peak is a 'train' or 'test' peak. R^2 statistics are computed at \code{object@params$stats}.
 }
 \description{
 This function infers the motif energies for a set of peaks using a pre-trained trajectory model.
