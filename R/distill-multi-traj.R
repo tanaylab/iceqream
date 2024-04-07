@@ -12,8 +12,9 @@
 #' @return A distilled trajectory model.
 #'
 #' @inheritParams distill_traj_model
+#' @inheritParams filter_traj_model
 #' @export
-distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff = 0.1, intra_cor_thresh = 0.6, distill_single = FALSE, use_all_motifs = FALSE, seed = 60427, parallel = TRUE, cluster_report_dir = NULL) {
+distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff = 0.1, intra_cor_thresh = 0.6, distill_single = FALSE, use_all_motifs = FALSE, bits_threshold = 1.75, r2_threshold = NULL, seed = 60427, parallel = TRUE, cluster_report_dir = NULL) {
     if (is.null(max_motif_num)) {
         max_motif_num <- max(purrr::map_dbl(traj_models, ~ length(.x@motif_models)))
         cli_alert_info("Setting {.field max_motif_num} to {.val {max_motif_num}}")
@@ -162,7 +163,6 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 
     cli_alert_info("Infering energies...")
     clust_energies <- infer_energies(sequences, norm_sequences, prego_distilled, traj_models[[1]]@params$min_energy, traj_models[[1]]@params$energy_norm_quantile, traj_models[[1]]@params$norm_energy_max)
-    browser()
 
     traj_models_new <- purrr::imap(traj_models, ~ {
         nm <- .x
@@ -201,10 +201,21 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 
     names(traj_models_new) <- orig_traj_model_names
 
+    cli_alert_info("Filtering models...")
+    traj_models_new <- purrr::imap(traj_models_new, ~ {
+        cli_alert("Filtering model {.val {.y}}")
+        filter_traj_model(.x, r2_threshold = r2_threshold, bits_threshold = bits_threshold)
+    })
+
+    all_model_names <- purrr::map(traj_models_new, ~ names(.x@motif_models)) %>%
+        unlist() %>%
+        unique()
+    prego_distilled <- prego_distilled[names(prego_distilled) %in% all_model_names]
+
     traj_models_new <- purrr::map(traj_models_new, add_traj_model_stats)
     traj_models <- purrr::map(traj_models, add_traj_model_stats)
 
-    stats <- compute_traj_list_stats(traj_models, traj_models_new)
+    stats <- compute_traj_list_stats(traj_models_new)
 
     return(
         TrajectoryModelMulti(
@@ -224,27 +235,49 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     )
 }
 
-compute_traj_list_stats <- function(traj_models, traj_models_new) {
-    r2_df_after <- purrr::imap_dfr(traj_models_new, ~ {
+#' Infer trajectory motifs for a multi-trajectory model
+#'
+#' This function infers trajectory motifs for each individual trajectory in a multi-trajectory model.
+#'
+#' @param traj_multi A TrajectoryModelMulti object.
+#'
+#' @return A TrajectoryModelMulti object with the result of \code{infer_trajectory_motifs} for each individual trajectory.
+#'
+#'
+#' @inheritParams infer_trajectory_motifs
+#' @export
+infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL) {
+    validate_traj_model_multi(traj_multi)
+
+    if (!is.list(atac_scores)) {
+        cli_abort("The {.field atac_scores} must be a list of data frames")
+    }
+
+    if (length(atac_scores) != length(traj_multi@models)) {
+        cli_abort("Number of elements in the {.field atac_scores} list must be equal to the number of models in the TrajectoryModelMulti object. It is {.val {length(atac_scores)}} while the number of models is {.val {length(traj_multi@models)}}")
+    }
+
+    traj_models <- traj_multi@models
+    new_models <- purrr::imap(traj_models, ~ {
+        infer_trajectory_motifs(.x, peak_intervals, atac_scores = atac_scores[[.y]], bin_start = bin_start, bin_end = bin_end, additional_features = additional_features)
+    })
+    names(new_models) <- names(traj_models)
+
+    traj_multi@models <- new_models
+    traj_multi@models <- purrr::map(traj_multi@models, add_traj_model_stats)
+    traj_multi@stats <- compute_traj_list_stats(traj_multi)
+    return(traj_multi)
+}
+
+compute_traj_list_stats <- function(traj_models) {
+    r2_df <- purrr::imap_dfr(traj_models, ~ {
         tibble(
             model = .y,
-            r2_train_after = .x@params$stats$r2_train,
-            r2_test_after = .x@params$stats$r2_test,
-            r2_all_after = .x@params$stats$r2_all
+            r2_train = .x@params$stats$r2_train,
+            r2_test = .x@params$stats$r2_test,
+            r2_all = .x@params$stats$r2_all
         )
     })
-
-    r2_df_before <- purrr::imap_dfr(traj_models, ~ {
-        tibble(
-            model = .y,
-            r2_train_before = .x@params$stats$r2_train,
-            r2_test_before = .x@params$stats$r2_test,
-            r2_all_before = .x@params$stats$r2_all
-        )
-    })
-
-    r2_df <- r2_df_before %>%
-        left_join(r2_df_after, by = "model")
 
     return(r2_df)
 }

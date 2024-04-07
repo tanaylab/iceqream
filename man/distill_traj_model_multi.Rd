@@ -11,6 +11,8 @@ distill_traj_model_multi(
   intra_cor_thresh = 0.6,
   distill_single = FALSE,
   use_all_motifs = FALSE,
+  bits_threshold = 1.75,
+  r2_threshold = NULL,
   seed = 60427,
   parallel = TRUE,
   cluster_report_dir = NULL
@@ -28,6 +30,10 @@ distill_traj_model_multi(
 \item{distill_single}{Logical indicating whether to distill clusters with a single motif.}
 
 \item{use_all_motifs}{Logical indicating whether to use all motifs in the resulting models. If FALSE, only motifs from clusters which had a motif from the original model are used.}
+
+\item{bits_threshold}{minimal sum of bits for a feature to be included in the model.}
+
+\item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
 
 \item{seed}{The random seed for reproducibility. Defaults to 60427.}
 
