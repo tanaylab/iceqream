@@ -24,7 +24,7 @@ This class represents a multi-trajectory model, which is a collection of individ
 
 \item{\code{cluster_map}}{a data frame that maps original motif to its distilled cluster.}
 
-\item{\code{stats}}{A data frame with r2 statistics for each trajectory model before and after distillation.}
+\item{\code{stats}}{A data frame with r2 statistics for each trajectory model after distillation.}
 
 \item{\code{params}}{additional parameters for the multi-trajectory distillation.}
 }}
