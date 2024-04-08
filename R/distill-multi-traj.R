@@ -15,6 +15,46 @@
 #' @inheritParams filter_traj_model
 #' @export
 distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff = 0.1, intra_cor_thresh = 0.6, distill_single = FALSE, use_all_motifs = FALSE, bits_threshold = 1.75, r2_threshold = NULL, seed = 60427, parallel = TRUE, cluster_report_dir = NULL) {
+    purrr::walk(traj_models, validate_traj_model)
+
+    if (any(purrr::map_lgl(traj_models, traj_model_has_test))) {
+        cli_alert_info("Splitting models to train and test")
+        traj_models_tt <- purrr::map(traj_models, split_traj_model_to_train_test)
+        traj_models_train <- traj_models_tt %>% purrr::map("train")
+        traj_models_test <- traj_models_tt %>% purrr::map("test")
+
+        multi_traj <- distill_traj_model_multi(traj_models_train, max_motif_num = max_motif_num, min_diff = min_diff, intra_cor_thresh = intra_cor_thresh, distill_single = distill_single, use_all_motifs = use_all_motifs, bits_threshold = bits_threshold, r2_threshold = r2_threshold, seed = seed, parallel = parallel, cluster_report_dir = cluster_report_dir)
+        if (!all(purrr::map_lgl(traj_models_test, traj_model_has_test))) {
+            cli_alert_warning("Not all test models have test peaks. Skipping test inference. Run {.code infer_trajectory_motifs_multi} to infer test peaks.")
+            return(multi_traj)
+        }
+
+        cli_alert_info("Infering test peaks...")
+        atac_scores <- purrr::map(traj_models_test, ~ {
+            df <- data.frame(bin1 = 0, bin2 = .x@diff_score)
+            rownames(df) <- names(.x@diff_score)
+            return(df)
+        })
+
+        multi_traj_test <- infer_trajectory_motifs_multi(multi_traj, peak_intervals = traj_models_test[[1]]@peak_intervals, atac_scores = atac_scores, additional_features = purrr::map(traj_models_test, ~ .x@additional_features))
+
+        traj_models <- purrr::map(traj_models, add_traj_model_stats)
+        before_stats <- compute_traj_list_stats(traj_models)
+        after_stats <- multi_traj_test@stats
+        multi_traj_test@stats <- bind_rows(
+            before_stats %>% mutate(type = "before"),
+            after_stats %>% mutate(type = "after")
+        )
+
+        cli_alert_success("Finished inferring test peaks")
+        purrr::walk(names(multi_traj_test@models), ~ {
+            cli_alert_info("Model {.field {.x}}: R^2: train={.val {multi_traj_test@models[[.x]]@params$stats$r2_train}}, test={.val {multi_traj_test@models[[.x]]@params$stats$r2_test}} ({.val {length(multi_traj_test@models[[.x]]@motif_models)}} motifs). Before: train={.val {before_stats$r2_train[before_stats$model == .x]}}, test={.val {before_stats$r2_test[before_stats$model == .x]}} ({.val {length(traj_models[[.x]]@motif_models)}} motifs)")
+        })
+
+        return(multi_traj_test)
+    }
+
+
     if (is.null(max_motif_num)) {
         max_motif_num <- max(purrr::map_dbl(traj_models, ~ length(.x@motif_models)))
         cli_alert_info("Setting {.field max_motif_num} to {.val {max_motif_num}}")
@@ -24,6 +64,13 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     if (length(unique(sapply(traj_models, function(x) nrow(x@peak_intervals)))) > 1) {
         cli_abort("All trajectory models must have the same number of peaks.")
     }
+
+    cli_alert_info("Filtering models...")
+    traj_models <- purrr::imap(traj_models, ~ {
+        cli_alert("Filtering model {.val {.y}}")
+        filter_traj_model(.x, r2_threshold = r2_threshold, bits_threshold = bits_threshold)
+    })
+
     orig_traj_model_names <- names(traj_models)
     names(traj_models) <- paste0("m", 1:length(traj_models))
 
@@ -118,11 +165,14 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         n_feats <- nrow(x)
         clust_name <- clust_to_name[x$clust[1]]
 
+        optimize_pwm <- TRUE
         if (!distill_single && n_feats == 1) {
-            cli_alert("Only one feature in cluster {.val {clust_name}}. Skipping distillation.")
-            return(motif_models[[x$feat[1]]])
+            cli_alert("Only one feature in cluster {.val {clust_name}}. Skipping distillation(and learning only spatial)")
+            optimize_pwm <- FALSE
+        } else {
+            cli_alert_info("Running {.field prego} on cluster {.val {clust_name}}, distilling {.val {n_feats}} features")
         }
-        cli_alert_info("Running {.field prego} on cluster {.val {clust_name}}, distilling {.val {n_feats}} features")
+
 
         clust_models <- names(traj_models)[names(traj_models) %in% x$model]
         partial_y <- purrr::map_dfc(clust_models, ~ {
@@ -147,7 +197,8 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
             spat_num_bins = traj_models[[1]]@params$spat_num_bins,
             spat_bin_size = traj_models[[1]]@params$spat_bin_size,
             kmer_sequence_length = traj_models[[1]]@params$kmer_sequence_length,
-            symmetrize_spat = TRUE
+            symmetrize_spat = TRUE,
+            optimize_pwm = optimize_pwm
         )
         ) %>%
             cli::cli_fmt()
@@ -201,12 +252,6 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 
     names(traj_models_new) <- orig_traj_model_names
 
-    cli_alert_info("Filtering models...")
-    traj_models_new <- purrr::imap(traj_models_new, ~ {
-        cli_alert("Filtering model {.val {.y}}")
-        filter_traj_model(.x, r2_threshold = r2_threshold, bits_threshold = bits_threshold)
-    })
-
     all_model_names <- purrr::map(traj_models_new, ~ names(.x@motif_models)) %>%
         unlist() %>%
         unique()
@@ -216,6 +261,11 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     traj_models <- purrr::map(traj_models, add_traj_model_stats)
 
     stats <- compute_traj_list_stats(traj_models_new)
+
+    cli_alert_success("Finished distilling trajectory models")
+    purrr::walk(names(traj_models), ~ {
+        cli_alert_info("Model {.field {.x}}: R^2: {.val {traj_models_new[[.x]]@params$stats$r2_all}} ({.val {length(traj_models_new[[.x]]@motif_models)}} motifs), before distillation: {.val {traj_models[[.x]]@params$stats$r2_all}} ({.val {length(traj_models[[.x]]@motif_models)}} motifs)")
+    })
 
     return(
         TrajectoryModelMulti(
@@ -240,13 +290,15 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 #' This function infers trajectory motifs for each individual trajectory in a multi-trajectory model.
 #'
 #' @param traj_multi A TrajectoryModelMulti object.
+#' @param atac_scores A list of data frames with ATAC-seq scores for each individual trajectory.
+#' @param additional_features A list of data frames with additional features for each individual trajectory.
 #'
 #' @return A TrajectoryModelMulti object with the result of \code{infer_trajectory_motifs} for each individual trajectory.
 #'
 #'
 #' @inheritParams infer_trajectory_motifs
 #' @export
-infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL) {
+infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = purrr::map(atac_scores, ncol), additional_features = NULL) {
     validate_traj_model_multi(traj_multi)
 
     if (!is.list(atac_scores)) {
@@ -256,16 +308,22 @@ infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals, atac_score
     if (length(atac_scores) != length(traj_multi@models)) {
         cli_abort("Number of elements in the {.field atac_scores} list must be equal to the number of models in the TrajectoryModelMulti object. It is {.val {length(atac_scores)}} while the number of models is {.val {length(traj_multi@models)}}")
     }
+    traj_model_test <- traj_multi@models[[1]]
+    traj_model_test@peak_intervals <- peak_intervals
+    traj_model_test@motif_models <- traj_multi@motif_models
+
+    e_test <- calc_traj_model_energies(traj_model_test, peak_intervals)
 
     traj_models <- traj_multi@models
     new_models <- purrr::imap(traj_models, ~ {
-        infer_trajectory_motifs(.x, peak_intervals, atac_scores = atac_scores[[.y]], bin_start = bin_start, bin_end = bin_end, additional_features = additional_features)
+        cli_alert_info("Infering trajectory motifs for model {.val {.y}}")
+        infer_trajectory_motifs(.x, peak_intervals, atac_scores = atac_scores[[.y]], bin_start = bin_start, bin_end = bin_end[[.y]], additional_features = additional_features[[.y]], test_energies = e_test)
     })
     names(new_models) <- names(traj_models)
 
     traj_multi@models <- new_models
     traj_multi@models <- purrr::map(traj_multi@models, add_traj_model_stats)
-    traj_multi@stats <- compute_traj_list_stats(traj_multi)
+    traj_multi@stats <- compute_traj_list_stats(traj_multi@models)
     return(traj_multi)
 }
 
@@ -275,7 +333,8 @@ compute_traj_list_stats <- function(traj_models) {
             model = .y,
             r2_train = .x@params$stats$r2_train,
             r2_test = .x@params$stats$r2_test,
-            r2_all = .x@params$stats$r2_all
+            r2_all = .x@params$stats$r2_all,
+            n_motifs = length(.x@motif_models)
         )
     })
 

@@ -98,7 +98,10 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         cli_ul(c("{.field @params}: A list of parameters used for training (including: {.val {names(object@params)}})"))
 
         cli::cli_text("\n")
-        cli::cli_text("R^2 train: {.val {round(cor(object@diff_score[object@type == 'train'], object@predicted_diff_score[object@type == 'train'], use = 'pairwise.complete.obs')^2, digits = 3)}}")
+        if (any(object@type == "train")) {
+            cli::cli_text("R^2 train: {.val {round(cor(object@diff_score[object@type == 'train'], object@predicted_diff_score[object@type == 'train'], use = 'pairwise.complete.obs')^2, digits = 3)}}")
+        }
+
         if (!any(object@type == "test")) {
             cli::cli_text("\n")
             cli::cli_text("Run {.code predict(object, peak_intervals)} to predict the model on new data.")
