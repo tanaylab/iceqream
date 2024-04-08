@@ -9,6 +9,7 @@ distill_traj_model(
   max_motif_num,
   min_diff = 0.1,
   intra_cor_thresh = 0.6,
+  use_non_linear = TRUE,
   parallel = TRUE
 )
 }
@@ -20,6 +21,8 @@ distill_traj_model(
 \item{min_diff}{The minimum difference of scores to use for distillation}
 
 \item{intra_cor_thresh}{The threshold for the average intra-cluster correlation to split clusters. If NULL, no splitting is done.}
+
+\item{use_non_linear}{Whether to use non-linear features. If FALSE, a glm model without non-linear features is used.}
 
 \item{parallel}{Whether to use parallel processing}
 }
