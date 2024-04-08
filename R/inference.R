@@ -3,12 +3,13 @@
 #' @description This function infers the motif energies for a set of peaks using a pre-trained trajectory model.
 #'
 #' @param traj_model A trajectory model object, as returned by \code{regress_trajectory_motifs}
+#' @param test_energies An already computed matrix of motif energies for the test peaks. An advanced option to provide the energies directly.
 #' @inheritParams regress_trajectory_motifs
 #'
 #' @return a `TrajectoryModel` object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field `@type` indicates whether a peak is a 'train' or 'test' peak. R^2 statistics are computed at `object@params$stats`.
 #'
 #' @export
-infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL) {
+infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL) {
     validate_traj_model(traj_model)
     validate_additional_features(additional_features, peak_intervals)
 
@@ -27,7 +28,17 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         }
     }
 
-    e_test <- calc_traj_model_energies(traj_model, peak_intervals)
+    if (is.null(test_energies)) {
+        e_test <- calc_traj_model_energies(traj_model, peak_intervals)
+    } else {
+        if (nrow(test_energies) != nrow(peak_intervals)) {
+            cli_abort("The number of rows in test_energies should be equal to the number of peaks in peak_intervals.")
+        }
+        if (!all(colnames(traj_model@normalized_energies) %in% colnames(test_energies))) {
+            cli_abort("The columns in test_energies should match the columns in the normalized energies of the trajectory model.")
+        }
+        e_test <- test_energies[, intersect(colnames(test_energies), colnames(traj_model@normalized_energies))]
+    }
 
     if (!is.null(additional_features)) {
         additional_features[is.na(additional_features)] <- 0
@@ -39,9 +50,10 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     pred <- predict_traj_model(traj_model, e_test_logist)
 
-    traj_model@model_features <- rbind(traj_model@model_features, e_test_logist[, intersect(colnames(e_test_logist), colnames(traj_model@model_features))])
-    traj_model@normalized_energies <- rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))])
+    traj_model@model_features <- as.matrix(rbind(traj_model@model_features, e_test_logist[, intersect(colnames(e_test_logist), colnames(traj_model@model_features))]))
+    traj_model@normalized_energies <- as.matrix(rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))]))
     if (!is.null(atac_scores)) {
+        atac_scores <- as.data.frame(atac_scores)
         traj_model@diff_score <- c(traj_model@diff_score, atac_scores[, bin_end] - atac_scores[, bin_start])
     }
     traj_model@predicted_diff_score <- c(traj_model@predicted_diff_score, pred)
@@ -109,16 +121,61 @@ predict_traj_model <- function(traj_model, feats) {
 
 add_traj_model_stats <- function(traj_model) {
     obs <- traj_model@diff_score
-    pred <- traj_model@predicted_diff_score[names(obs)]
-    train_idxs <- traj_model@type == "train"
-    test_idxs <- traj_model@type == "test"
+    pred <- traj_model@predicted_diff_score
+    if (sum(names(obs) == "") == 0) {
+        pred <- pred[names(obs)]
+    }
+
+    names(obs) <- NULL
+    names(pred) <- NULL
+    train_idxs <- which(traj_model@type == "train")
+    test_idxs <- which(traj_model@type == "test")
     traj_model@params$stats <- list(
         r2_train = cor(pred[train_idxs], obs[train_idxs], use = "pairwise.complete.obs")^2
     )
-    if (sum(test_idxs) > 0) {
+    if (length(test_idxs) > 0) {
         traj_model@params$stats$r2_test <- cor(pred[test_idxs], obs[test_idxs], use = "pairwise.complete.obs")^2
     }
 
     traj_model@params$stats$r2_all <- cor(pred, obs, use = "pairwise.complete.obs")^2
     return(traj_model)
+}
+
+traj_model_has_test <- function(traj_model) {
+    return(any(traj_model@type == "test"))
+}
+
+split_traj_model_to_train_test <- function(traj_model) {
+    if (!traj_model_has_test(traj_model)) {
+        return(list(train = traj_model, test = NULL))
+    }
+
+    train_idxs <- traj_model@type == "train"
+    test_idxs <- traj_model@type == "test"
+
+    traj_model_train <- traj_model
+    traj_model_train@model_features <- traj_model@model_features[train_idxs, ]
+    traj_model_train@normalized_energies <- traj_model@normalized_energies[train_idxs, ]
+    traj_model_train@diff_score <- traj_model@diff_score[train_idxs]
+    traj_model_train@predicted_diff_score <- traj_model@predicted_diff_score[train_idxs]
+    traj_model_train@type <- traj_model@type[train_idxs]
+    stopifnot(all(traj_model_train@type == "train"))
+    traj_model_train@peak_intervals <- traj_model@peak_intervals[train_idxs, ]
+    if (ncol(traj_model@additional_features) > 0) {
+        traj_model_train@additional_features <- traj_model@additional_features[train_idxs, ]
+    }
+
+    traj_model_test <- traj_model
+    traj_model_test@model_features <- traj_model@model_features[test_idxs, ]
+    traj_model_test@normalized_energies <- traj_model@normalized_energies[test_idxs, ]
+    traj_model_test@diff_score <- traj_model@diff_score[test_idxs]
+    traj_model_test@predicted_diff_score <- traj_model@predicted_diff_score[test_idxs]
+    traj_model_test@type <- traj_model@type[test_idxs]
+    stopifnot(all(traj_model_test@type == "test"))
+    traj_model_test@peak_intervals <- traj_model@peak_intervals[test_idxs, ]
+    if (ncol(traj_model@additional_features) > 0) {
+        traj_model_test@additional_features <- traj_model@additional_features[test_idxs, ]
+    }
+
+    return(list(train = traj_model_train, test = traj_model_test))
 }
