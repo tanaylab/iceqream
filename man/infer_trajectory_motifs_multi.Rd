@@ -9,7 +9,7 @@ infer_trajectory_motifs_multi(
   peak_intervals,
   atac_scores = NULL,
   bin_start = 1,
-  bin_end = ncol(atac_scores),
+  bin_end = purrr::map(atac_scores, ncol),
   additional_features = NULL
 )
 }
@@ -18,13 +18,13 @@ infer_trajectory_motifs_multi(
 
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
 
-\item{atac_scores}{A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.}
+\item{atac_scores}{A list of data frames with ATAC-seq scores for each individual trajectory.}
 
 \item{bin_start}{the start of the trajectory. Default: 1}
 
 \item{bin_end}{the end of the trajectory. Default: the last bin}
 
-\item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
+\item{additional_features}{A list of data frames with additional features for each individual trajectory.}
 }
 \value{
 A TrajectoryModelMulti object with the result of \code{infer_trajectory_motifs} for each individual trajectory.
