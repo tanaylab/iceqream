@@ -5,6 +5,11 @@ feat_to_variable <- function(traj_model) {
     )
 }
 
+variable_to_feat <- function(glm_model, var) {
+    vars <- purrr::map(var, ~ paste0(.x, c("_low-energy", "_high-energy", "_higher-energy", "_sigmoid"))) %>% do.call(c, .)
+    rownames(glm_model$beta)[rownames(glm_model$beta) %in% vars]
+}
+
 compute_partial_response <- function(traj_model, vars = NULL, lambda = 1e-5) {
     f2v <- feat_to_variable(traj_model)
 
