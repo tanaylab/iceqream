@@ -43,7 +43,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         after_stats <- multi_traj_test@stats
         multi_traj_test@stats <- bind_rows(
             before_stats %>% mutate(type = "before"),
-            after_stats %>% mutate(type = "after")
+            after_stats
         )
 
         cli_alert_success("Finished inferring test peaks")
@@ -166,9 +166,11 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         clust_name <- clust_to_name[x$clust[1]]
 
         optimize_pwm <- TRUE
+        motif <- NULL
         if (!distill_single && n_feats == 1) {
-            cli_alert("Only one feature in cluster {.val {clust_name}}. Skipping distillation(and learning only spatial)")
+            cli_alert("Only one feature in cluster {.val {clust_name}}. Skipping distillation and learning only spatial")
             optimize_pwm <- FALSE
+            motif <- motif_models[[x$feat[1]]]$pssm
         } else {
             cli_alert_info("Running {.field prego} on cluster {.val {clust_name}}, distilling {.val {n_feats}} features")
         }
@@ -198,7 +200,8 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
             spat_bin_size = traj_models[[1]]@params$spat_bin_size,
             kmer_sequence_length = traj_models[[1]]@params$kmer_sequence_length,
             symmetrize_spat = TRUE,
-            optimize_pwm = optimize_pwm
+            optimize_pwm = optimize_pwm,
+            motif = motif
         )
         ) %>%
             cli::cli_fmt()
@@ -215,42 +218,21 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     cli_alert_info("Infering energies...")
     clust_energies <- infer_energies(sequences, norm_sequences, prego_distilled, traj_models[[1]]@params$min_energy, traj_models[[1]]@params$energy_norm_quantile, traj_models[[1]]@params$norm_energy_max)
 
+    traj_models_full <- purrr::imap(traj_models, ~ {
+        update_traj_model(.x, clust_energies, prego_distilled)
+    })
+
     traj_models_new <- purrr::imap(traj_models, ~ {
-        nm <- .x
-        if (!use_all_motifs) {
-            models_to_use <- unique(clust_map$clust_name[clust_map$model == .y])
-            clust_energies <- clust_energies[, colnames(clust_energies) %in% models_to_use]
-        } else {
-            models_to_use <- colnames(clust_energies)
-        }
+        models_to_use <- unique(clust_map$clust_name[clust_map$model == .y])
+        clust_energies <- clust_energies[, colnames(clust_energies) %in% models_to_use]
+
         cli_alert_info("Computing new trajectory model {.val {.y}}. Using {.val {length(models_to_use)}} motifs")
-        clust_energies_logist <- create_logist_features(cbind(clust_energies, nm@additional_features))
-        atac_diff <- nm@diff_score
-        atac_diff_n <- norm01(atac_diff)
-        model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = nm@params$alpha, lambda = nm@params$lambda, parallel = parallel, seed = nm@params$seed)
-
-        predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = nm@params$lambda))[, 1]
-        predicted_diff_score <- norm01(predicted_diff_score)
-        predicted_diff_score <- rescale(predicted_diff_score, atac_diff)
-
-        TrajectoryModel(
-            model = model,
-            motif_models = homogenize_pssm_models(prego_distilled[names(prego_distilled) %in% models_to_use]),
-            coefs = get_model_coefs(model),
-            normalized_energies = as.matrix(clust_energies),
-            model_features = clust_energies_logist,
-            type = nm@type,
-            normalization_intervals = nm@normalization_intervals,
-            additional_features = nm@additional_features,
-            diff_score = atac_diff,
-            predicted_diff_score = predicted_diff_score,
-            initial_prego_models = nm@initial_prego_models,
-            peak_intervals = nm@peak_intervals,
-            params = nm@params
-        )
+        update_traj_model(.x, clust_energies, prego_distilled)
     })
 
     names(traj_models_new) <- orig_traj_model_names
+    names(traj_models) <- orig_traj_model_names
+    names(traj_models_full) <- orig_traj_model_names
 
     all_model_names <- purrr::map(traj_models_new, ~ names(.x@motif_models)) %>%
         unlist() %>%
@@ -258,9 +240,13 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     prego_distilled <- prego_distilled[names(prego_distilled) %in% all_model_names]
 
     traj_models_new <- purrr::map(traj_models_new, add_traj_model_stats)
+    traj_models_full <- purrr::map(traj_models_full, add_traj_model_stats)
     traj_models <- purrr::map(traj_models, add_traj_model_stats)
 
-    stats <- compute_traj_list_stats(traj_models_new)
+    stats <- bind_rows(
+        compute_traj_list_stats(traj_models_new) %>% mutate(type = "after"),
+        compute_traj_list_stats(traj_models_full) %>% mutate(type = "full")
+    )
 
     cli_alert_success("Finished distilling trajectory models")
     purrr::walk(names(traj_models), ~ {
@@ -270,6 +256,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     return(
         TrajectoryModelMulti(
             models = traj_models_new,
+            models_full = traj_models_full,
             motif_models = prego_distilled,
             cluster_map = clust_map,
             stats = stats,
@@ -321,9 +308,23 @@ infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals, atac_score
     })
     names(new_models) <- names(traj_models)
 
+    new_models_full <- purrr::imap(traj_multi@models_full, ~ {
+        cli_alert_info("Infering trajectory motifs for model {.val {.y}}")
+        infer_trajectory_motifs(.x, peak_intervals, atac_scores = atac_scores[[.y]], bin_start = bin_start, bin_end = bin_end[[.y]], additional_features = additional_features[[.y]], test_energies = e_test)
+    })
+    names(new_models) <- names(traj_models)
+
     traj_multi@models <- new_models
     traj_multi@models <- purrr::map(traj_multi@models, add_traj_model_stats)
-    traj_multi@stats <- compute_traj_list_stats(traj_multi@models)
+    traj_multi@models_full <- new_models_full
+    traj_multi@models_full <- purrr::map(traj_multi@models_full, add_traj_model_stats)
+
+
+    traj_multi@stats <- bind_rows(
+        compute_traj_list_stats(traj_multi@models) %>% mutate(type = "after"),
+        compute_traj_list_stats(traj_multi@models_full) %>% mutate(type = "full")
+    )
+
     return(traj_multi)
 }
 
@@ -342,7 +343,32 @@ compute_traj_list_stats <- function(traj_models) {
 }
 
 
+update_traj_model <- function(traj_model, clust_energies, motif_models) {
+    clust_energies_logist <- create_logist_features(cbind(clust_energies, traj_model@additional_features))
+    atac_diff <- traj_model@diff_score
+    atac_diff_n <- norm01(atac_diff)
+    model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, seed = traj_model@params$seed)
 
+    predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = traj_model@params$lambda))[, 1]
+    predicted_diff_score <- norm01(predicted_diff_score)
+    predicted_diff_score <- rescale(predicted_diff_score, atac_diff)
+
+    TrajectoryModel(
+        model = model,
+        motif_models = homogenize_pssm_models(motif_models[names(motif_models) %in% colnames(clust_energies)]),
+        coefs = get_model_coefs(model),
+        normalized_energies = as.matrix(clust_energies),
+        model_features = clust_energies_logist,
+        type = traj_model@type,
+        normalization_intervals = traj_model@normalization_intervals,
+        additional_features = traj_model@additional_features,
+        diff_score = atac_diff,
+        predicted_diff_score = predicted_diff_score,
+        initial_prego_models = traj_model@initial_prego_models,
+        peak_intervals = traj_model@peak_intervals,
+        params = traj_model@params
+    )
+}
 
 plot_traj_model_multi_clust <- function(traj_models, clust_map, prego_distilled, out_dir) {
     cli_alert_info("Plotting cluster motifs to {.val {out_dir}}")
