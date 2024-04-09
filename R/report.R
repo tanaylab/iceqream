@@ -185,7 +185,7 @@ plot_traj_model_report <- function(traj_model, motif_num = NULL, free_coef_axis 
     if (sort_motifs) {
         if (has_features_r2) {
             sorted_vars <- names(sort(traj_model@features_r2, decreasing = TRUE))
-            sorted_vars = sorted_vars[sorted_vars %in% names(models)]
+            sorted_vars <- sorted_vars[sorted_vars %in% names(models)]
         } else {
             sorted_vars <- traj_model@coefs %>%
                 tibble::column_to_rownames("variable") %>%

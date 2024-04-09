@@ -17,7 +17,7 @@
 #' @export
 plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, use_full = FALSE, ...) {
     models <- multi_traj@motif_models
-    
+
 
     motif_num <- length(models)
 
