@@ -32,7 +32,6 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         cli_alert_info("Infering test peaks...")
         atac_scores <- purrr::map(traj_models_test, ~ {
             df <- data.frame(bin1 = 0, bin2 = .x@diff_score)
-            rownames(df) <- names(.x@diff_score)
             return(df)
         })
 
@@ -373,7 +372,7 @@ update_traj_model <- function(traj_model, clust_energies, motif_models) {
 plot_traj_model_multi_clust <- function(traj_models, clust_map, prego_distilled, out_dir) {
     cli_alert_info("Plotting cluster motifs to {.val {out_dir}}")
     pssm_db <- map_dfr(names(traj_models), function(m) {
-        imap_dfr(traj_models[[m]]@motif_models, ~ .x$pssm %>% mutate(motif = paste0(m, ".", .y)))
+        imap_dfr(homogenize_pssm_models(traj_models[[m]]@motif_models), ~ .x$pssm %>% mutate(motif = paste0(m, ".", .y)))
     })
 
     dir.create(out_dir)
