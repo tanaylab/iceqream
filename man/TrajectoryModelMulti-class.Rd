@@ -20,6 +20,8 @@ This class represents a multi-trajectory model, which is a collection of individ
 \describe{
 \item{\code{models}}{A list of individual trajectory models.}
 
+\item{\code{models}}{A list of individual trajectory models with full features.}
+
 \item{\code{motif_models}}{A list of motif models corresponding to the individual trajectory models.}
 
 \item{\code{cluster_map}}{a data frame that maps original motif to its distilled cluster.}
