@@ -403,3 +403,35 @@ plot_traj_model_multi_clust <- function(traj_models, clust_map, prego_distilled,
         }
     }
 }
+
+
+#' Filter multi-trajectory model
+#'
+#'
+#' @param filter_full A logical value indicating whether to filter the full models (\code{@models_full}) or the reduced models (\code{@models}). Default is TRUE.
+#'
+#' @return The filtered multi-trajectory model.
+#'
+#' @inheritParams filter_traj_model
+#'
+#' @export
+filter_multi_traj_model <- function(multi_traj, r2_threshold = 0.0005, bits_threshold = 1.75, sample_frac = 0.1, filter_full = TRUE) {
+    if (filter_full) {
+        traj_models <- multi_traj@models_full
+    } else {
+        traj_models <- multi_traj@models
+    }
+
+    traj_models_f <- purrr::imap(traj_models, ~ {
+        cli::cli_alert_info(.y)
+        filter_traj_model(.x, r2_threshold = r2_threshold, bits_threshold = bits_threshold, sample_frac = 0.1)
+    })
+
+    if (filter_full) {
+        multi_traj@models_full <- traj_models_f
+    } else {
+        multi_traj@models <- traj_models_f
+    }
+
+    return(multi_traj)
+}
