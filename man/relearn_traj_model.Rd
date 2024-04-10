@@ -4,10 +4,19 @@
 \alias{relearn_traj_model}
 \title{Relearn Trajectory Model}
 \usage{
-relearn_traj_model(traj_model, verbose = FALSE)
+relearn_traj_model(
+  traj_model,
+  new_energies = FALSE,
+  new_logist = FALSE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{traj_model}{The trajectory model object.}
+
+\item{new_energies}{If TRUE - recreate the energies. Default is FALSE.}
+
+\item{new_logist}{If TRUE - recreate the logistic features. Default is FALSE. If \code{new_energies} is TRUE, this is automatically set to TRUE.}
 
 \item{verbose}{Logical indicating whether to display additional information.}
 }
