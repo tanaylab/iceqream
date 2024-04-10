@@ -26,7 +26,7 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
 
     if (!is.null(r2_threshold)) {
         cli_alert_info("Filtering features with R^2 < {.val {r2_threshold}} and bits < {.val {bits_threshold}}")
-        traj_model_s <- add_features_r2(traj_model_s)
+        traj_model_s <- add_features_r2(traj_model_s, sample_frac = NULL)
         vars_r2 <- traj_model_s@features_r2
     } else {
         r2_threshold <- 0
@@ -43,7 +43,6 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
     if (any(vars_r2 < r2_threshold)) {
         cli_alert_info("Trying to remove the following features with R^2 < {.val {r2_threshold}}: {.val {motif_models[vars_r2 < r2_threshold]}}")
         r2_vars_to_remove <- vars_r2[vars_r2 < r2_threshold]
-
         r2_vars_to_remove <- r2_vars_to_remove[!(names(r2_vars_to_remove) %in% bit_vars_to_remove)]
         r2_vars_to_remove <- names(sort(r2_vars_to_remove))
         vars_to_remove <- c(bit_vars_to_remove, r2_vars_to_remove[1])
@@ -61,8 +60,8 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
                     r2_before <- r2_after
                     vars_to_remove <- c(vars_to_remove, var)
                 } else {
-                    cli_alert("Removing {.val {var}} changed the R^2 by {.val {r2_before - r2_after}}. {.field Not removing.}")
-                    break
+                    cli_alert("{.field Not removing} {.val {var}} (changed the R^2 by only {.val {r2_before - r2_after}}).")
+                    next
                 }
             }
         }
@@ -86,6 +85,7 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
 
     return(traj_model_new)
 }
+
 
 filter_model_using_coefs <- function(X, coefs, diff_score, alpha, lambda, seed, full_model, n_motifs, ignore_variables = NULL) {
     y <- norm01(diff_score)
