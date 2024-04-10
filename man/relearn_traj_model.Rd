@@ -8,6 +8,7 @@ relearn_traj_model(
   traj_model,
   new_energies = FALSE,
   new_logist = FALSE,
+  lambda = NULL,
   verbose = FALSE
 )
 }
@@ -17,6 +18,8 @@ relearn_traj_model(
 \item{new_energies}{If TRUE - recreate the energies. Default is FALSE.}
 
 \item{new_logist}{If TRUE - recreate the logistic features. Default is FALSE. If \code{new_energies} is TRUE, this is automatically set to TRUE.}
+
+\item{lambda}{The lambda value to use for relearning. If NULL, the lambda value from the trajectory model is used.}
 
 \item{verbose}{Logical indicating whether to display additional information.}
 }

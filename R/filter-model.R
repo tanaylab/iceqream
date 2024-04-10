@@ -68,7 +68,7 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
                     r2_before <- r2_after
                     vars_to_remove <- c(vars_to_remove, var)
                 } else {
-                    cli_alert("Removing {.val {var}} changed the R^2 by {.val {r2_before - r2_after}}. Not removing.")
+                    cli_alert("Removing {.val {var}} changed the R^2 by {.val {r2_before - r2_after}}. {.field Not removing.}")
                     break
                 }
             }
@@ -89,7 +89,7 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
     traj_model_new@params$r2_threshold <- r2_threshold
     traj_model_new@params$bits_threshold <- bits_threshold
 
-    cli_alert_success("After filtering: Number of non-zero coefficients: {.val {sum(traj_model_new@model$beta != 0)}} (out of {.val {ncol(traj_model_new@model_features)}}). R^2: {.val {cor(traj_model_new@predicted_diff_score, norm01(traj_model_new@diff_score))^2}}")
+    cli_alert_success("After filtering: Number of non-zero coefficients: {.val {sum(traj_model_new@model$beta != 0)}} (out of {.val {ncol(traj_model_new@model_features)}}). R^2: {.val {cor(traj_model_new@predicted_diff_score, norm01(traj_model_new@diff_score))^2}}. Number of models: {.val {length(traj_model_new@motif_models)}}")
 
     return(traj_model_new)
 }
