@@ -1,49 +1,3 @@
-#' Remove motif models from trajectory model
-#'
-#' This function removes specified motif models from a given trajectory model.
-#' It updates the model, motif models, predicted difference score, model features,
-#' coefficients, normalized energies, and features R^2 of the trajectory model.
-#'
-#' @param traj_model The trajectory model object to remove motif models from.
-#' @param motif_models A character vector specifying the names of the motif models to remove.
-#' @param verbose A logical value indicating whether to display information about the R^2 after removing the motif models. Default is TRUE.
-#'
-#' @return The updated trajectory model object after removing the motif models.
-#'
-#' @export
-remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TRUE) {
-    X <- traj_model@model_features
-    vars <- names(traj_model@motif_models)
-    if (!all(motif_models %in% vars)) {
-        cli_abort("Motif{?s} {.val {motif_models[!motif_models %in% vars]}} not found in the trajectory model.")
-    }
-    vars_f <- vars[!(vars %in% motif_models)]
-
-    X_f <- X[, grep(paste0("(", paste(motif_models, collapse = "|"), ")(_low-energy|_high-energy|_higher-energy|_sigmoid)"), colnames(X), invert = TRUE)]
-
-    diff_score <- traj_model@diff_score
-    y <- norm01(diff_score)
-    model_f <- glmnet::glmnet(X_f, y, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, parallel = FALSE, seed = traj_model@params$seed)
-
-    pred_f <- logist(glmnet::predict.glmnet(model_f, newx = X_f, type = "link", s = traj_model@params$lambda))[, 1]
-    pred_f <- norm01(pred_f)
-    pred_f <- rescale(pred_f, diff_score)
-    r2_f <- cor(pred_f, y)^2
-    if (verbose) {
-        cli_alert_info("R^2 after removing {.field {motif_models}}: {.val {r2_f}}")
-    }
-
-    traj_model@model <- model_f
-    traj_model@motif_models <- traj_model@motif_models[vars_f]
-    traj_model@predicted_diff_score <- pred_f
-    traj_model@model_features <- X_f
-    traj_model@coefs <- get_model_coefs(model_f)
-    traj_model@normalized_energies <- traj_model@normalized_energies[, vars_f, drop = FALSE]
-    traj_model@features_r2 <- traj_model@features_r2[vars_f[vars_f %in% names(traj_model@features_r2)]]
-
-    return(traj_model)
-}
-
 #' Filter a trajectory model using punctuated regression.
 #'
 #' @description Run a regression without each feature and filter features that do not improve the model more
@@ -52,20 +6,36 @@ remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TR
 #' @param traj_model An instance of \code{TrajectoryModel}.
 #' @param r2_threshold minimal R^2 for a feature to be included in the model.
 #' @param bits_threshold minimal sum of bits for a feature to be included in the model.
+#' @param sample_frac The fraction of samples to use for computing the r2 without each model. When NULL, all samples are used.
+#' @param seed The seed to use for reproducibility when sampling the data.
 #'
 #' @return An instance of \code{TrajectoryModel} with the filtered model.
 #'
 #' @export
-filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75) {
+filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75, sample_frac = 0.1, seed = 60427) {
     full_model <- traj_model@model
-    full_model_r2 <- cor(traj_model@predicted_diff_score, traj_model@diff_score)^2
+    if (!is.null(sample_frac)) {
+        traj_model_s <- traj_model
+        idxs <- prego::sample_quantile_matched_rows(as.data.frame(traj_model_s@model_features) %>% mutate(id = 1:n()), traj_model_s@diff_score, sample_frac = sample_frac, num_quantiles = 10, seed = seed, verbose = FALSE) %>% pull(id)
+        traj_model_s@type <- rep("test", nrow(traj_model_s@model_features))
+        traj_model_s@type[idxs] <- "train"
+
+        traj_model_s <- relearn_traj_model(traj_model_s, verbose = FALSE)
+        cli_alert_info("Using {.val {length(idxs)}} samples for filtering")
+    } else {
+        traj_model_s <- traj_model
+    }
+
+    full_model_r2 <- cor(traj_model_s@predicted_diff_score, traj_model_s@diff_score)^2
+    cli_alert_info("R^2 of the full model: {.val {full_model_r2}}")
 
     motif_models <- names(traj_model@motif_models)
 
     if (!is.null(r2_threshold)) {
+        cli_alert_info("Filtering features with R^2 < {.val {r2_threshold}} and bits < {.val {bits_threshold}}")
         var_stats <- plyr::llply(motif_models, function(var) {
             pssm <- traj_model@motif_models[[var]]$pssm
-            traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
+            traj_model_f_var <- remove_motif_models_from_traj(traj_model_s, var, verbose = FALSE)
             bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
             r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
             cli::cli_alert("R^2 added by {.field {var}} ({.strong {prego::consensus_from_pssm(pssm)}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
@@ -110,7 +80,7 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
         traj_model_new <- traj_model
     }
 
-    traj_model_new@features_r2 <- vars_r2
+    traj_model_new@features_r2 <- full_model_r2 - vars_r2
     traj_model_new@params$features_bits <- vars_bits
     traj_model_new@params$r2_threshold <- r2_threshold
     traj_model_new@params$bits_threshold <- bits_threshold

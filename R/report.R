@@ -211,10 +211,18 @@ plot_traj_model_report <- function(traj_model, motif_num = NULL, free_coef_axis 
     cli_alert_info("Plotting {.val {motif_num}} motifs")
     models <- models[sorted_vars[1:motif_num]]
 
+    plot_spat_model <- function(spat, title = NULL) {
+        if (is.null(spat)) {
+            plot_fake_spat()
+        } else {
+            prego::plot_spat_model(spat, title = title)
+        }
+    }
+
     if (has_features_r2) {
-        spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat, title = paste0("R^2=", round(traj_model@features_r2[.y], 6))))
+        spatial_p <- purrr::imap(models, ~ plot_spat_model(.x$spat, title = paste0("R^2=", round(traj_model@features_r2[.y], 6))))
     } else {
-        spatial_p <- purrr::imap(models, ~ prego::plot_spat_model(.x$spat))
+        spatial_p <- purrr::imap(models, ~ plot_spat_model(.x$spat))
     }
 
 
