@@ -3,11 +3,27 @@
 #' This function relearns a trajectory model using the glmnet package.
 #'
 #' @param traj_model The trajectory model object.
+#' @param new_energies If TRUE - recreate the energies. Default is FALSE.
+#' @param new_logist If TRUE - recreate the logistic features. Default is FALSE. If \code{new_energies} is TRUE, this is automatically set to TRUE.
 #' @param verbose Logical indicating whether to display additional information.
 #' @return The updated trajectory model object.
 #'
 #' @export
-relearn_traj_model <- function(traj_model, verbose = FALSE) {
+relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, verbose = FALSE) {
+    if (new_energies) {
+        traj_model@normalized_energies <- calc_traj_model_energies(traj_model)
+        new_logist <- TRUE
+    }
+
+    if (new_logist) {
+        X <- cbind(
+            create_logist_features(traj_model@normalized_energies),
+            traj_model@validate_additional_features
+        )
+    } else {
+        X <- traj_model@model_features
+    }
+
     X <- traj_model@model_features
     y <- norm01(traj_model@diff_score)
 
@@ -68,4 +84,90 @@ remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TR
     }
 
     return(traj_model)
+}
+
+add_features_r2 <- function(traj_model) {
+    motif_models <- names(traj_model@motif_models)
+    full_model_r2 <- cor(traj_model@predicted_diff_score, traj_model@diff_score)^2
+    var_stats <- plyr::llply(motif_models, function(var) {
+        pssm <- traj_model@motif_models[[var]]$pssm
+        traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
+        bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
+        r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
+        cli::cli_alert("R^2 added by {.field {var}} ({.strong {prego::consensus_from_pssm(pssm)}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
+        list(r2 = r2, bits = bits)
+    })
+    vars_r2 <- purrr::map_dbl(var_stats, ~ .x$r2)
+    names(vars_r2) <- motif_models
+
+    traj_model@features_r2 <- full_model_r2 - vars_r2
+
+    return(traj_model)
+}
+
+calc_features_bits <- function(traj_model) {
+    bits <- purrr::map_dbl(traj_model@motif_models, ~ sum(prego::bits_per_pos(.x$pssm), na.rm = TRUE))
+    names(bits) <- names(traj_model@motif_models)
+    return(bits)
+}
+
+add_traj_model_stats <- function(traj_model) {
+    obs <- traj_model@diff_score
+    pred <- traj_model@predicted_diff_score
+    if (sum(names(obs) == "") == 0) {
+        pred <- pred[names(obs)]
+    }
+
+    names(obs) <- NULL
+    names(pred) <- NULL
+    train_idxs <- which(traj_model@type == "train")
+    test_idxs <- which(traj_model@type == "test")
+    traj_model@params$stats <- list(
+        r2_train = cor(pred[train_idxs], obs[train_idxs], use = "pairwise.complete.obs")^2
+    )
+    if (length(test_idxs) > 0) {
+        traj_model@params$stats$r2_test <- cor(pred[test_idxs], obs[test_idxs], use = "pairwise.complete.obs")^2
+    }
+
+    traj_model@params$stats$r2_all <- cor(pred, obs, use = "pairwise.complete.obs")^2
+    return(traj_model)
+}
+
+traj_model_has_test <- function(traj_model) {
+    return(any(traj_model@type == "test"))
+}
+
+split_traj_model_to_train_test <- function(traj_model) {
+    if (!traj_model_has_test(traj_model)) {
+        return(list(train = traj_model, test = NULL))
+    }
+
+    train_idxs <- traj_model@type == "train"
+    test_idxs <- traj_model@type == "test"
+
+    traj_model_train <- traj_model
+    traj_model_train@model_features <- traj_model@model_features[train_idxs, ]
+    traj_model_train@normalized_energies <- traj_model@normalized_energies[train_idxs, ]
+    traj_model_train@diff_score <- traj_model@diff_score[train_idxs]
+    traj_model_train@predicted_diff_score <- traj_model@predicted_diff_score[train_idxs]
+    traj_model_train@type <- traj_model@type[train_idxs]
+    stopifnot(all(traj_model_train@type == "train"))
+    traj_model_train@peak_intervals <- traj_model@peak_intervals[train_idxs, ]
+    if (ncol(traj_model@additional_features) > 0) {
+        traj_model_train@additional_features <- traj_model@additional_features[train_idxs, ]
+    }
+
+    traj_model_test <- traj_model
+    traj_model_test@model_features <- traj_model@model_features[test_idxs, ]
+    traj_model_test@normalized_energies <- traj_model@normalized_energies[test_idxs, ]
+    traj_model_test@diff_score <- traj_model@diff_score[test_idxs]
+    traj_model_test@predicted_diff_score <- traj_model@predicted_diff_score[test_idxs]
+    traj_model_test@type <- traj_model@type[test_idxs]
+    stopifnot(all(traj_model_test@type == "test"))
+    traj_model_test@peak_intervals <- traj_model@peak_intervals[test_idxs, ]
+    if (ncol(traj_model@additional_features) > 0) {
+        traj_model_test@additional_features <- traj_model@additional_features[test_idxs, ]
+    }
+
+    return(list(train = traj_model_train, test = traj_model_test))
 }
