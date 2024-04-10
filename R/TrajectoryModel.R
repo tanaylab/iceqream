@@ -91,7 +91,7 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
             cli_ul(c("{.field @normalization_intervals}: A data frame containing the intervals used for energy normalization ({.val {nrow(object@normalization_intervals)}} elements)"))
         }
         if (length(object@features_r2) > 0) {
-            cli_ul(c("{.field @features_r2}: A numeric vector of R^2 values for each feature ({.val {length(object@features_r2)}} elements)"))
+            cli_ul(c("{.field @features_r2}: A numeric vector of the added R^2 values for each feature ({.val {length(object@features_r2)}} elements)"))
         } else {
             cli_ul(c("{.field @features_r2}: Model was not filtered, no R^2 values available."))
         }

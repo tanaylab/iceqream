@@ -4,7 +4,13 @@
 \alias{filter_traj_model}
 \title{Filter a trajectory model using punctuated regression.}
 \usage{
-filter_traj_model(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75)
+filter_traj_model(
+  traj_model,
+  r2_threshold = 0.0005,
+  bits_threshold = 1.75,
+  sample_frac = 0.1,
+  seed = 60427
+)
 }
 \arguments{
 \item{traj_model}{An instance of \code{TrajectoryModel}.}
@@ -12,6 +18,10 @@ filter_traj_model(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75)
 \item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
 
 \item{bits_threshold}{minimal sum of bits for a feature to be included in the model.}
+
+\item{sample_frac}{The fraction of samples to use for computing the r2 without each model. When NULL, all samples are used.}
+
+\item{seed}{The seed to use for reproducibility when sampling the data.}
 }
 \value{
 An instance of \code{TrajectoryModel} with the filtered model.

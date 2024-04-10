@@ -10,16 +10,25 @@ variable_to_feat <- function(glm_model, var) {
     rownames(glm_model$beta)[rownames(glm_model$beta) %in% vars]
 }
 
-compute_partial_response <- function(traj_model, vars = NULL, lambda = 1e-5) {
+compute_partial_response <- function(traj_model, vars = NULL, lambda = 1e-5, reverse = FALSE) {
     f2v <- feat_to_variable(traj_model)
+    f2v_all <- f2v
 
     if (!is.null(vars)) {
         f2v <- f2v %>% filter(variable %in% vars)
     }
 
     pr <- plyr::dlply(f2v, "variable", function(x) {
-        feats <- traj_model@model_features[, x$feature, drop = FALSE]
-        (feats %*% coef(traj_model@model, s = lambda)[x$feature, , drop = FALSE])[, 1]
+        if (reverse) {
+            variables <- f2v_all %>%
+                filter(feature != x$feature) %>%
+                pull(feature)
+        } else {
+            variables <- x$feature
+        }
+        feats <- traj_model@model_features[, variables, drop = FALSE]
+
+        (feats %*% coef(traj_model@model, s = lambda)[variables, , drop = FALSE])[, 1]
     }) %>% do.call(cbind, .)
 
     return(as.data.frame(pr))
