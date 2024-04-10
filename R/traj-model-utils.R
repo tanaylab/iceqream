@@ -5,11 +5,12 @@
 #' @param traj_model The trajectory model object.
 #' @param new_energies If TRUE - recreate the energies. Default is FALSE.
 #' @param new_logist If TRUE - recreate the logistic features. Default is FALSE. If \code{new_energies} is TRUE, this is automatically set to TRUE.
+#' @param lambda The lambda value to use for relearning. If NULL, the lambda value from the trajectory model is used.
 #' @param verbose Logical indicating whether to display additional information.
 #' @return The updated trajectory model object.
 #'
 #' @export
-relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, verbose = FALSE) {
+relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, verbose = FALSE) {
     if (new_energies) {
         traj_model@normalized_energies <- calc_traj_model_energies(traj_model)
         new_logist <- TRUE
@@ -24,25 +25,32 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
         X <- traj_model@model_features
     }
 
+    if (is.null(lambda)) {
+        lambda <- traj_model@params$lambda
+    }
+
     X <- traj_model@model_features
     y <- norm01(traj_model@diff_score)
 
     X_train <- X[traj_model@type == "train", ]
     y_train <- y[traj_model@type == "train"]
 
-    model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, seed = traj_model@params$seed)
+    model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
 
     pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = traj_model@params$lambda))[, 1]
     pred <- norm01(pred)
     pred <- rescale(pred, traj_model@diff_score)
     r2_f <- cor(pred, y)^2
+    r2_t <- cor(pred[traj_model@type == "test"], y[traj_model@type == "test"])^2
     if (verbose) {
-        cli_alert_info("R^2 after relearning: {.val {r2_f}}")
+        cli_alert_info("R^2 all after relearning: {.val {r2_f}}")
+        cli_alert_info("R^2 test after relearning: {.val {r2_t}}")
     }
 
     traj_model@model <- model
     traj_model@predicted_diff_score <- pred
     traj_model@coefs <- get_model_coefs(model)
+    traj_model@model_features <- X
 
     return(traj_model)
 }

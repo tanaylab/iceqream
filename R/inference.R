@@ -117,4 +117,3 @@ predict_traj_model <- function(traj_model, feats) {
 
     return(pred)
 }
-
