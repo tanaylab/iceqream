@@ -94,7 +94,35 @@ remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TR
     return(traj_model)
 }
 
-add_features_r2 <- function(traj_model) {
+sample_model <- function(traj_model, sample_frac = 0.1, seed = 60427, verbose = FALSE) {
+    traj_model_s <- traj_model
+    idxs <- prego::sample_quantile_matched_rows(as.data.frame(traj_model_s@model_features) %>% mutate(id = 1:n()), traj_model_s@diff_score, sample_frac = sample_frac, num_quantiles = 10, seed = seed, verbose = FALSE) %>% pull(id)
+    traj_model_s@type <- rep("test", nrow(traj_model_s@model_features))
+    traj_model_s@type[idxs] <- "train"
+
+    traj_model_s <- relearn_traj_model(traj_model_s, verbose = FALSE)
+    if (verbose) {
+        cli_alert_info("Using {.val {length(idxs)}} samples for filtering")
+    }
+    return(traj_model_s)
+}
+
+#' Add Features R^2
+#'
+#' This function adds the added R-squared values of each feature to the trajectory model.
+#'
+#' @param traj_model The trajectory model object.
+#' @param sample_frac The fraction of samples to use for computing the r2 without each model. When NULL, all samples are used.
+#'
+#' @return The trajectory model object with the added R-squared values.
+#'
+#' @export
+add_features_r2 <- function(traj_model, sample_frac = 0.1, seed = 60427) {
+    traj_model_full <- traj_model
+    if (!is.null(sample_frac)) {
+        traj_model <- sample_model(traj_model, sample_frac = sample_frac, seed = seed, verbose = TRUE)
+    }
+
     motif_models <- names(traj_model@motif_models)
     full_model_r2 <- cor(traj_model@predicted_diff_score, traj_model@diff_score)^2
     var_stats <- plyr::llply(motif_models, function(var) {
@@ -108,9 +136,9 @@ add_features_r2 <- function(traj_model) {
     vars_r2 <- purrr::map_dbl(var_stats, ~ .x$r2)
     names(vars_r2) <- motif_models
 
-    traj_model@features_r2 <- full_model_r2 - vars_r2
+    traj_model_full@features_r2 <- full_model_r2 - vars_r2
 
-    return(traj_model)
+    return(traj_model_full)
 }
 
 calc_features_bits <- function(traj_model) {

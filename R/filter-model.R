@@ -6,22 +6,15 @@
 #' @param traj_model An instance of \code{TrajectoryModel}.
 #' @param r2_threshold minimal R^2 for a feature to be included in the model.
 #' @param bits_threshold minimal sum of bits for a feature to be included in the model.
-#' @param sample_frac The fraction of samples to use for computing the r2 without each model. When NULL, all samples are used.
 #' @param seed The seed to use for reproducibility when sampling the data.
 #'
 #' @return An instance of \code{TrajectoryModel} with the filtered model.
 #'
+#' @inheritParams add_features_r2
 #' @export
 filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75, sample_frac = 0.1, seed = 60427) {
-    full_model <- traj_model@model
     if (!is.null(sample_frac)) {
-        traj_model_s <- traj_model
-        idxs <- prego::sample_quantile_matched_rows(as.data.frame(traj_model_s@model_features) %>% mutate(id = 1:n()), traj_model_s@diff_score, sample_frac = sample_frac, num_quantiles = 10, seed = seed, verbose = FALSE) %>% pull(id)
-        traj_model_s@type <- rep("test", nrow(traj_model_s@model_features))
-        traj_model_s@type[idxs] <- "train"
-
-        traj_model_s <- relearn_traj_model(traj_model_s, verbose = FALSE)
-        cli_alert_info("Using {.val {length(idxs)}} samples for filtering")
+        traj_model_s <- sample_model(traj_model, sample_frac = sample_frac, seed = seed, verbose = TRUE)
     } else {
         traj_model_s <- traj_model
     }
