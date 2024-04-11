@@ -161,10 +161,10 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
 #' Plot a report of trajectory motifs
 #'
 #' @param traj_model Trajectory model object. Please run \code{regress_trajectory_motifs} first.
+#' @param filename Filename to save the plot to. If NULL, the plot will be returned.
 #' @param motif_num Number of motifs to plot. If NULL, all motifs will be plotted.
 #' @param free_coef_axis Whether to use a free axis for the coefficient plots.
 #' @param spatial_freqs Pre-computed spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.
-#' @param filename Filename to save the plot to. If NULL, the plot will be returned.
 #' @param width Width of the plot.
 #' @param height Height of the plot.
 #' @param dev Device to use for saving the plot. Default: \code{grDevices::pdf}.
@@ -177,7 +177,7 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
 #'
 #'
 #' @export
-plot_traj_model_report <- function(traj_model, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, ...) {
+plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, ...) {
     validate_traj_model(traj_model)
     models <- traj_model@motif_models
     has_features_r2 <- length(traj_model@features_r2) > 0 && all(names(models) %in% names(traj_model@features_r2))

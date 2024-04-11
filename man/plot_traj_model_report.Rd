@@ -6,10 +6,10 @@
 \usage{
 plot_traj_model_report(
   traj_model,
+  filename = NULL,
   motif_num = NULL,
   free_coef_axis = TRUE,
   spatial_freqs = NULL,
-  filename = NULL,
   width = NULL,
   height = NULL,
   dev = grDevices::pdf,
@@ -22,13 +22,13 @@ plot_traj_model_report(
 \arguments{
 \item{traj_model}{Trajectory model object. Please run \code{regress_trajectory_motifs} first.}
 
+\item{filename}{Filename to save the plot to. If NULL, the plot will be returned.}
+
 \item{motif_num}{Number of motifs to plot. If NULL, all motifs will be plotted.}
 
 \item{free_coef_axis}{Whether to use a free axis for the coefficient plots.}
 
 \item{spatial_freqs}{Pre-computed spatial frequencies to plot. Use \code{compute_traj_model_spatial_freq} to compute.}
-
-\item{filename}{Filename to save the plot to. If NULL, the plot will be returned.}
 
 \item{width}{Width of the plot.}
 
