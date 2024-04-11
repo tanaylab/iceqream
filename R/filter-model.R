@@ -72,6 +72,9 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
             }
         }
     }
+    else{
+        vars_to_remove = c()
+    }
 
     if (length(vars_to_remove) > 0) {
         cli_alert_info("Removed {.val {length(bit_vars_to_remove)}} features with bits < {.val {bits_threshold}}")
