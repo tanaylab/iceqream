@@ -18,7 +18,6 @@
 plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, use_full = FALSE, ...) {
     models <- multi_traj@motif_models
 
-
     motif_num <- length(models)
 
     if (use_full) {
@@ -57,7 +56,12 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
             if (!(motif %in% names(pr))) {
                 return(plot_fake_pr() + ggtitle(model))
             }
-            plot_e_vs_pr(motif, pr, traj_models[[model]]) + ggtitle(model)
+            if (motif %in% names(traj_models[[model]]@features_r2)) {
+                subtitle <- round(traj_models[[model]]@features_r2[motif], 6)
+            } else {
+                subtitle <- ggplot2::waiver()
+            }
+            plot_e_vs_pr(motif, pr, traj_models[[model]]) + ggtitle(model, subtitle = subtitle)
         }) %>%
             purrr::discard(is.null) %>%
             patchwork::wrap_plots(nrow = 1)
