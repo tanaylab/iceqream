@@ -45,6 +45,9 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
         cli_alert_info("Removing the following features with bits < {.val {bits_threshold}}: {.val {motif_models[vars_bits < bits_threshold]}}")
         bit_vars_to_remove <- names(vars_bits)[vars_bits < bits_threshold]
     }
+    else{
+        bit_vars_to_remove = c()
+    }
 
     if (any(vars_r2 < r2_threshold)) {
         cli_alert_info("Trying to remove the following features with R^2 < {.val {r2_threshold}}: {.val {motif_models[vars_r2 < r2_threshold]}}")
