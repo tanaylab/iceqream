@@ -19,7 +19,7 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     if (new_logist) {
         X <- cbind(
             create_logist_features(traj_model@normalized_energies),
-            traj_model@validate_additional_features
+            traj_model@additional_features
         )
     } else {
         X <- traj_model@model_features
@@ -40,9 +40,9 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = traj_model@params$lambda))[, 1]
     pred <- norm01(pred)
     pred <- rescale(pred, traj_model@diff_score)
-    r2_f <- cor(pred, y)^2
-    r2_t <- cor(pred[traj_model@type == "test"], y[traj_model@type == "test"])^2
     if (verbose) {
+        r2_f <- cor(pred, y)^2
+        r2_t <- cor(pred[traj_model@type == "test"], y[traj_model@type == "test"])^2
         cli_alert_info("R^2 all after relearning: {.val {r2_f}}")
         cli_alert_info("R^2 test after relearning: {.val {r2_t}}")
     }
