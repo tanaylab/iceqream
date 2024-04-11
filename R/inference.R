@@ -4,12 +4,13 @@
 #'
 #' @param traj_model A trajectory model object, as returned by \code{regress_trajectory_motifs}
 #' @param test_energies An already computed matrix of motif energies for the test peaks. An advanced option to provide the energies directly.
+#' @param diff_score The difference in ATAC-seq scores between the end and start of the peak. If provided, the function will ignore the atac_scores parameter.
 #' @inheritParams regress_trajectory_motifs
 #'
 #' @return a `TrajectoryModel` object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field `@type` indicates whether a peak is a 'train' or 'test' peak. R^2 statistics are computed at `object@params$stats`.
 #'
 #' @export
-infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL) {
+infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL, diff_score = NULL) {
     validate_traj_model(traj_model)
     validate_additional_features(additional_features, peak_intervals)
 
@@ -52,7 +53,9 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     traj_model@model_features <- as.matrix(rbind(traj_model@model_features, e_test_logist[, intersect(colnames(e_test_logist), colnames(traj_model@model_features))]))
     traj_model@normalized_energies <- as.matrix(rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))]))
-    if (!is.null(atac_scores)) {
+    if (!is.null(diff_score)) {
+        traj_model@diff_score <- c(traj_model@diff_score, diff_score)
+    } else if (!is.null(atac_scores)) {
         atac_scores <- as.data.frame(atac_scores)
         traj_model@diff_score <- c(traj_model@diff_score, atac_scores[, bin_end] - atac_scores[, bin_start])
     }
