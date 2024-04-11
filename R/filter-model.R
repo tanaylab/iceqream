@@ -71,9 +71,8 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
                 }
             }
         }
-    }
-    else{
-        vars_to_remove = c()
+    } else {
+        vars_to_remove <- c()
     }
 
     if (length(vars_to_remove) > 0) {

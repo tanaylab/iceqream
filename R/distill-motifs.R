@@ -14,7 +14,20 @@
 #' @export
 distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_cor_thresh = 0.6, use_non_linear = TRUE, parallel = TRUE) {
     if (traj_model_has_test(traj_model)) {
-        cli_abort("Cannot distill a trajectory model with test peaks.")
+        cli_alert_info("Using only the training set for distillation.")
+        traj_model_list <- split_traj_model_to_train_test(traj_model)
+        traj_model_train <- traj_model_list$train
+        traj_model_test <- traj_model_list$test
+        cli_alert("# of train peaks: {.val {nrow(traj_model_train@peak_intervals)}}, # of test peaks: {.val {nrow(traj_model_test@peak_intervals)}}")
+
+        traj_model_d <- distill_traj_model(traj_model = traj_model_train, max_motif_num = max_motif_num, min_diff = min_diff, intra_cor_thresh = intra_cor_thresh, use_non_linear = use_non_linear, parallel = parallel)
+        cli_alert_info("Infering test peaks...")
+        traj_model_test <- infer_trajectory_motifs(traj_model_d, peak_intervals = traj_model_test@peak_intervals, additional_features = traj_model_test@additional_features, diff_score = traj_model_test@diff_score)
+
+        traj_model <- add_traj_model_stats(traj_model)
+
+        cli_alert_success("R^2 train: {.val {traj_model_test@params$stats$r2_train}} (before: {.val {traj_model@params$stats$r2_train}}), R^2 test: {.val {traj_model_test@params$stats$r2_test}} (before: {.val {traj_model@params$stats$r2_test}}). # of motifs: {.val {length(traj_model_test@motif_models)}} (before: {.val {length(traj_model@motif_models)}})")
+        return(traj_model_test)
     }
 
     pssm_db <- purrr::imap_dfr(traj_model@motif_models, ~ .x$pssm %>% mutate(motif = .y)) %>%
@@ -220,7 +233,6 @@ run_prego_on_clust_residuals <- function(model, feats, clust_motifs, sequences, 
     } else {
         partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
     }
-
 
     cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, symmetrize_spat = TRUE, motif = motif, optimize_pwm = optimize_pwm))
 
