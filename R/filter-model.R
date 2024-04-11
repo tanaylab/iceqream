@@ -13,6 +13,12 @@
 #' @inheritParams add_features_r2
 #' @export
 filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold = 1.75, sample_frac = 0.1, seed = 60427) {
+    traj_model_all <- traj_model
+    if (traj_model_has_test(traj_model)) {
+        cli_alert_info("Using only the training set for filtering")
+        traj_model <- split_traj_model_to_train_test(traj_model_all)$train
+    }
+
     if (!is.null(sample_frac)) {
         traj_model_s <- sample_model(traj_model, sample_frac = sample_frac, seed = seed, verbose = TRUE)
     } else {
@@ -70,10 +76,10 @@ filter_traj_model <- function(traj_model, r2_threshold = 0.0005, bits_threshold 
     if (length(vars_to_remove) > 0) {
         cli_alert_info("Removed {.val {length(bit_vars_to_remove)}} features with bits < {.val {bits_threshold}}")
         cli_alert_info("Removed {.val {length(vars_to_remove) - length(bit_vars_to_remove)}} features with R^2 < {.val {r2_threshold}}")
-        traj_model_new <- remove_motif_models_from_traj(traj_model, vars_to_remove, verbose = FALSE)
+        traj_model_new <- remove_motif_models_from_traj(traj_model_all, vars_to_remove, verbose = FALSE)
     } else {
         cli_alert_info("No features removed")
-        traj_model_new <- traj_model
+        traj_model_new <- traj_model_all
     }
 
     traj_model_new@features_r2 <- vars_r2[names(traj_model_new@motif_models)]
