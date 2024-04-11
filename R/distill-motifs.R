@@ -13,7 +13,7 @@
 #'
 #' @export
 distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_cor_thresh = 0.6, use_non_linear = TRUE, parallel = TRUE) {
-    if (any(traj_model@type == "test")) {
+    if (traj_model_has_test(traj_model)) {
         cli_abort("Cannot distill a trajectory model with test peaks.")
     }
 
