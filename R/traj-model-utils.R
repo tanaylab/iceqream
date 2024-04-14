@@ -130,7 +130,7 @@ add_features_r2 <- function(traj_model, sample_frac = 0.1, seed = 60427) {
         traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
         bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
         r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
-        cli::cli_alert("R^2 added by {.field {var}} ({.strong {prego::consensus_from_pssm(pssm)}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
+        cli::cli_alert("R^2 added by {.field {var}} ({.strong {gsub('N', '-', prego::pssm_to_kmer(pssm, pos_bits_thresh = 0.2))}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
         list(r2 = r2, bits = bits)
     })
     vars_r2 <- purrr::map_dbl(var_stats, ~ .x$r2)
