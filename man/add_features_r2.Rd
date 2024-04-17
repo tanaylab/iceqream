@@ -15,5 +15,5 @@ add_features_r2(traj_model, sample_frac = 0.1, seed = 60427)
 The trajectory model object with the added R-squared values.
 }
 \description{
-This function adds the added R-squared values of each feature to the trajectory model.
+This function adds the added R-squared values of each motif model to the trajectory model.
 }

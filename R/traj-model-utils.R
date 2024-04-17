@@ -109,7 +109,7 @@ sample_model <- function(traj_model, sample_frac = 0.1, seed = 60427, verbose = 
 
 #' Add Features R^2
 #'
-#' This function adds the added R-squared values of each feature to the trajectory model.
+#' This function adds the added R-squared values of each motif model to the trajectory model.
 #'
 #' @param traj_model The trajectory model object.
 #' @param sample_frac The fraction of samples to use for computing the r2 without each model. When NULL, all samples are used.
