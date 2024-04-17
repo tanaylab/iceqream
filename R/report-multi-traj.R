@@ -38,6 +38,7 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
     pr_mat[is.na(pr_mat)] <- 0
     cm <- tgs_cor(t(pr_mat), pairwise.complete.obs = TRUE)
     hc <- hclust(as.dist(1 - cm), method = "ward.D2")
+    models <- models[rownames(pr_mat)]
     models <- models[hc$order]
 
 
@@ -66,6 +67,7 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
             purrr::discard(is.null) %>%
             patchwork::wrap_plots(nrow = 1)
     })
+    names(pr_p) <- names(models)
 
     n_traj_models <- length(traj_models)
 
