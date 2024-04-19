@@ -172,12 +172,13 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
 #' @param title Title of the plot.
 #' @param motif_titles Titles for the motifs. If NULL, the motif names will be used.
 #' @param sort_motifs Whether to sort the motifs by the absolute value of the coefficients / r2 values.
+#' @param names_map a named vector to map the names of the motifs to new names.
 #'
 #' @return ggplot2 object. If filename is not NULL, the plot will be saved to the file and the function will return \code{invisible(NULL)}.
 #'
 #'
 #' @export
-plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, ...) {
+plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, names_map = NULL, ...) {
     validate_traj_model(traj_model)
     models <- traj_model@motif_models
     has_features_r2 <- length(traj_model@features_r2) > 0 && all(names(models) %in% names(traj_model@features_r2))
@@ -225,9 +226,14 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
         spatial_p <- purrr::imap(models, ~ plot_spat_model(.x$spat))
     }
 
+    if (is.null(names_map)) {
+        names_map <- names(models)
+        names(names_map) <- names(models)
+    }
+
 
     if (is.null(motif_titles)) {
-        motif_titles <- sorted_vars
+        motif_titles <- names_map[sorted_vars]
     } else {
         if (length(motif_titles) != length(models)) {
             cli_abort("Length of text must be equal to the number of motifs")
@@ -248,7 +254,7 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
         spatial_freqs <- compute_traj_model_spatial_freq(traj_model, size = 1000, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1)
     }
 
-    spat_freq_p <- purrr::map(names(models), ~ plot_motif_spatial_freq(spatial_freqs, .x, smooth = 10))
+    spat_freq_p <- purrr::map(names(models), ~ plot_motif_spatial_freq(spatial_freqs, .x, smooth = 10) + ggtitle(names_map[.x]))
 
     if ("atac_freq" %in% colnames(spatial_freqs)) {
         atac_spat_freq_p <- purrr::map(names(models), ~ plot_motif_spatial_freq(spatial_freqs, .x, smooth = 10, plot_atac = TRUE))

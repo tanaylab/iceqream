@@ -12,6 +12,7 @@ plot_multi_traj_model_report(
   dev = grDevices::pdf,
   title = NULL,
   use_full = FALSE,
+  names_map = NULL,
   ...
 )
 }
@@ -29,6 +30,8 @@ plot_multi_traj_model_report(
 \item{title}{Optional. The title of the plot.}
 
 \item{use_full}{Optional. Whether to use the models with all the motifs or not. Default is FALSE.}
+
+\item{names_map}{a named vector to map the names of the motifs to new names.}
 
 \item{...}{Additional arguments to be passed to the plotting function.}
 }

@@ -181,29 +181,37 @@ split_traj_model_to_train_test <- function(traj_model) {
     train_idxs <- traj_model@type == "train"
     test_idxs <- traj_model@type == "test"
 
-    traj_model_train <- traj_model
-    traj_model_train@model_features <- traj_model@model_features[train_idxs, ]
-    traj_model_train@normalized_energies <- traj_model@normalized_energies[train_idxs, ]
-    traj_model_train@diff_score <- traj_model@diff_score[train_idxs]
-    traj_model_train@predicted_diff_score <- traj_model@predicted_diff_score[train_idxs]
-    traj_model_train@type <- traj_model@type[train_idxs]
+    traj_model_train <- filter_traj_model_intervals(traj_model, train_idxs)
     stopifnot(all(traj_model_train@type == "train"))
-    traj_model_train@peak_intervals <- traj_model@peak_intervals[train_idxs, ]
-    if (ncol(traj_model@additional_features) > 0) {
-        traj_model_train@additional_features <- traj_model@additional_features[train_idxs, ]
-    }
-
-    traj_model_test <- traj_model
-    traj_model_test@model_features <- traj_model@model_features[test_idxs, ]
-    traj_model_test@normalized_energies <- traj_model@normalized_energies[test_idxs, ]
-    traj_model_test@diff_score <- traj_model@diff_score[test_idxs]
-    traj_model_test@predicted_diff_score <- traj_model@predicted_diff_score[test_idxs]
-    traj_model_test@type <- traj_model@type[test_idxs]
+    traj_model_test <- filter_traj_model_intervals(traj_model, test_idxs)
     stopifnot(all(traj_model_test@type == "test"))
-    traj_model_test@peak_intervals <- traj_model@peak_intervals[test_idxs, ]
-    if (ncol(traj_model@additional_features) > 0) {
-        traj_model_test@additional_features <- traj_model@additional_features[test_idxs, ]
-    }
 
     return(list(train = traj_model_train, test = traj_model_test))
 }
+
+
+#' Filter trajectory model intervals
+#'
+#' This function filters a trajectory model by selecting specific intervals based on their indices.
+#'
+#' @param traj_model The trajectory model object to filter.
+#' @param idxs The indices of the intervals to select.
+#'
+#' @return The filtered trajectory model object.
+#'
+#'
+#' @export
+filter_traj_model_intervals <- function(traj_model, idxs) {
+    traj_model@model_features <- traj_model@model_features[idxs, ]
+    if (ncol(traj_model@additional_features) > 0) {
+        traj_model@additional_features <- traj_model@additional_features[idxs, ]
+    }
+    traj_model@normalized_energies <- traj_model@normalized_energies[idxs, ]
+    traj_model@diff_score <- traj_model@diff_score[idxs]
+    traj_model@predicted_diff_score <- traj_model@predicted_diff_score[idxs]
+    traj_model@type <- traj_model@type[idxs]
+    traj_model@peak_intervals <- traj_model@peak_intervals[idxs, ]
+    return(traj_model)
+}
+
+

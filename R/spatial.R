@@ -323,11 +323,12 @@ calc_track_pos_data <- function(track, intervals, threshold = 7, direction = NUL
 #' @param align_to_max A logical indicating whether to align the sequences to the maximum in each sequence at the epigenetic tracks and atac signla
 #' @param atac_track name of ATAC-seq marginal track
 #' @param parallel Whether to use parallel processing
+#' @param motifs A vector of motif names to compute spatial frequency for. Default is all motifs in the trajectory model.
 #'
 #' @return A data frame with the spatial frequency of each motif
 #'
 #' @export
-compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, align_to_max = TRUE) {
+compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, align_to_max = TRUE, motifs = names(traj_model@motif_models)) {
     intervals <- traj_model@peak_intervals
 
     # select top and bottom 10% of peaks using diff_score
@@ -338,7 +339,7 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
         filter(type != "middle") %>%
         select(-diff_score)
 
-    spatial_freqs <- plyr::ldply(names(traj_model@motif_models), function(motif) {
+    spatial_freqs <- plyr::ldply(motifs, function(motif) {
         cli::cli_alert("Computing spatial frequency for {.val {motif}}")
         bind_rows(
             compute_pssm_spatial_freq(
