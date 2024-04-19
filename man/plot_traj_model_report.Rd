@@ -16,6 +16,7 @@ plot_traj_model_report(
   title = NULL,
   motif_titles = NULL,
   sort_motifs = TRUE,
+  names_map = NULL,
   ...
 )
 }
@@ -41,6 +42,8 @@ plot_traj_model_report(
 \item{motif_titles}{Titles for the motifs. If NULL, the motif names will be used.}
 
 \item{sort_motifs}{Whether to sort the motifs by the absolute value of the coefficients / r2 values.}
+
+\item{names_map}{a named vector to map the names of the motifs to new names.}
 
 \item{...}{Additional arguments to pass to the device.}
 }

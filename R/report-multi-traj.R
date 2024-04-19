@@ -9,13 +9,14 @@
 #' @param dev Optional. The graphics device to use for output. Default is 'pdf'.
 #' @param title Optional. The title of the plot.
 #' @param use_full Optional. Whether to use the models with all the motifs or not. Default is FALSE.
+#' @param names_map a named vector to map the names of the motifs to new names.
 #' @param ... Additional arguments to be passed to the plotting function.
 #'
 #' @return A ggplot2 object (invsibly if a filename is provided).
 #'
 #'
 #' @export
-plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, use_full = FALSE, ...) {
+plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, use_full = FALSE, names_map = NULL, ...) {
     models <- multi_traj@motif_models
 
     motif_num <- length(models)
@@ -26,6 +27,11 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
     } else {
         partial_resp_list <- purrr::map(multi_traj@models, compute_partial_response)
         traj_models <- multi_traj@models
+    }
+
+    if (is.null(names_map)) {
+        names_map <- names(models)
+        names(names_map) <- names(models)
     }
 
     pr_mat <- partial_resp_list %>%
@@ -44,12 +50,12 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
 
     spatial_p <- purrr::imap(models, ~ {
         if (is.null(.x$spat)) {
-            return(plot_fake_spat())
+            return(plot_fake_spat() + ggtitle("Spatial model", subtitle = ""))
         }
-        prego::plot_spat_model(.x$spat)
+        prego::plot_spat_model(.x$spat) + ggtitle("Spatial model", subtitle = "")
     })
 
-    motifs_p <- purrr::imap(models, ~ prego::plot_pssm_logo(.x$pssm, title = .y))
+    motifs_p <- purrr::imap(models, ~ prego::plot_pssm_logo(.x$pssm) + ggtitle(names_map[.y], subtitle = ""))
 
     pr_p <- purrr::map(names(models), function(motif) {
         purrr::map(names(traj_models), function(model) {
