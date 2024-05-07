@@ -317,7 +317,7 @@ plot_e_vs_pr <- function(motif, pr, traj_model, ylim = NULL) {
     return(p)
 }
 
-plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {
+plot_coefs <- function(traj_model, variable, limits = NULL, title = variable, color = TRUE) {
     validate_traj_model(traj_model)
     coef_df <- traj_model@coefs %>% filter(variable == !!variable)
 
@@ -330,9 +330,17 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable) {
         mutate(type = factor(type, levels = c("low-energy", "sigmoid", "high-energy", "higher-energy")))
 
     cli_alert_info("Plotting motif {.val {variable}}")
+    if (color) {
+        p <- ggplot(coef_df, aes(x = type, y = value, fill = type)) +
+            geom_col() +
+            scale_fill_manual(name = "", values = c("low-energy" = "blue", "high-energy" = "orange", "sigmoid" = "purple", "higher-energy" = "brown", "early" = "green", "linear" = "black")) +
+            guides(fill = "none")
+    } else {
+        p <- ggplot(coef_df, aes(x = type, y = value)) +
+            geom_col()
+    }
 
-    p <- ggplot(coef_df, aes(x = type, y = value)) +
-        geom_col() +
+    p <- p +
         labs(x = "", y = "Coefficient") +
         coord_flip() +
         theme_classic() +
