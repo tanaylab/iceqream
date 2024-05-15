@@ -108,7 +108,7 @@ regress_trajectory_motifs <- function(atac_scores,
         enhancers_filter <- tss_dist > min_tss_distance
         enhancers_filter[is.na(enhancers_filter)] <- FALSE
         if (sum(!enhancers_filter) > 0) {
-            cli_alert_info("{.val {sum(!enhancers_filter)}} peaks were filtered out because they are too close to TSS (<= {.val min_tss_distance}bp)")
+            cli_alert_info("{.val {sum(!enhancers_filter)}} peaks were filtered out because they are too close to TSS (<= {.val {min_tss_distance}}bp)")
         }
 
         peak_intervals_all <- peak_intervals
