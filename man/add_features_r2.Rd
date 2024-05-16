@@ -4,12 +4,21 @@
 \alias{add_features_r2}
 \title{Add Features R^2}
 \usage{
-add_features_r2(traj_model, sample_frac = 0.1, seed = 60427)
+add_features_r2(
+  traj_model,
+  sample_frac = 0.1,
+  additional = FALSE,
+  seed = 60427
+)
 }
 \arguments{
 \item{traj_model}{The trajectory model object.}
 
 \item{sample_frac}{The fraction of samples to use for computing the r2 without each model. When NULL, all samples are used.}
+
+\item{additional}{calculate also for additional features. Default is FALSE.}
+
+\item{seed}{The seed to use for sampling the data. Default is 60427.}
 }
 \value{
 The trajectory model object with the added R-squared values.

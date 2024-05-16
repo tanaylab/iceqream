@@ -9,6 +9,8 @@ relearn_traj_model(
   new_energies = FALSE,
   new_logist = FALSE,
   lambda = NULL,
+  use_additional_features = TRUE,
+  use_motifs = TRUE,
   verbose = FALSE
 )
 }
@@ -21,11 +23,15 @@ relearn_traj_model(
 
 \item{lambda}{The lambda value to use for relearning. If NULL, the lambda value from the trajectory model is used.}
 
+\item{use_additional_features}{A logical value indicating whether to use additional features. Default is TRUE.}
+
+\item{use_motifs}{A logical value indicating whether to use motif models. Default is TRUE.}
+
 \item{verbose}{Logical indicating whether to display additional information.}
 }
 \value{
 The updated trajectory model object.
 }
 \description{
-This function relearns a trajectory model using the glmnet package.
+This function relearns a trajectory model using the glmnet package, without re-inferring the motif models.
 }
