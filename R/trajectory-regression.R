@@ -50,7 +50,7 @@
 #' @export
 regress_trajectory_motifs <- function(atac_scores,
                                       peak_intervals,
-                                      norm_intervals = peak_intervals,
+                                      norm_intervals = NULL,
                                       max_motif_num = 50,
                                       n_clust_factor = 1,
                                       motif_energies = NULL,
@@ -86,6 +86,10 @@ regress_trajectory_motifs <- function(atac_scores,
     validate_atac_scores(atac_scores, bin_start, bin_end)
     validate_peak_intervals(peak_intervals, atac_scores)
     validate_additional_features(additional_features, peak_intervals)
+    if (is.null(norm_intervals)) {
+        norm_intervals <- peak_intervals
+        norm_motif_energies <- motif_energies
+    }
 
     # Extract features
     motif_energies <- calc_motif_energies(peak_intervals, pssm_db, motif_energies, field_name = "motif_energies", intervals_field_name = "peak_intervals")
@@ -139,7 +143,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
-        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_seqeunces = norm_seqs, seed = seed)
+        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_intervals = norm_intervals, seed = seed)
     }
 
     if (!is.null(traj_prego)) {
@@ -303,7 +307,7 @@ validate_additional_features <- function(additional_features, peak_intervals) {
 calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datasets(), motif_energies = NULL, field_name = "motif_energies", intervals_field_name = "peak_intervals") {
     if (is.null(motif_energies)) {
         cli_alert("Computing motif energies (this might take a while)")
-        motif_energies <- prego::gextract_pwm(peak_intervals, dataset = pssm_db, prior = 0.01) %>%
+        motif_energies <- prego::gextract_pwm(peak_intervals %>% select(chrom, start, end), dataset = pssm_db, prior = 0.01) %>%
             select(-chrom, -start, -end) %>%
             as.matrix()
     }
