@@ -7,7 +7,7 @@
 regress_trajectory_motifs(
   atac_scores,
   peak_intervals,
-  norm_intervals = peak_intervals,
+  norm_intervals = NULL,
   max_motif_num = 50,
   n_clust_factor = 1,
   motif_energies = NULL,
