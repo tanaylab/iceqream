@@ -244,6 +244,7 @@ regress_trajectory_motifs <- function(atac_scores,
             peaks_size = peaks_size,
             spat_num_bins = spat_num_bins,
             spat_bin_size = spat_bin_size,
+            distilled_features = distilled$features,            
             n_clust_factor = n_clust_factor,
             seed = seed
         )
