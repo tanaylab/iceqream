@@ -23,6 +23,7 @@ TrajectoryModelMulti <- setClass(
 )
 
 #' @param object An instance of `TrajectoryModelMulti`.
+#' @export
 #' @rdname TrajectoryModelMulti-class
 setMethod(
     "show", "TrajectoryModelMulti",

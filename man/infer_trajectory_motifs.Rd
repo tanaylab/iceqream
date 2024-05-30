@@ -12,7 +12,9 @@ infer_trajectory_motifs(
   bin_end = ncol(atac_scores),
   additional_features = NULL,
   test_energies = NULL,
-  diff_score = NULL
+  diff_score = NULL,
+  sequences = NULL,
+  norm_sequences = NULL
 )
 }
 \arguments{
@@ -31,6 +33,10 @@ infer_trajectory_motifs(
 \item{test_energies}{An already computed matrix of motif energies for the test peaks. An advanced option to provide the energies directly.}
 
 \item{diff_score}{The difference in ATAC-seq scores between the end and start of the peak. If provided, the function will ignore the atac_scores parameter.}
+
+\item{sequences}{A vector of strings containing the sequences of the peaks. If not provided, the sequences will be extracted from the genome using the peak intervals.}
+
+\item{norm_sequences}{A vector of strings containing the sequences of the normalization intervals. If not provided, the sequences will be extracted from the genome using the normalization intervals.}
 }
 \value{
 a \code{TrajectoryModel} object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field \verb{@type} indicates whether a peak is a 'train' or 'test' peak. R^2 statistics are computed at \code{object@params$stats}.
