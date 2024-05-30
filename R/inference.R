@@ -5,18 +5,19 @@
 #' @param traj_model A trajectory model object, as returned by \code{regress_trajectory_motifs}
 #' @param test_energies An already computed matrix of motif energies for the test peaks. An advanced option to provide the energies directly.
 #' @param diff_score The difference in ATAC-seq scores between the end and start of the peak. If provided, the function will ignore the atac_scores parameter.
+#' @param sequences A vector of strings containing the sequences of the peaks. If not provided, the sequences will be extracted from the genome using the peak intervals.
+#' @param norm_sequences A vector of strings containing the sequences of the normalization intervals. If not provided, the sequences will be extracted from the genome using the normalization intervals.
 #' @inheritParams regress_trajectory_motifs
 #'
 #' @return a `TrajectoryModel` object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field `@type` indicates whether a peak is a 'train' or 'test' peak. R^2 statistics are computed at `object@params$stats`.
 #'
 #' @export
-infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL, diff_score = NULL) {
+infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL, diff_score = NULL, sequences = NULL, norm_sequences = NULL) {
     validate_traj_model(traj_model)
     validate_additional_features(additional_features, peak_intervals)
-
     if (ncol(traj_model@additional_features) > 0) {
         if (is.null(additional_features)) {
-            additional_features <- matrix(0, nrow = nrow(peak_intervals), ncol = length(traj_model@additional_features))
+            additional_features <- matrix(0, nrow = nrow(peak_intervals), ncol = ncol(traj_model@additional_features))
             colnames(additional_features) <- traj_model@additional_features
             cli_warn("No additional features were provided. Using 0 for all features. The following features are needed: {.val {traj_model@additional_features}}")
         } else {
@@ -30,7 +31,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     }
 
     if (is.null(test_energies)) {
-        e_test <- calc_traj_model_energies(traj_model, peak_intervals)
+        e_test <- calc_traj_model_energies(traj_model, peak_intervals, sequences = sequences, norm_sequences = norm_sequences)
     } else {
         if (nrow(test_energies) != nrow(peak_intervals)) {
             cli_abort("The number of rows in test_energies should be equal to the number of peaks in peak_intervals.")
@@ -71,16 +72,31 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     return(traj_model)
 }
 
-calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp") {
+calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp", sequences = NULL, norm_sequences = NULL) {
     withr::local_options(list(gmax.data.size = 1e9))
 
-    cli_alert_info("Extracting sequences...")
-    if (!is.null(traj_model@params$peaks_size)) {
-        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals, traj_model@params$peaks_size)))
+    if (is.null(sequences)) {
+        cli_alert_info("Extracting sequences...")
+        if (!is.null(traj_model@params$peaks_size)) {
+            sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals, traj_model@params$peaks_size)))
+        } else {
+            sequences <- toupper(misha::gseq.extract(peak_intervals))
+        }
     } else {
-        sequences <- toupper(misha::gseq.extract(peak_intervals))
+        if (length(sequences) != nrow(peak_intervals)) {
+            cli_abort("The number of sequences should be equal to the number of peaks in peak_intervals.")
+        }
     }
-    norm_sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, traj_model@params$peaks_size)))
+
+    if (is.null(norm_sequences)) {
+        norm_sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, traj_model@params$peaks_size)))
+    } else {
+        if (length(norm_sequences) != nrow(traj_model@normalization_intervals)) {
+            cli_abort("The number of normalization sequences should be equal to the number of normalization intervals in the trajectory model.")
+        }
+    }
+
+
 
     cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals")
     e_test <- infer_energies(sequences, norm_sequences, traj_model@motif_models, traj_model@params$min_energy, traj_model@params$energy_norm_quantile, traj_model@params$norm_energy_max, func)

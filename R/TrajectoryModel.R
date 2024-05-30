@@ -71,6 +71,7 @@ TrajectoryModel <- setClass(
 
 #' @param object An instance of `TrajectoryModel`.
 #' @rdname TrajectoryModel-class
+#' @export
 setMethod("show", signature = "TrajectoryModel", definition = function(object) {
     cli::cli({
         cli::cli_text("{.cls TrajectoryModel} with {.val {length(object@motif_models)}} motifs and {.val {length(object@additional_features)}} additional features\n")

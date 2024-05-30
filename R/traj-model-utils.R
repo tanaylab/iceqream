@@ -226,6 +226,13 @@ traj_model_has_test <- function(traj_model) {
     return(any(traj_model@type == "test"))
 }
 
+#' Split a trajectory model into train and test sets
+#'
+#' This function takes a trajectory model and splits it into train and test sets.
+#'
+#' @param traj_model The trajectory model to split
+#' @return A list with the train and test sets
+#' @export
 split_traj_model_to_train_test <- function(traj_model) {
     if (!traj_model_has_test(traj_model)) {
         return(list(train = traj_model, test = NULL))
@@ -268,3 +275,17 @@ filter_traj_model_intervals <- function(traj_model, idxs) {
 }
 
 
+# rename_motif_models <- function(traj_model, names_map){
+#     if (!all(names(names_map) %in% names(traj_model@motif_models))) {
+#         cli_abort("Some of the motif models to rename are not found in the trajectory model. The format of the names_map should be a named character vector where the names are the current names of the motif models and the values are the new names.")
+#     }
+
+
+#     names(traj_model@motif_models) <- names_map[names(traj_model@motif_models)]
+#     colnames(traj_model@normalized_energies) <- names_map[colnames(traj_model@normalized_energies)]
+#     traj_model@features_r2 <- traj_model@features_r2[names_map[names(traj_model@features_r2)]]
+#     traj_model@params$names_map <- names_map
+#     # colnames(traj_model@model_features) <- names_map[colnames(traj_model@model_features)]
+#     # traj_model@coefs <- traj_model@coefs[names_map[names(traj_model@coefs)]]
+
+# }
