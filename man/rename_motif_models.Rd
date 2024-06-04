@@ -9,7 +9,8 @@ rename_motif_models(traj_model, names_map)
 \arguments{
 \item{traj_model}{The trajectory model object to modify.}
 
-\item{names_map}{A named character vector specifying the mapping of current motif model names to new names.}
+\item{names_map}{A named character vector specifying the mapping of current motif model names to new names.
+Can be generated using the \code{match_traj_model_motif_names} function.}
 }
 \value{
 The modified trajectory model object with renamed motif models.
