@@ -274,6 +274,46 @@ filter_traj_model_intervals <- function(traj_model, idxs) {
     return(traj_model)
 }
 
+#' Match trajectory model motif names
+#'
+#' This function matches the motif names in a trajectory model with a given dataset.
+#' This is used in order to give more 'friendly' names to the motif models.
+#' The default dataset is "HOMER".
+#' Note that the run might be slow.
+#'
+#' @param traj_model The trajectory model object.
+#' @param dataset The dataset to match the motif names with. Default is the "HOMER" dataset.
+#'
+#' @return A named character vector mapping the motif names in the trajectory model to the matched motif names in the dataset.
+#'
+#' @export
+match_traj_model_motif_names <- function(traj_model, dataset = prego::all_motif_datasets() %>% filter(dataset == "HOMER")) {
+    cli::cli_alert_info("Matching motif names, note that this might take a while.")
+    motmatch <- purrr::imap_dfr(traj_model@motif_models, ~ {
+        cli::cli_alert("Matching {.field {.y}}")
+        m <- prego::pssm_match(.x$pssm, dataset) %>% mutate(motif1 = .y)
+        cli::cli_alert("Matched with {.val {m$motif[1]}}, PSSM correlation = {.val {m$cor[1]}}")
+        m
+    })
+    names_map <- motmatch %>%
+        arrange(motif1, desc(cor)) %>%
+        distinct(motif1, .keep_all = TRUE) %>%
+        select(motif1, motif, cor) %>%
+        select(motif1, motif) %>%
+        mutate(motif = gsub("^HOMER.", "", motif)) %>%
+        deframe()
+
+    names_map <- names_map %>%
+        enframe("motif", "name") %>%
+        group_by(name) %>%
+        mutate(i = 1:n()) %>%
+        mutate(name = ifelse(i > 1, paste0(name, ".", i), name)) %>%
+        select(motif, name) %>%
+        deframe()
+
+    return(names_map)
+}
+
 
 #' Rename motif models in a trajectory model
 #'
@@ -283,6 +323,7 @@ filter_traj_model_intervals <- function(traj_model, idxs) {
 #'
 #' @param traj_model The trajectory model object to modify.
 #' @param names_map A named character vector specifying the mapping of current motif model names to new names.
+#' Can be generated using the \code{match_traj_model_motif_names} function.
 #' @return The modified trajectory model object with renamed motif models.
 #'
 #' @export
