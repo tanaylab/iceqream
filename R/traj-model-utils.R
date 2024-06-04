@@ -275,17 +275,54 @@ filter_traj_model_intervals <- function(traj_model, idxs) {
 }
 
 
-# rename_motif_models <- function(traj_model, names_map){
-#     if (!all(names(names_map) %in% names(traj_model@motif_models))) {
-#         cli_abort("Some of the motif models to rename are not found in the trajectory model. The format of the names_map should be a named character vector where the names are the current names of the motif models and the values are the new names.")
-#     }
+#' Rename motif models in a trajectory model
+#'
+#' This function renames motif models in a trajectory model based on a provided names_map.
+#' The names_map should be a named character vector where the names are the current names of the motif models
+#' and the values are the new names.
+#'
+#' @param traj_model The trajectory model object to modify.
+#' @param names_map A named character vector specifying the mapping of current motif model names to new names.
+#' @return The modified trajectory model object with renamed motif models.
+#'
+#' @export
+rename_motif_models <- function(traj_model, names_map) {
+    if (!all(names(names_map) %in% names(traj_model@motif_models))) {
+        cli_abort("Some of the motif models to rename are not found in the trajectory model. The format of the names_map should be a named character vector where the names are the current names of the motif models and the values are the new names.")
+    }
 
+    if (length(unique(names_map)) != length(names_map)) {
+        cli_abort("The new names in the names_map should be unique.")
+    }
 
-#     names(traj_model@motif_models) <- names_map[names(traj_model@motif_models)]
-#     colnames(traj_model@normalized_energies) <- names_map[colnames(traj_model@normalized_energies)]
-#     traj_model@features_r2 <- traj_model@features_r2[names_map[names(traj_model@features_r2)]]
-#     traj_model@params$names_map <- names_map
-#     # colnames(traj_model@model_features) <- names_map[colnames(traj_model@model_features)]
-#     # traj_model@coefs <- traj_model@coefs[names_map[names(traj_model@coefs)]]
+    traj_model@params$names_map <- names_map
 
-# }
+    add_feat_map <- colnames(traj_model@additional_features)
+    names(add_feat_map) <- add_feat_map
+    names_map <- c(add_feat_map, names_map)
+
+    names(traj_model@motif_models) <- names_map[names(traj_model@motif_models)]
+    colnames(traj_model@normalized_energies) <- names_map[colnames(traj_model@normalized_energies)]
+    names(traj_model@features_r2) <- names_map[names(traj_model@features_r2)]
+
+    ext_names_map <- purrr::map(c("low-energy", "high-energy", "higher-energy", "sigmoid"), ~ {
+        m <- paste0(names_map, "_", .x)
+        names(m) <- paste0(names(names_map), "_", .x)
+        m
+    }) %>% do.call(c, .)
+
+    colnames(traj_model@model_features) <- ext_names_map[colnames(traj_model@model_features)]
+    traj_model@coefs <- traj_model@coefs %>%
+        mutate(variable = names_map[variable])
+    if (!is.null(traj_model@params$distilled_features)) {
+        traj_model@params$distilled_features <- traj_model@params$distilled_features %>%
+            mutate(distilled = ifelse(distilled %in% names(names_map), names_map[distilled], distilled))
+    }
+    if (!is.null(traj_model@params$features_bits)) {
+        names(traj_model@params$features_bits) <- names_map[names(traj_model@params$features_bits)]
+    }
+
+    traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE)
+
+    return(traj_model)
+}
