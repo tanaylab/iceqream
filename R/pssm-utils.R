@@ -2,7 +2,7 @@
 #'
 #' This function adjusts each PSSM model in the input list so that the GC content is not higher
 #' than the AT content. If a model's GC content is higher than its AT content, the function applies
-#' a reverse complement to the model using the pssm_rc function.
+#' a reverse complement to the model using the prego pssm_rc function.
 #'
 #' @param models A list of PSSM models. Each model should be a list with a pssm element, which
 #'               is a data frame containing columns 'A', 'C', 'G', 'T', and 'pos'.
@@ -35,7 +35,7 @@ homogenize_pssm_models <- function(models) {
     homogenize_model <- function(model) {
         # if A is higher than T reverse complement the model
         if (sum(model$pssm$T) > sum(model$pssm$A)) {
-            model$pssm <- pssm_rc(model$pssm)
+            model$pssm <- prego::pssm_rc(model$pssm)
         }
         return(model)
     }
@@ -46,34 +46,6 @@ homogenize_pssm_models <- function(models) {
     return(models)
 }
 
-#' Reverse complement a PSSM
-#'
-#' @param pssm A PSSM. Data frame with columns 'A', 'C', 'G', 'T' and 'pos'.
-#' @return A PSSM with the same format, but reverse complemented.
-#'
-#' @examples
-#' # Create simulated PSSM data frame
-#' pssm <- data.frame(
-#'     pos = 1:4,
-#'     A = c(0.1, 0.2, 0.3, 0.1),
-#'     C = c(0.1, 0.3, 0.2, 0.1),
-#'     G = c(0.1, 0.3, 0.3, 0.7),
-#'     T = c(0.7, 0.2, 0.2, 0.1)
-#' )
-#'
-#' # Reverse complement the PSSM
-#' rc_pssm <- pssm_rc(pssm)
-#'
-#' @export
-pssm_rc <- function(pssm) {
-    pssm <- pssm %>%
-        mutate(tmp_A = A, tmp_C = C, tmp_G = G, tmp_T = T) %>%
-        mutate(A = tmp_T, T = tmp_A, C = tmp_G, G = tmp_C) %>%
-        select(-starts_with("tmp_")) %>%
-        arrange(desc(pos)) %>%
-        mutate(pos = n() - pos + 1)
-    return(pssm)
-}
 
 
 compute_directed_pwm <- function(
