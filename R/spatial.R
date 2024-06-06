@@ -313,6 +313,7 @@ calc_track_pos_data <- function(track, intervals, threshold = 7, direction = NUL
 #' @param traj_model A trajectory model object
 #' @param size The size of the region to compute spatial frequency for
 #' @param pwm_threshold The threshold for the PWM score
+#' @param pwm_q_threshold The genomic quantile to use for the PWM threshold. Would be used if \code{pwm_threshold} is NULL.
 #' @param top_q The proportion of top peaks to select
 #' @param bottom_q The proportion of bottom peaks to select
 #' @param bidirect_size Size of the intervals to use for deciding the directionality of the sequence
@@ -328,7 +329,7 @@ calc_track_pos_data <- function(track, intervals, threshold = 7, direction = NUL
 #' @return A data frame with the spatial frequency of each motif
 #'
 #' @export
-compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, align_to_max = TRUE, motifs = names(traj_model@motif_models)) {
+compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7, pwm_q_threshold = 0.99, top_q = 0.1, bottom_q = 0.1, atac_track = NULL, parallel = TRUE, bidirect_size = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, align_to_max = TRUE, motifs = names(traj_model@motif_models)) {
     intervals <- traj_model@peak_intervals
 
     # select top and bottom 10% of peaks using diff_score
@@ -340,6 +341,13 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
         select(-diff_score)
 
     spatial_freqs <- plyr::ldply(motifs, function(motif) {
+        if (is.null(pwm_threshold)) {
+            local_pwm_r <- gextract.local_pwm(traj_model@normalization_intervals, traj_model@motif_models[[motif]]$pssm, bidirect = TRUE)
+            local_pwm_rn <- norm_energy(local_pwm_r, min_energy = -10, q = 1)
+
+            pwm_threshold <- quantile(local_pwm_rn, pwm_q_threshold, na.rm = TRUE)
+            cli::cli_alert("PWM threshold for {.field {motif}}: {.val {pwm_threshold}}")
+        }
         cli::cli_alert("Computing spatial frequency for {.val {motif}}")
         bind_rows(
             compute_pssm_spatial_freq(
@@ -347,6 +355,7 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
                 intervals = intervals %>% filter(type == "top"),
                 size = size,
                 pwm_threshold = pwm_threshold,
+                pwm_q_threshold = pwm_q_threshold,
                 atac_track = atac_track,
                 k4me3_track = k4me3_track,
                 k27me3_track = k27me3_track,
@@ -360,6 +369,7 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
                 intervals = intervals %>% filter(type == "bottom"),
                 size = size,
                 pwm_threshold = pwm_threshold,
+                pwm_q_threshold = pwm_q_threshold,
                 atac_track = atac_track,
                 k4me3_track = k4me3_track,
                 k27me3_track = k27me3_track,
@@ -445,12 +455,13 @@ plot_epi_spatial_freq <- function(spatial_freqs, motif, mark, smooth = 10) {
 #' @param motif A string specifying the motif to plot.
 #' @param smooth An integer specifying the window size for smoothing the frequency values.
 #' @param plot_atac A logical indicating whether to plot the ATAC-seq frequency instead of the motif frequency.
+#' @param linewidth The width of the line in the plot.
 #'
 #' @return A ggplot object showing the spatial frequency of the given motif.
 #'
 #'
 #' @export
-plot_motif_spatial_freq <- function(spatial_freqs, motif, smooth = 10, plot_atac = FALSE) {
+plot_motif_spatial_freq <- function(spatial_freqs, motif, smooth = 10, plot_atac = FALSE, linewidth = 1) {
     if (plot_atac) {
         if (!(("atac_freq" %in% colnames(spatial_freqs)))) {
             cli_abort("atac_freq column is missing from spatial_freqs")
@@ -464,7 +475,7 @@ plot_motif_spatial_freq <- function(spatial_freqs, motif, smooth = 10, plot_atac
         mutate(freq_roll = zoo::rollmean(freq, smooth, fill = NA, align = "center"))
 
     p <- ggplot(spatial_freqs, aes(x = pos, y = freq_roll, color = type)) +
-        geom_line() +
+        geom_line(linewidth = linewidth) +
         scale_color_manual(name = "", values = c(top = "red", bottom = "blue")) +
         theme_classic() +
         theme(legend.position = c(0.9, 0.9)) +
