@@ -56,10 +56,13 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     traj_model@normalized_energies <- as.matrix(rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))]))
     if (!is.null(diff_score)) {
         traj_model@diff_score <- c(traj_model@diff_score, diff_score)
+        traj_model <- add_traj_model_stats(traj_model)
     } else if (!is.null(atac_scores)) {
         atac_scores <- as.data.frame(atac_scores)
         traj_model@diff_score <- c(traj_model@diff_score, atac_scores[, bin_end] - atac_scores[, bin_start])
+        traj_model <- add_traj_model_stats(traj_model)
     }
+
     traj_model@predicted_diff_score <- c(traj_model@predicted_diff_score, pred)
     traj_model@type <- c(traj_model@type, rep("test", nrow(e_test_logist)))
     traj_model@peak_intervals <- bind_rows(traj_model@peak_intervals, peak_intervals)
@@ -67,7 +70,6 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         traj_model@additional_features <- bind_rows(traj_model@additional_features, as.data.frame(additional_features))
     }
 
-    traj_model <- add_traj_model_stats(traj_model)
 
     return(traj_model)
 }

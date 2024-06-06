@@ -16,7 +16,7 @@ A list of homogenized PSSM models.
 \description{
 This function adjusts each PSSM model in the input list so that the GC content is not higher
 than the AT content. If a model's GC content is higher than its AT content, the function applies
-a reverse complement to the model using the pssm_rc function.
+a reverse complement to the model using the prego pssm_rc function.
 }
 \examples{
 # Create simulated data

@@ -125,7 +125,8 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
 #' @inheritParams regress_trajectory_motifs
 #' @export
 setMethod("predict", signature = "TrajectoryModel", definition = function(object, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL) {
-    traj_model <- infer_trajectory_motifs(object, peak_intervals, additional_features = additional_features)
+    train_model <- split_traj_model_to_train_test(object)$train
+    traj_model <- infer_trajectory_motifs(train_model, peak_intervals, additional_features = additional_features)
     return(traj_model@predicted_diff_score[traj_model@type == "test"])
 })
 
