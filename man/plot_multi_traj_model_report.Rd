@@ -13,6 +13,7 @@ plot_multi_traj_model_report(
   title = NULL,
   use_full = FALSE,
   names_map = NULL,
+  type = "pr",
   ...
 )
 }
@@ -33,11 +34,14 @@ plot_multi_traj_model_report(
 
 \item{names_map}{a named vector to map the names of the motifs to new names.}
 
+\item{type}{Optional. The type of the plot, can be "pr", "boxp" or "spat". Default is "pr".}
+
 \item{...}{Additional arguments to be passed to the plotting function.}
 }
 \value{
 A ggplot2 object (invsibly if a filename is provided).
 }
 \description{
-This function plots a report for a multi-trajectory model.
+This function plots a report for a multi-trajectory model. The report includes the motifs, spatial models, and partial responses for each trajectory model when \code{type} is "pr".
+If \code{type} is "boxp", the function will plot the boxplots of the energy vs response for each motif. If \code{type} is "spat", the function will plot the spatial distribution of the motifs.
 }

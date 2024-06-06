@@ -4,7 +4,13 @@
 \alias{plot_motif_spatial_freq}
 \title{Plot motif spatial frequency}
 \usage{
-plot_motif_spatial_freq(spatial_freqs, motif, smooth = 10, plot_atac = FALSE)
+plot_motif_spatial_freq(
+  spatial_freqs,
+  motif,
+  smooth = 10,
+  plot_atac = FALSE,
+  linewidth = 1
+)
 }
 \arguments{
 \item{spatial_freqs}{A data frame containing the spatial frequency of motifs and/or ATAC-seq peaks. Output of \code{compute_traj_model_spatial_freq}.}
@@ -14,6 +20,8 @@ plot_motif_spatial_freq(spatial_freqs, motif, smooth = 10, plot_atac = FALSE)
 \item{smooth}{An integer specifying the window size for smoothing the frequency values.}
 
 \item{plot_atac}{A logical indicating whether to plot the ATAC-seq frequency instead of the motif frequency.}
+
+\item{linewidth}{The width of the line in the plot.}
 }
 \value{
 A ggplot object showing the spatial frequency of the given motif.

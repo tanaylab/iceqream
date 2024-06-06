@@ -142,6 +142,7 @@ plot_variable_vs_response <- function(traj_model, variable, point_size = 0.5) {
 #'
 #' @export
 plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy", ylab = "Partial response", pointsize = 3) {
+    validate_traj_model(traj_model)
     pr <- compute_partial_response(traj_model)
     p <- tibble(
         e = traj_model@normalized_energies[, motif],
@@ -158,6 +159,68 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
     return(p)
 }
 
+#' Plot Motif Energy vs Response Boxplot
+#'
+#' This function plots a boxplot of the ATAC difference (response) against the energy levels of a given motif.
+#' If \code{subtitle=NULL}, the subtitle will be set to a kologorov-smirnov test between the lowest (0-3) and highest (9-10) energy levels.
+#'
+#' @param traj_model The trajectory model object.
+#' @param motif The motif to plot the energy levels for.
+#' @param xlab The label for the x-axis (default is the motif name followed by "energy").
+#' @param ylab The label for the y-axis (default is "ATAC difference").
+#' @param ylim The limits for the y-axis (default is -0.5 to 0.5).
+#' @param fill The fill color for the boxplot (default is "lightblue1").
+#' @param outliers Whether to plot outliers (default is TRUE).
+#' @param title The title for the plot.
+#' @param subtitle The subtitle for the plot (default is a kologorov-smirnov test between the lowest and highest energy levels). The color of the subtitle will be set to "darkred" if the p-value is less than 0.01.
+#'
+#' @return A ggplot object representing the boxplot.
+#'
+#'
+#' @export
+plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = paste(motif, "energy"), ylab = "ATAC difference", ylim = c(-0.5, 0.5), fill = "lightblue1", title = "", subtitle = NULL, outliers = TRUE) {
+    validate_traj_model(traj_model)
+    if (!(motif %in% colnames(traj_model@normalized_energies))) {
+        cli_abort("Motif {.val {motif}} not found in the model.")
+    }
+
+    plot_df <- tibble(
+        observed = traj_model@diff_score,
+        e = traj_model@normalized_energies[, motif]
+    ) %>%
+        mutate(energy = cut(e, c(0, 3, 6, 7, 8, 9, 10), include.lowest = TRUE, labels = c("0-3", "3-6", "6-7", "7-8", "8-9", "9-10")))
+
+    subtitle_color <- "black"
+    if (is.null(subtitle)) {
+        if (sum(plot_df$energy == "0-3") >= 3 && sum(plot_df$energy == "9-10") >= 3) {
+            ks <- stats::ks.test(plot_df$observed[plot_df$energy == "0-3"], plot_df$observed[plot_df$energy == "9-10"])
+            subtitle <- glue::glue("KS.D={round(ks$statistic, digits = 2)} (pv={round(ks$p.value, digits = 3)})")
+            if (ks$p.value <= 0.01) {
+                subtitle_color <- "darkred"
+            }
+        } else {
+            subtitle <- "Not enough samples in the lowest and highest energy levels"
+        }
+    }
+
+
+    p <- plot_df %>%
+        ggplot(aes(x = energy, y = observed)) +
+        geom_hline(yintercept = 0) +
+        geom_boxplot(outlier.size = 0.1, outlier.alpha = 0.5, fill = fill, fatten = 1, linewidth = 0.5, outliers = outliers) +
+        xlab(xlab) +
+        ylab(ylab) +
+        coord_cartesian(ylim = ylim) +
+        ggtitle(title, subtitle = subtitle) +
+        theme_classic() +
+        theme(plot.subtitle = ggtext::element_markdown(color = subtitle_color)) +
+        theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+
+    return(p)
+}
+
+
+
 #' Plot a report of trajectory motifs
 #'
 #' @param traj_model Trajectory model object. Please run \code{regress_trajectory_motifs} first.
@@ -173,12 +236,13 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
 #' @param motif_titles Titles for the motifs. If NULL, the motif names will be used.
 #' @param sort_motifs Whether to sort the motifs by the absolute value of the coefficients / r2 values.
 #' @param names_map a named vector to map the names of the motifs to new names.
+#' @param boxp_ylim ylimits for the boxplot of energy vs response.
 #'
 #' @return ggplot2 object. If filename is not NULL, the plot will be saved to the file and the function will return \code{invisible(NULL)}.
 #'
 #'
 #' @export
-plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, names_map = NULL, ...) {
+plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, names_map = NULL, boxp_ylim = c(-0.5, 0.5), ...) {
     validate_traj_model(traj_model)
     models <- traj_model@motif_models
     has_features_r2 <- length(traj_model@features_r2) > 0 && all(names(models) %in% names(traj_model@features_r2))
@@ -266,6 +330,8 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
     pr <- compute_partial_response(traj_model)
     e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x, pr, traj_model))
 
+    e_vs_r_boxp_p <- purrr::map(names(models), ~ plot_motif_energy_vs_response_boxplot(traj_model, .x, ylim = boxp_ylim, xlab = paste(names_map[.x], "energy")))
+
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
     p <- patchwork::wrap_plots(
@@ -274,9 +340,10 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
         C = patchwork::wrap_plots(coefs_p, ncol = 1),
         D = patchwork::wrap_plots(spatial_p, ncol = 1),
         E = patchwork::wrap_plots(spat_freq_p, ncol = 1),
-        F = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
-        design = "ABCDEF",
-        widths = c(0.5, 0.1, 0.1, 0.1, 0.3, 0.3)
+        F = patchwork::wrap_plots(e_vs_r_boxp_p, ncol = 1),
+        G = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
+        design = "ABCDEFG",
+        widths = c(0.5, 0.1, 0.1, 0.1, 0.3, 0.12, 0.3)
     )
 
     if (!is.null(title)) {
@@ -285,7 +352,7 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
 
     if (!is.null(filename)) {
         if (is.null(width)) {
-            width <- 24
+            width <- 27
         }
         if (is.null(height)) {
             height <- motif_num * 1.8

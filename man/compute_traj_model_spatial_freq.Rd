@@ -8,6 +8,7 @@ compute_traj_model_spatial_freq(
   traj_model,
   size,
   pwm_threshold = 7,
+  pwm_q_threshold = 0.99,
   top_q = 0.1,
   bottom_q = 0.1,
   atac_track = NULL,
@@ -27,6 +28,8 @@ compute_traj_model_spatial_freq(
 \item{size}{The size of the region to compute spatial frequency for}
 
 \item{pwm_threshold}{The threshold for the PWM score}
+
+\item{pwm_q_threshold}{The genomic quantile to use for the PWM threshold. Would be used if \code{pwm_threshold} is NULL.}
 
 \item{top_q}{The proportion of top peaks to select}
 

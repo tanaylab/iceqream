@@ -17,6 +17,7 @@ plot_traj_model_report(
   motif_titles = NULL,
   sort_motifs = TRUE,
   names_map = NULL,
+  boxp_ylim = c(-0.5, 0.5),
   ...
 )
 }
@@ -44,6 +45,8 @@ plot_traj_model_report(
 \item{sort_motifs}{Whether to sort the motifs by the absolute value of the coefficients / r2 values.}
 
 \item{names_map}{a named vector to map the names of the motifs to new names.}
+
+\item{boxp_ylim}{ylimits for the boxplot of energy vs response.}
 
 \item{...}{Additional arguments to pass to the device.}
 }

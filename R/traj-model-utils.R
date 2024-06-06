@@ -328,7 +328,7 @@ match_traj_model_motif_names <- function(traj_model, dataset = prego::all_motif_
 #'
 #' @export
 rename_motif_models <- function(traj_model, names_map) {
-    if (!all(names(names_map) %in% names(traj_model@motif_models))) {
+    if (!all(names(traj_model@motif_models) %in% names(names_map))) {
         cli_abort("Some of the motif models to rename are not found in the trajectory model. The format of the names_map should be a named character vector where the names are the current names of the motif models and the values are the new names.")
     }
 

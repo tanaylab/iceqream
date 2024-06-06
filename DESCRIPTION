@@ -32,6 +32,7 @@ Imports:
     ComplexHeatmap,
     zoo,
     glue,
+    ggtext,
     stringi,
     scattermore,
     magrittr,
