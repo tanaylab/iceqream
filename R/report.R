@@ -330,7 +330,7 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
     pr <- compute_partial_response(traj_model)
     e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x, pr, traj_model))
 
-    e_vs_r_boxp_p <- purrr::map(names(models), ~ plot_motif_energy_vs_response_boxplot(traj_model, .x, ylim = boxp_ylim, xlab = paste(names_map[.x], "energy")))
+    e_vs_r_boxp_p <- purrr::map(names(models), ~ plot_motif_energy_vs_response_boxplot(traj_model, .x, ylim = boxp_ylim, xlab = paste(names_map[.x], "energy"), outliers = FALSE))
 
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
