@@ -203,7 +203,7 @@ calc_features_bits <- function(traj_model) {
 add_traj_model_stats <- function(traj_model) {
     obs <- traj_model@diff_score
     pred <- traj_model@predicted_diff_score
-    if (sum(names(obs) == "") == 0) {
+    if (!is.null(names(obs)) && sum(names(obs) == "") == 0) {
         pred <- pred[names(obs)]
     }
 

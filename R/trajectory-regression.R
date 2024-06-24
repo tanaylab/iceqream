@@ -162,6 +162,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
     cli_alert_info("Calculating correlations between {.val {ncol(motif_energies)}} motif energies and ATAC difference...")
     cm <- tgs_cor(motif_energies, as.matrix(atac_diff), pairwise.complete.obs = TRUE)[, 1]
+    cm <- cm[!is.na(cm)]
     motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
     if (length(motifs) == 0) {
         min_initial_energy_cor <- min_initial_energy_cor / 2
@@ -251,7 +252,6 @@ regress_trajectory_motifs <- function(atac_scores,
     )
 
     if (filter_using_r2) {
-        coefs <- get_model_coefs(model)
         traj_model <- filter_traj_model(traj_model, r2_threshold = r2_threshold)
     }
 
