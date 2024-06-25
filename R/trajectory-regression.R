@@ -108,7 +108,7 @@ regress_trajectory_motifs <- function(atac_scores,
             cli_abort("Please make sure the current genome ({.field {GROOT}}) has an intervals set called {.val intervs.global.tss}")
         }
 
-        tss_dist <- abs(misha::gintervals.neighbors(peak_intervals, "intervs.global.tss", na.if.notfound = TRUE)$dist)
+        tss_dist <- abs(misha::gintervals.neighbors(as.data.frame(peak_intervals), "intervs.global.tss", na.if.notfound = TRUE)$dist)
         enhancers_filter <- tss_dist > min_tss_distance
         enhancers_filter[is.na(enhancers_filter)] <- FALSE
         if (sum(!enhancers_filter) > 0) {
