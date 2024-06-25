@@ -143,7 +143,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
-        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_intervals = norm_intervals, seed = seed)
+        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_intervals = norm_intervals, seed = seed, spat_bin_size = spat_bin_size, spat_num_bins = spat_num_bins)
     }
 
     if (!is.null(traj_prego)) {

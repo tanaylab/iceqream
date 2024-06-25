@@ -26,7 +26,7 @@ learn_traj_prego(
 
 \item{atac_diff}{A numeric vector, indicating the ATAC difference of each peak}
 
-\item{n_motifs}{Number of motifs to learn}
+\item{n_motifs}{Number of motifs to learn. Should be at least 2}
 
 \item{min_diff}{Minimum ATAC difference to include a peak in the training}
 
