@@ -213,7 +213,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     }
     clust_energies <- clust_energies[, best_clust_map$feat, drop = FALSE]
 
-    if (!is.null(additional_features) && nrow(additional_features) > 0) {
+    if (!is.null(additional_features) && length(additional_features) > 0 && nrow(additional_features) > 0) {
         additional_features[is.na(additional_features)] <- 0
         clust_energies <- cbind(clust_energies, additional_features)
     }

@@ -2,7 +2,7 @@
 #'
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
 #' @param atac_diff A numeric vector, indicating the ATAC difference of each peak
-#' @param n_motifs Number of motifs to learn
+#' @param n_motifs Number of motifs to learn. Should be at least 2
 #' @param min_diff Minimum ATAC difference to include a peak in the training
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param norm_energy_max maximum value of the normalized energy. Default: 10
@@ -20,6 +20,10 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
     withr::local_options(list(gmax.data.size = 1e9))
     if (length(atac_diff) != nrow(peak_intervals)) {
         cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows of {.field {peak_intervals}}. Current lengths: {.val {length(atac_diff)}} and {.val {nrow(peak_intervals)}}")
+    }
+
+    if (n_motifs < 2) {
+        cli_abort("Number of motifs to learn should be at least 2")
     }
 
     if (is.null(sequences)) {

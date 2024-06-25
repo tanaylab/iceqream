@@ -218,10 +218,10 @@ add_traj_model_stats <- function(traj_model) {
         traj_model@params$stats$r2_test <- cor(pred[test_idxs], obs[test_idxs], use = "pairwise.complete.obs")^2
     }
 
-    if (length(obs) == length(pred)){
+    if (length(obs) == length(pred)) {
         traj_model@params$stats$r2_all <- cor(pred, obs, use = "pairwise.complete.obs")^2
     }
-    
+
     return(traj_model)
 }
 
