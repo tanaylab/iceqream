@@ -370,3 +370,8 @@ rename_motif_models <- function(traj_model, names_map) {
 
     return(traj_model)
 }
+
+
+has_additional_features <- function(traj_model) {
+    return(ncol(traj_model@additional_features) > 0 && nrow(traj_model@additional_features) > 0)
+}
