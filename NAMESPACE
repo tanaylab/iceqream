@@ -3,7 +3,6 @@
 export("%>%")
 export(TrajectoryModelMulti)
 export(add_features_r2)
-export(bin_atac_on_traj)
 export(compute_motif_directional_hits)
 export(compute_traj_model_spatial_freq)
 export(create_logist_features)
