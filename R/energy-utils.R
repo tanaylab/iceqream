@@ -25,7 +25,11 @@ norm01 <- function(x) {
         return(x)
     }
     x <- x - min(x, na.rm = TRUE)
-    x / max(x, na.rm = TRUE)
+    max_x <- max(x, na.rm = TRUE)
+    if (max_x == 0) {
+        return(x)
+    }
+    x / max_x
 }
 
 
