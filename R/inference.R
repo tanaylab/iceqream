@@ -15,7 +15,7 @@
 infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL, diff_score = NULL, sequences = NULL, norm_sequences = NULL) {
     validate_traj_model(traj_model)
     validate_additional_features(additional_features, peak_intervals)
-    if (ncol(traj_model@additional_features) > 0) {
+    if (has_additional_features(traj_model)) {
         if (is.null(additional_features)) {
             additional_features <- matrix(0, nrow = nrow(peak_intervals), ncol = ncol(traj_model@additional_features))
             colnames(additional_features) <- traj_model@additional_features
@@ -42,7 +42,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         e_test <- test_energies[, intersect(colnames(test_energies), colnames(traj_model@normalized_energies))]
     }
 
-    if (!is.null(additional_features)) {
+    if (has_additional_features(traj_model) && !is.null(additional_features)) {
         additional_features[is.na(additional_features)] <- 0
         e_test <- cbind(e_test, additional_features)
     }
@@ -66,7 +66,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
 
     traj_model@type <- c(traj_model@type, rep("test", nrow(e_test_logist)))
     traj_model@peak_intervals <- bind_rows(traj_model@peak_intervals, peak_intervals)
-    if (!is.null(additional_features)) {
+    if (has_additional_features(traj_model) && !is.null(additional_features)) {
         traj_model@additional_features <- bind_rows(traj_model@additional_features, as.data.frame(additional_features))
     }
 
@@ -99,7 +99,6 @@ calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@pea
     }
 
 
-
     cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals")
     e_test <- infer_energies(sequences, norm_sequences, traj_model@motif_models, traj_model@params$min_energy, traj_model@params$energy_norm_quantile, traj_model@params$norm_energy_max, func)
 
@@ -108,6 +107,7 @@ calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@pea
 
 infer_energies <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp") {
     ml <- purrr::discard(motif_list, is.null)
+
     energies <- plyr::llply(ml, function(x) {
         prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
     }, .parallel = TRUE)
