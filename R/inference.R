@@ -18,7 +18,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     if (has_additional_features(traj_model)) {
         if (is.null(additional_features)) {
             additional_features <- matrix(0, nrow = nrow(peak_intervals), ncol = ncol(traj_model@additional_features))
-            colnames(additional_features) <- traj_model@additional_features
+            colnames(additional_features) <- colnames(traj_model@additional_features)
             cli_warn("No additional features were provided. Using 0 for all features. The following features are needed: {.val {traj_model@additional_features}}")
         } else {
             for (feat in colnames(traj_model@additional_features)) {
