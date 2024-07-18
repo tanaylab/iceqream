@@ -49,7 +49,7 @@ compute_traj_model_spatial_freq(
 
 \item{orient_to_intervals}{A data frame containing the intervals to orient the sequences to}
 
-\item{align_to_max}{A logical indicating whether to align the sequences to the maximum in each sequence at the epigenetic tracks and atac signla}
+\item{align_to_max}{A logical indicating whether to align the sequences to the maximum in each sequence at the epigenetic tracks and atac signal}
 
 \item{motifs}{A vector of motif names to compute spatial frequency for. Default is all motifs in the trajectory model.}
 }
