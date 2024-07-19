@@ -9,6 +9,7 @@ plot_iq_locus(
   pbm_list,
   atac_tracks,
   width = 500,
+  ext_width = 50000,
   T_emax = 8,
   bits_threshold = NULL,
   order_motifs = TRUE,
@@ -22,8 +23,11 @@ plot_iq_locus(
   iterator = 20,
   norm_intervals = gintervals.all(),
   atac_smooth = 2,
+  ext_atac_smooth = atac_smooth * 5,
   tn5bias_track = "tn5bias",
   normalize_tn5bias = TRUE,
+  tss_intervals = "intervs.global.tss",
+  exon_intervals = "intervs.global.exon",
   scale_cex = 500,
   filename = NULL,
   dev = grDevices::pdf,
@@ -39,6 +43,8 @@ plot_iq_locus(
 \item{atac_tracks}{A vector of ATAC-seq track names to plot.}
 
 \item{width}{Width of the plot in bp.}
+
+\item{ext_width}{Width of the top plot in bp.}
 
 \item{T_emax}{Numeric, threshold for maximum energy.}
 
@@ -65,6 +71,8 @@ plot_iq_locus(
 \item{norm_intervals}{Genomic intervals for normalization.}
 
 \item{atac_smooth}{Numeric, smoothing factor for ATAC-seq tracks.}
+
+\item{ext_atac_smooth}{Numeric, smoothing factor for the top plot.}
 
 \item{tn5bias_track}{Character, name of the Tn5 bias track.}
 

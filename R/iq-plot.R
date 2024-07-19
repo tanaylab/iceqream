@@ -6,6 +6,7 @@
 #' @param pbm_list A list of PBM objects.
 #' @param atac_tracks A vector of ATAC-seq track names to plot.
 #' @param width Width of the plot in bp.
+#' @param ext_width Width of the top plot in bp.
 #' @param scale_cex Numeric, scaling factor for letter sizes.
 #' @param T_emax Numeric, threshold for maximum energy.
 #' @param bits_threshold Numeric, threshold for trimming PSSMs.
@@ -20,6 +21,7 @@
 #' @param iterator Numeric, iterator for gextract.
 #' @param norm_intervals Genomic intervals for normalization.
 #' @param atac_smooth Numeric, smoothing factor for ATAC-seq tracks.
+#' @param ext_atac_smooth Numeric, smoothing factor for the top plot.
 #' @param tn5bias_track Character, name of the Tn5 bias track.
 #' @param normalize_tn5bias Logical, whether to normalize the TN5 bias track.
 #' @param filename Character, output filename (if NULL, plot is not saved).
@@ -30,16 +32,27 @@
 #' @return A ggplot object containing the IQ locus plot.
 #'
 #' @export
-plot_iq_locus <- function(interval, pbm_list, atac_tracks, width = 500, T_emax = 8,
+plot_iq_locus <- function(interval, pbm_list, atac_tracks,
+                          width = 500, ext_width = 5e4, T_emax = 8,
                           bits_threshold = NULL, order_motifs = TRUE, atac_names = atac_tracks, atac_colors = NULL,
-                          atac_sizes = NULL, line_thresh = 0.9, score = NULL, norm_q = 0.995, tracks_q = NULL,
-                          iterator = 20, norm_intervals = gintervals.all(), atac_smooth = 2, tn5bias_track = "tn5bias", normalize_tn5bias = TRUE,
+                          atac_sizes = NULL,
+                          line_thresh = 0.9,
+                          score = NULL,
+                          norm_q = 0.995,
+                          tracks_q = NULL,
+                          iterator = 20,
+                          norm_intervals = gintervals.all(),
+                          atac_smooth = 2,
+                          ext_atac_smooth = atac_smooth * 5,
+                          tn5bias_track = "tn5bias",
+                          normalize_tn5bias = TRUE,
+                          tss_intervals = "intervs.global.tss",
+                          exon_intervals = "intervs.global.exon",
                           scale_cex = 500,
                           filename = NULL, dev = grDevices::pdf, plot_width = 15, plot_height = 8) {
     pbm_list <- preprocess_pbm_list(pbm_list, bits_threshold)
     interval <- preprocess_interval(interval, width)
     dna <- prego::intervals_to_seq(interval)
-    l <- nchar(dna)
 
     energy_response_data <- compute_energy_response(pbm_list, dna, T_emax)
     e_mat <- energy_response_data$e_mat
@@ -53,30 +66,33 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks, width = 500, T_emax =
         dna_df <- order_motifs_data(dna_df, r_mat)
     }
 
-    atac_data <- prepare_atac_data(atac_names, atac_tracks, interval, iterator, atac_smooth, norm_q, norm_intervals, tracks_q, tn5bias_track, normalize_tn5bias)
+    atac_data <- prepare_atac_data(atac_names, atac_tracks, interval, iterator, atac_smooth, norm_q, norm_intervals, tracks_q, tn5bias_track, normalize_tn5bias, ext_width = ext_width)
 
     diffs_df <- compute_diffs(dna_df, line_thresh, width)
 
     atac_colors <- prepare_atac_colors(atac_colors, atac_data)
     atac_sizes <- prepare_atac_sizes(atac_sizes, atac_names)
 
-    p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smooth)
+    p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, width, atac_smooth)
+    p_atac_ext <- plot_atac_ext(atac_data, atac_colors, atac_sizes, ext_width, width, ext_atac_smooth, interval = interval, tss_intervals = tss_intervals, exon_intervals = exon_intervals)
 
     title <- sprintf("%s:%d-%d", interval$chrom, interval$start, interval$end)
     if (!is.null(score)) {
         title <- paste0(title, ", ", sprintf("Score: %.2f", score))
     }
-    p_atac <- p_atac + labs(title = title)
+    # p_atac <- p_atac + labs(title = title)
+    p_atac_ext <- p_atac_ext + labs(title = title)
 
     p_dna <- plot_dna(dna_df, diffs_df)
     p_logos <- plot_logos(pbm_list[rev(levels(dna_df$motif))])
     p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], rc = TRUE)
 
     design <- "
+        ##5
         ##1
         342
     "
-    p <- p_atac + p_dna + p_logos + p_logos_rc + patchwork::plot_layout(design = design, heights = c(0.6, 0.4), width = c(0.05, 0.05, 0.9), guides = "collect")
+    p <- p_atac + p_dna + p_logos + p_logos_rc + p_atac_ext + patchwork::plot_layout(design = design, heights = c(0.1, 0.55, 0.35), width = c(0.05, 0.05, 0.9), guides = "collect")
 
 
     if (!is.null(filename)) {
@@ -127,6 +143,79 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
             legend.position = "right"
         ) +
         scale_y_continuous(breaks = c(0, 0.5, 1), limits = c(-0.5, 1)) +
+        labs(x = NULL, y = NULL, title = "") +
+        scale_x_continuous(expand = c(0, 0)) +
+        theme(plot.margin = margin(0, 0, 0, 0))
+
+    return(p)
+}
+
+plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smooth, interval, tss_intervals, exon_intervals) {
+    ext_interval <- gintervals.normalize(interval, l_ext)
+
+    tss_data <- gintervals.neighbors1(tss_intervals, ext_interval) %>%
+        filter(dist == 0) %>%
+        mutate(ext_pos = start - start1 + 1) %>%
+        filter(ext_pos > 0, ext_pos <= l_ext) %>%
+        # add < or > to geneSymbol according to strand
+        mutate(geneSymbol = ifelse(strand == 1, paste0(geneSymbol, "->"), paste0("<-", geneSymbol)))
+
+    exon_data <- gintervals.neighbors1(exon_intervals, ext_interval) %>%
+        filter(dist == 0) %>%
+        mutate(start = start - start1 + 1) %>%
+        mutate(end = end - start1 + 1) %>%
+        filter(start > 0, start <= l_ext, end > 0, end <= l_ext)
+
+    genes <- unique(exon_data$geneSymbol)
+    n_genes <- length(genes)
+
+    p <- atac_data %>%
+        group_by(type) %>%
+        mutate(atac = zoo::rollmean(atac_n, atac_smooth, fill = "extend", na.rm = TRUE)) %>%
+        ungroup() %>%
+        filter(ext_pos >= 1, ext_pos <= l_ext + 1) %>%
+        ggplot(aes(x = ext_pos, y = atac, color = type)) +
+        geom_rect(aes(xmin = 1 + (atac_data$ext_pos[1] - atac_data$pos[1]), xmax = l + (atac_data$ext_pos[1] - atac_data$pos[1]), ymin = 0, ymax = 1), fill = "transparent", color = "darkgray") +
+        geom_line() +
+        scale_linewidth_manual(values = atac_sizes) +
+        scale_color_manual(name = "", values = atac_colors) +
+        # TSS
+        geom_segment(
+            data = tss_data,
+            aes(x = ext_pos, xend = ext_pos, y = 0, yend = 1.2),
+            color = "black", linetype = "dashed"
+        ) +
+        geom_text(
+            data = tss_data,
+            inherit.aes = FALSE,
+            aes(x = ext_pos, y = 1.4, label = geneSymbol),
+            vjust = 0.5,
+            size = 3
+            # vjust = 1.5, hjust = 0.5, size = 3
+        ) +
+        geom_rect(
+            data = exon_data,
+            inherit.aes = FALSE,
+            aes(xmin = start, xmax = end, ymin = 1.1, ymax = 1.2, fill = geneSymbol)
+        ) +
+        ggsci::scale_fill_aaas()
+
+    p <- p +
+        guides(linewidth = "none") +
+        theme_classic() +
+        theme(
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            panel.grid = element_blank(),
+            # axis.line.x = element_blank(),
+            legend.position = "none"
+        ) +
+        scale_y_continuous(
+            expand = c(0, 0),
+            limits = c(0, 1.6),
+            breaks = c(0, 0.5, 1)
+        ) +
+        # ylim(0, 1) +
         labs(x = NULL, y = NULL, title = "") +
         scale_x_continuous(expand = c(0, 0)) +
         theme(plot.margin = margin(0, 0, 0, 0))
@@ -296,7 +385,9 @@ compute_tracks_q <- function(atac_names, atac_tracks, iterator = 20, norm_q = 0.
         ))
 }
 
-prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_smooth, norm_q, norm_intervals, tracks_q, tn5bias_track, normalize_tn5bias) {
+prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_smooth, norm_q, norm_intervals, tracks_q, tn5bias_track, normalize_tn5bias, ext_width) {
+    orig_interval <- interval
+    interval <- gintervals.normalize(interval, ext_width)
     cli::cli_alert("Preparing ATAC-seq data ({.val {length(atac_names)}} tracks)")
     gvtrack.create("bias", tn5bias_track, func = "sum")
     purrr::walk2(atac_names, atac_tracks, ~ gvtrack.create(.x, .y, func = "sum"))
@@ -313,12 +404,13 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
 
     atac_data <- misha::gextract(exprs, gintervals.expand(interval, iterator * atac_smooth), iterator = iterator, colnames = atac_names) %>%
         select(-intervalID) %>%
-        mutate(pos = start - interval$start + 1) %>%
-        select(-(chrom:end)) %>%
-        gather("type", "atac", -pos) %>%
+        mutate(pos = start - orig_interval$start + 1) %>%
+        mutate(ext_pos = start - interval$start + 1) %>%
+        gather("type", "atac", -pos, -ext_pos, -chrom, -start, -end) %>%
         mutate(atac = ifelse(is.na(atac), 0, atac)) %>%
         left_join(tracks_q, by = "type") %>%
         mutate(atac_n = pmin(1, atac / q))
+
 
     return(atac_data)
 }
