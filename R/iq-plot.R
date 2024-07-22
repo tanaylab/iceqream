@@ -16,14 +16,15 @@
 #' @param atac_sizes Named vector, line sizes for ATAC-seq tracks.
 #' @param line_thresh Numeric, threshold for drawing vertical lines.
 #' @param score Numeric, optional score to display in the plot title.
-#' @param norm_q Numeric, quantile for normalization.
+#' @param title Character, optional title for the plot.
+#' @param norm_q Numeric, quantile for normalization. If a vector, should have the same length as atac_names.
 #' @param tracks_q Data frame, pre-computed quantiles for tracks. Should have a 'type' column and a 'q' column.
 #' @param iterator Numeric, iterator for gextract.
 #' @param norm_intervals Genomic intervals for normalization.
 #' @param atac_smooth Numeric, smoothing factor for ATAC-seq tracks.
 #' @param ext_atac_smooth Numeric, smoothing factor for the top plot.
 #' @param tn5bias_track Character, name of the Tn5 bias track.
-#' @param normalize_tn5bias Logical, whether to normalize the TN5 bias track.
+#' @param normalize_tn5bias Logical, whether to normalize using the TN5 bias track. If a vector, should have the same length as atac_names.
 #' @param filename Character, output filename (if NULL, plot is not saved).
 #' @param dev Function, device to use for plotting.
 #' @param plot_width Numeric, width of the output plot.
@@ -33,10 +34,11 @@
 #'
 #' @export
 plot_iq_locus <- function(interval, pbm_list, atac_tracks,
-                          width = 500, ext_width = 5e4, T_emax = 8,
+                          width = 500, ext_width = 2e5, T_emax = 8,
                           bits_threshold = NULL, order_motifs = TRUE, atac_names = atac_tracks, atac_colors = NULL,
                           atac_sizes = NULL,
                           line_thresh = 0.9,
+                          title = NULL,
                           score = NULL,
                           norm_q = 0.995,
                           tracks_q = NULL,
@@ -48,8 +50,14 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           normalize_tn5bias = TRUE,
                           tss_intervals = "intervs.global.tss",
                           exon_intervals = "intervs.global.exon",
+                          annot_tracks = NULL,
+                          annot_track_names = NULL,
+                          annot_tracks_smooth = NULL,
                           scale_cex = 500,
-                          filename = NULL, dev = grDevices::pdf, plot_width = 15, plot_height = 8) {
+                          filename = NULL,
+                          dev = grDevices::pdf,
+                          plot_width = 15,
+                          plot_height = 8) {
     pbm_list <- preprocess_pbm_list(pbm_list, bits_threshold)
     interval <- preprocess_interval(interval, width)
     dna <- prego::intervals_to_seq(interval)
@@ -76,16 +84,21 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, width, atac_smooth)
     p_atac_ext <- plot_atac_ext(atac_data, atac_colors, atac_sizes, ext_width, width, ext_atac_smooth, interval = interval, tss_intervals = tss_intervals, exon_intervals = exon_intervals)
 
-    title <- sprintf("%s:%d-%d", interval$chrom, interval$start, interval$end)
+    if (is.null(title)) {
+        title <- ""
+    }
+
+    title <- paste0(title, ", ", sprintf("%s:%d-%d", interval$chrom, interval$start, interval$end))
     if (!is.null(score)) {
         title <- paste0(title, ", ", sprintf("Score: %.2f", score))
     }
-    # p_atac <- p_atac + labs(title = title)
+
     p_atac_ext <- p_atac_ext + labs(title = title)
 
     p_dna <- plot_dna(dna_df, diffs_df)
-    p_logos <- plot_logos(pbm_list[rev(levels(dna_df$motif))])
-    p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], rc = TRUE)
+    p_logos <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "probability")
+    # p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], rc = TRUE, logos_method = logos_method)
+    p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "bits")
 
     design <- "
         ##5
@@ -102,14 +115,14 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     return(p)
 }
 
-plot_logos <- function(pbm_list, rc = FALSE) {
+plot_logos <- function(pbm_list, rc = FALSE, logos_method = "probability") {
     if (rc) {
         pssms <- purrr::map(pbm_list, ~ t(pssm_rc(.x@pssm)))
     } else {
         pssms <- purrr::map(pbm_list, ~ t(.x@pssm))
     }
 
-    ggseqlogo::ggseqlogo(pssms, ncol = 1, method = "probability") +
+    ggseqlogo::ggseqlogo(pssms, ncol = 1, method = logos_method) +
         theme_void() +
         theme(
             strip.text.x = element_blank(),
@@ -196,7 +209,8 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
         geom_rect(
             data = exon_data,
             inherit.aes = FALSE,
-            aes(xmin = start, xmax = end, ymin = 1.1, ymax = 1.2, fill = geneSymbol)
+            aes(xmin = start, xmax = end, ymin = 1.1, ymax = 1.2, fill = geneSymbol),
+            alpha = 0.5
         ) +
         ggsci::scale_fill_aaas()
 
@@ -359,7 +373,7 @@ order_motifs_data <- function(dna_df, r_mat) {
 #' @param atac_names A character vector specifying the names of the ATAC-seq tracks.
 #' @param atac_tracks A list of numeric vectors representing the ATAC-seq tracks.
 #' @param iterator An iterator object used for computing quantiles.
-#' @param norm_q A numeric vector specifying the quantiles to compute.
+#' @param norm_q A numeric vector specifying the quantiles to compute for each track. If a single value, the same quantile is used for all tracks.
 #' @param norm_intervals A numeric vector specifying the intervals for computing quantiles.
 #' @param tn5bias_track A numeric vector representing the TN5 bias track.
 #' @param normalize_tn5bias Logical, whether to normalize the TN5 bias track.
@@ -372,16 +386,25 @@ compute_tracks_q <- function(atac_names, atac_tracks, iterator = 20, norm_q = 0.
     gvtrack.create("bias", tn5bias_track, func = "sum")
     purrr::walk2(atac_names, atac_tracks, ~ gvtrack.create(.x, .y, func = "sum"))
 
-    if (is.null(tn5bias_track) || !normalize_tn5bias) {
-        exprs <- atac_names
+    if (!is.null(tn5bias_track)) {
+        if (length(normalize_tn5bias) == 1) {
+            normalize_tn5bias <- rep(normalize_tn5bias, length(atac_names))
+        }
+
+        exprs <- ifelse(normalize_tn5bias, paste0(atac_names, "/bias"), atac_names)
     } else {
-        exprs <- paste0(atac_names, "/bias")
+        exprs <- atac_names
     }
+
+    if (length(norm_q) == 1) {
+        norm_q <- rep(norm_q, length(atac_names))
+    }
+    names(norm_q) <- atac_names
 
     purrr::map2_dfr(atac_names, exprs, ~
         tibble(
             type = .x,
-            q = gquantiles(.y, iterator = iterator, percentiles = norm_q, intervals = norm_intervals)
+            q = gquantiles(.y, iterator = iterator, percentiles = norm_q[.x], intervals = norm_intervals)
         ))
 }
 
@@ -396,10 +419,14 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
         tracks_q <- compute_tracks_q(atac_names, atac_tracks, iterator, norm_q, norm_intervals, tn5bias_track, normalize_tn5bias)
     }
 
-    if (is.null(tn5bias_track) || !normalize_tn5bias) {
-        exprs <- atac_names
+    if (!is.null(tn5bias_track)) {
+        if (length(normalize_tn5bias) == 1) {
+            normalize_tn5bias <- rep(normalize_tn5bias, length(atac_names))
+        }
+
+        exprs <- ifelse(normalize_tn5bias, paste0(atac_names, "/bias"), atac_names)
     } else {
-        exprs <- paste0(atac_names, "/bias")
+        exprs <- atac_names
     }
 
     atac_data <- misha::gextract(exprs, gintervals.expand(interval, iterator * atac_smooth), iterator = iterator, colnames = atac_names) %>%
@@ -409,7 +436,8 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
         gather("type", "atac", -pos, -ext_pos, -chrom, -start, -end) %>%
         mutate(atac = ifelse(is.na(atac), 0, atac)) %>%
         left_join(tracks_q, by = "type") %>%
-        mutate(atac_n = pmin(1, atac / q))
+        mutate(atac_n = pmin(1, atac / q)) %>%
+        mutate(type = factor(type, levels = atac_names))
 
 
     return(atac_data)
