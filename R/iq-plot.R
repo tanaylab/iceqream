@@ -52,7 +52,9 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           exon_intervals = "intervs.global.exon",
                           annot_tracks = NULL,
                           annot_track_names = NULL,
-                          annot_tracks_smooth = NULL,
+                          annot_colors = NULL,
+                          annot_tracks_iterator = 1,
+                          annot_tracks_smooth = 1,
                           scale_cex = 500,
                           filename = NULL,
                           dev = grDevices::pdf,
@@ -84,6 +86,12 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, width, atac_smooth)
     p_atac_ext <- plot_atac_ext(atac_data, atac_colors, atac_sizes, ext_width, width, ext_atac_smooth, interval = interval, tss_intervals = tss_intervals, exon_intervals = exon_intervals)
 
+    if (!is.null(annot_tracks)) {
+        annot_data <- prepare_annot_data(annot_tracks, annot_track_names, annot_tracks_iterator, annot_tracks_smooth, interval)
+        annot_colors <- prepare_atac_colors(annot_colors, annot_data)
+        p_annot <- plot_annotation(annot_data, annot_colors, annot_tracks_smooth, interval = interval, width = width, diffs_df = diffs_df)
+    }
+
     if (is.null(title)) {
         title <- ""
     }
@@ -97,16 +105,27 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
 
     p_dna <- plot_dna(dna_df, diffs_df)
     p_logos <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "probability")
-    # p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], rc = TRUE, logos_method = logos_method)
-    p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "bits")
+    p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], rc = TRUE, logos_method = "probability")
+    p_logos_bits <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "bits")
 
-    design <- "
-        ##5
-        ##1
-        342
-    "
-    p <- p_atac + p_dna + p_logos + p_logos_rc + p_atac_ext + patchwork::plot_layout(design = design, heights = c(0.1, 0.55, 0.35), width = c(0.05, 0.05, 0.9), guides = "collect")
-
+    if (is.null(annot_tracks)) {
+        design <- "
+                ##5
+                ##1
+                342
+            "
+        p <- p_atac + p_dna + p_logos + p_logos_bits + p_atac_ext + patchwork::plot_layout(design = design, heights = c(0.2, 0.45, 0.3), width = c(0.05, 0.05, 0.9), guides = "collect") &
+            theme(legend.position = "bottom")
+    } else {
+        design <- "
+            ##6
+            ##5
+            ##1
+            432
+        "
+        p <- p_atac + p_dna + p_logos_bits + p_logos + p_annot + p_atac_ext + patchwork::plot_layout(design = design, heights = c(0.2, 0.05, 0.45, 0.3), width = c(0.05, 0.05, 0.9), guides = "collect") &
+            theme(legend.position = "bottom")
+    }
 
     if (!is.null(filename)) {
         save_plot(p, filename, dev, plot_width, plot_height)
@@ -147,6 +166,13 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
         scale_linewidth_manual(values = atac_sizes) +
         scale_color_manual(name = "", values = atac_colors) +
         guides(linewidth = "none") +
+        annotate(
+            "text",
+            x = l / 20,
+            y = -0.1,
+            size = 3,
+            label = paste("<->", glue::glue("{l}bp"), collapse = "\n")
+        ) +
         theme_classic() +
         theme(
             axis.text.x = element_blank(),
@@ -156,6 +182,32 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
             legend.position = "right"
         ) +
         scale_y_continuous(breaks = c(0, 0.5, 1), limits = c(-0.5, 1)) +
+        labs(x = NULL, y = NULL, title = "") +
+        scale_x_continuous(expand = c(0, 0)) +
+        theme(plot.margin = margin(0, 0, 0, 0))
+    return(p)
+}
+
+plot_annotation <- function(annot_data, annot_colors, annot_tracks_smooth, interval, width, diffs_df) {
+    p <- annot_data %>%
+        group_by(type) %>%
+        mutate(annot = zoo::rollmean(annot, annot_tracks_smooth, fill = "extend", na.rm = TRUE)) %>%
+        ungroup() %>%
+        filter(pos >= 1, pos <= width + 1) %>%
+        ggplot(aes(x = pos, ymax = annot, fill = type)) +
+        geom_hline(yintercept = 0, color = "black") +
+        geom_ribbon(ymin = 0) +
+        scale_fill_manual(name = "", values = annot_colors) +
+        guides(linewidth = "none") +
+        geom_vline(data = diffs_df, aes(xintercept = pos), color = "gray", linetype = "dashed") +
+        theme_classic() +
+        theme(
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            panel.grid = element_blank(),
+            axis.line.x = element_blank(),
+            legend.position = "right"
+        ) +
         labs(x = NULL, y = NULL, title = "") +
         scale_x_continuous(expand = c(0, 0)) +
         theme(plot.margin = margin(0, 0, 0, 0))
@@ -171,16 +223,21 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
         mutate(ext_pos = start - start1 + 1) %>%
         filter(ext_pos > 0, ext_pos <= l_ext) %>%
         # add < or > to geneSymbol according to strand
-        mutate(geneSymbol = ifelse(strand == 1, paste0(geneSymbol, "->"), paste0("<-", geneSymbol)))
+        mutate(geneSymbol = ifelse(strand == 1, paste0(geneSymbol, "->"), paste0("<-", geneSymbol))) %>%
+        rename(Gene = geneSymbol)
 
     exon_data <- gintervals.neighbors1(exon_intervals, ext_interval) %>%
         filter(dist == 0) %>%
         mutate(start = start - start1 + 1) %>%
         mutate(end = end - start1 + 1) %>%
-        filter(start > 0, start <= l_ext, end > 0, end <= l_ext)
+        filter(start > 0, start <= l_ext, end > 0, end <= l_ext) %>%
+        rename(Gene = geneSymbol)
 
-    genes <- unique(exon_data$geneSymbol)
+    genes <- unique(exon_data$Gene)
     n_genes <- length(genes)
+
+    zoom_min <- 1 + (atac_data$ext_pos[1] - atac_data$pos[1])
+    zoom_max <- l + (atac_data$ext_pos[1] - atac_data$pos[1])
 
     p <- atac_data %>%
         group_by(type) %>%
@@ -188,20 +245,25 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
         ungroup() %>%
         filter(ext_pos >= 1, ext_pos <= l_ext + 1) %>%
         ggplot(aes(x = ext_pos, y = atac, color = type)) +
-        geom_rect(aes(xmin = 1 + (atac_data$ext_pos[1] - atac_data$pos[1]), xmax = l + (atac_data$ext_pos[1] - atac_data$pos[1]), ymin = 0, ymax = 1), fill = "transparent", color = "darkgray") +
+        geom_hline(yintercept = 0, color = "black") +
+        geom_rect(aes(xmin = zoom_min, xmax = zoom_max, ymin = 0, ymax = 1), fill = "transparent", color = "darkgray", alpha = 0.5) +
+        geom_segment(x = zoom_min, xend = 0, y = 0, yend = -0.6, color = "darkgray", linetype = "dotted") +
+        geom_segment(x = 0, xend = 0, y = -0.6, yend = -1, color = "darkgray") +
+        geom_segment(x = zoom_max, xend = l_ext + 1, y = 0, yend = -0.6, color = "darkgray", linetype = "dotted") +
+        geom_segment(x = l_ext + 1, xend = l_ext + 1, y = -0.6, yend = -1, color = "darkgray") +
         geom_line() +
         scale_linewidth_manual(values = atac_sizes) +
         scale_color_manual(name = "", values = atac_colors) +
         # TSS
         geom_segment(
             data = tss_data,
-            aes(x = ext_pos, xend = ext_pos, y = 0, yend = 1.2),
+            aes(x = ext_pos, xend = ext_pos, y = 0, yend = 1),
             color = "black", linetype = "dashed"
         ) +
         geom_text(
             data = tss_data,
             inherit.aes = FALSE,
-            aes(x = ext_pos, y = 1.4, label = geneSymbol),
+            aes(x = ext_pos, y = 1.4, label = Gene),
             vjust = 0.5,
             size = 3
             # vjust = 1.5, hjust = 0.5, size = 3
@@ -209,10 +271,18 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
         geom_rect(
             data = exon_data,
             inherit.aes = FALSE,
-            aes(xmin = start, xmax = end, ymin = 1.1, ymax = 1.2, fill = geneSymbol),
+            aes(xmin = start, xmax = end, ymin = 1.1, ymax = 1.2, fill = Gene),
             alpha = 0.5
         ) +
-        ggsci::scale_fill_aaas()
+        ggsci::scale_fill_aaas() +
+        annotate(
+            "text",
+            x = l_ext / 20,
+            y = -0.3,
+            size = 3,
+            label = paste("<->", glue::glue("{scales::scientific(l_ext)}bp"), collapse = "\n")
+        )
+
 
     p <- p +
         guides(linewidth = "none") +
@@ -221,18 +291,19 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
             axis.text.x = element_blank(),
             axis.ticks.x = element_blank(),
             panel.grid = element_blank(),
-            # axis.line.x = element_blank(),
+            axis.line.x = element_blank(),
+            axis.line.y = element_blank(),
             legend.position = "none"
         ) +
         scale_y_continuous(
             expand = c(0, 0),
-            limits = c(0, 1.6),
+            limits = c(-1, 1.6),
             breaks = c(0, 0.5, 1)
         ) +
         # ylim(0, 1) +
         labs(x = NULL, y = NULL, title = "") +
         scale_x_continuous(expand = c(0, 0)) +
-        theme(plot.margin = margin(0, 0, 0, 0))
+        theme(plot.margin = margin(0, 2, 0, 2))
 
     return(p)
 }
@@ -382,7 +453,8 @@ order_motifs_data <- function(dna_df, r_mat) {
 #'
 #'
 #' @export
-compute_tracks_q <- function(atac_names, atac_tracks, iterator = 20, norm_q = 0.995, norm_intervals = gintervals.all(), tn5bias_track = "tn5bias", normalize_tn5bias = TRUE) {
+compute_tracks_q <- function(atac_names, atac_tracks, iterator = 20, norm_q = 0.995, norm_intervals = gintervals.all(), tn5bias_track = "tn5bias", normalize_tn5bias = TRUE, sample_n = 1e4) {
+    withr::local_options(gmax.data.size = sample_n)
     gvtrack.create("bias", tn5bias_track, func = "sum")
     purrr::walk2(atac_names, atac_tracks, ~ gvtrack.create(.x, .y, func = "sum"))
 
@@ -441,6 +513,21 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
 
 
     return(atac_data)
+}
+
+prepare_annot_data <- function(annot_tracks, annot_track_names, annot_tracks_iterator, annot_tracks_smooth, interval) {
+    cli::cli_alert("Preparing annotation data ({.val {length(annot_track_names)}} tracks)")
+    purrr::walk2(annot_track_names, annot_tracks, ~ gvtrack.create(.x, .y, func = "sum"))
+
+    annot_data <- misha::gextract(annot_track_names, gintervals.expand(interval, annot_tracks_iterator * annot_tracks_smooth), iterator = annot_tracks_iterator, colnames = annot_track_names) %>%
+        select(-intervalID) %>%
+        mutate(pos = start - interval$start + 1) %>%
+        mutate(ext_pos = start - interval$start + 1) %>%
+        gather("type", "annot", -pos, -ext_pos, -chrom, -start, -end) %>%
+        mutate(annot = ifelse(is.na(annot), 0, annot)) %>%
+        mutate(type = factor(type, levels = annot_track_names))
+
+    return(annot_data)
 }
 
 compute_diffs <- function(dna_df, line_thresh, width) {
