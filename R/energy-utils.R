@@ -124,7 +124,7 @@ norm_energy <- function(x, min_energy = -7, q = 1) {
     return(y)
 }
 
-norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+norm_energy_dataset_old <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
     dataset_x <- exp(1)^dataset_x
     max_x <- quantile(dataset_x, q, na.rm = TRUE)
     x <- exp(1)^x
@@ -132,7 +132,71 @@ norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energ
     y[y > 0] <- 0
     y[y < min_energy] <- min_energy
     y <- y - min_energy
+
+    # y <- norm01(y) * norm_energy_max
+    # Process dataset_x in the same way
+    dataset_y <- log2(dataset_x / max_x)
+    dataset_y[dataset_y > 0] <- 0
+    dataset_y[dataset_y < min_energy] <- min_energy
+    dataset_y <- dataset_y - min_energy
+
+    # Calculate min and max of dataset_y for scaling
+    min_dataset_y <- min(dataset_y, na.rm = TRUE)
+    max_dataset_y <- max(dataset_y, na.rm = TRUE)
+
+    # Ensure y is not less than min_dataset_y
+    y <- pmax(y, min_dataset_y)
+
+    # Scale y using both min and max of dataset_y, ensuring non-negative output
+    y <- (y - min_dataset_y) / (max_dataset_y - min_dataset_y) * norm_energy_max
+
+    # Ensure output is non-negative (in case of numerical precision issues)
+    y <- pmax(y, 0)
+    return(y)
+}
+
+norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+    # Convert input from natural log to log2
+    x_log2 <- x / log(2)
+    dataset_x_log2 <- dataset_x / log(2)
+
+    # Calculate the reference value in log2 space
+    log2_max_x <- log2(quantile(2^dataset_x_log2, q, na.rm = TRUE))
+
+    # Process dataset_x and x in log2 space
+    process <- function(z) pmax(pmin(z - log2_max_x, 0), min_energy)
+    dataset_y <- process(dataset_x_log2)
+    y <- process(x_log2)
+
+    # Scale y, handling potential division by zero
+    range_dataset_y <- diff(range(dataset_y, na.rm = TRUE))
+    if (range_dataset_y > 0) {
+        y <- (y - min(dataset_y, na.rm = TRUE)) / range_dataset_y * norm_energy_max
+    } else {
+        y <- rep(0, length(y))
+    }
+
+    return(y)
+}
+
+
+
+norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+    not_in_x <- colnames(dataset_x)[!(colnames(dataset_x) %in% colnames(x))]
+    if (length(not_in_x) > 0) {
+        cli_abort("The following columns are missing in the input matrix: {.val {not_in_x}}")
+    }
+    dataset_x <- dataset_x[, colnames(x)]
+    dataset_x <- exp(1)^dataset_x
+    max_x <- matrixStats::colQuantiles(dataset_x, probs = q, na.rm = TRUE)
+    x <- exp(1)^x
+    y <- log2(t(t(x) / max_x))
+    y[y > 0] <- 0
+    y[y < min_energy] <- min_energy
+    y <- y - min_energy
+
     y <- norm01(y) * norm_energy_max
+    colnames(y) <- colnames(x)
     return(y)
 }
 
@@ -154,21 +218,40 @@ norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energ
 #' normalized_data <- norm_energy_matrix(data, data, min_energy = -7, q = 1, norm_energy_max = 10)
 #'
 #' @export
-norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
-    not_in_x <- colnames(dataset_x)[!(colnames(dataset_x) %in% colnames(x))]
+norm_energy_matrix_new <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+    # Check for missing columns
+    not_in_x <- setdiff(colnames(dataset_x), colnames(x))
     if (length(not_in_x) > 0) {
-        cli_abort("The following columns are missing in the input matrix: {.val {not_in_x}}")
+        stop(paste(
+            "The following columns are missing in the input matrix:",
+            paste(not_in_x, collapse = ", ")
+        ))
     }
-    dataset_x <- dataset_x[, colnames(x)]
-    dataset_x <- exp(1)^dataset_x
-    max_x <- matrixStats::colQuantiles(dataset_x, probs = q, na.rm = TRUE)
-    x <- exp(1)^x
-    y <- log2(t(t(x) / max_x))
-    y[y > 0] <- 0
-    y[y < min_energy] <- min_energy
-    y <- y - min_energy
-    y <- norm01(y) * norm_energy_max
+
+    # Align dataset_x columns with x
+    dataset_x <- dataset_x[, colnames(x), drop = FALSE]
+
+    # Convert input from natural log to log2
+    x_log2 <- x / log(2)
+    dataset_x_log2 <- dataset_x / log(2)
+
+    # Calculate the reference values in log2 space
+    log2_max_x <- log2(matrixStats::colQuantiles(2^dataset_x_log2, probs = q, na.rm = TRUE))
+
+    # Process dataset_x and x in log2 space
+    process <- function(z) pmax(pmin(sweep(z, 2, log2_max_x, `-`), 0), min_energy)
+    dataset_y <- process(dataset_x_log2)
+    y <- process(x_log2)
+
+    # Calculate column-wise min and range for dataset_y
+    range_dataset_y <- matrixStats::colRanges(dataset_y, na.rm = TRUE)
+    range <- range_dataset_y[, 2] - range_dataset_y[, 1]
+    min_dataset_y <- range_dataset_y[, 1]
+
+    y <- t((t(y) - min_dataset_y) / (range)) * norm_energy_max
+
     colnames(y) <- colnames(x)
+    rownames(y) <- rownames(x)
     return(y)
 }
 
