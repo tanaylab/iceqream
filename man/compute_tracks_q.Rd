@@ -11,7 +11,8 @@ compute_tracks_q(
   norm_q = 0.995,
   norm_intervals = gintervals.all(),
   tn5bias_track = "tn5bias",
-  normalize_tn5bias = TRUE
+  normalize_tn5bias = TRUE,
+  sample_n = 10000
 )
 }
 \arguments{
