@@ -9,7 +9,7 @@ plot_iq_locus(
   pbm_list,
   atac_tracks,
   width = 500,
-  ext_width = 50000,
+  ext_width = 200000,
   T_emax = 8,
   bits_threshold = NULL,
   order_motifs = TRUE,
@@ -17,6 +17,7 @@ plot_iq_locus(
   atac_colors = NULL,
   atac_sizes = NULL,
   line_thresh = 0.9,
+  title = NULL,
   score = NULL,
   norm_q = 0.995,
   tracks_q = NULL,
@@ -28,7 +29,11 @@ plot_iq_locus(
   normalize_tn5bias = TRUE,
   tss_intervals = "intervs.global.tss",
   exon_intervals = "intervs.global.exon",
+  annot_tracks = NULL,
+  annot_track_names = NULL,
+  annot_tracks_smooth = NULL,
   scale_cex = 500,
+  logos_method = "probability",
   filename = NULL,
   dev = grDevices::pdf,
   plot_width = 15,
@@ -60,9 +65,11 @@ plot_iq_locus(
 
 \item{line_thresh}{Numeric, threshold for drawing vertical lines.}
 
+\item{title}{Character, optional title for the plot.}
+
 \item{score}{Numeric, optional score to display in the plot title.}
 
-\item{norm_q}{Numeric, quantile for normalization.}
+\item{norm_q}{Numeric, quantile for normalization. If a vector, should have the same length as atac_names.}
 
 \item{tracks_q}{Data frame, pre-computed quantiles for tracks. Should have a 'type' column and a 'q' column.}
 
@@ -76,7 +83,7 @@ plot_iq_locus(
 
 \item{tn5bias_track}{Character, name of the Tn5 bias track.}
 
-\item{normalize_tn5bias}{Logical, whether to normalize the TN5 bias track.}
+\item{normalize_tn5bias}{Logical, whether to normalize using the TN5 bias track. If a vector, should have the same length as atac_names.}
 
 \item{scale_cex}{Numeric, scaling factor for letter sizes.}
 

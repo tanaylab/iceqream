@@ -234,6 +234,56 @@ pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp") {
     return(energies)
 }
 
+#' Compute energies / response for a list of PBMs on given sequences
+#'
+#' This function computes the energies for a list of PBMs on given sequences.
+#'
+#' @param pbm_list A list of PBM objects
+#'
+#' @inheritParams pbm.compute
+#'
+#' @return A matrix containing the computed energies for each PBM
+#'
+#' @export
+pbm_list.compute <- function(pbm_list, sequences, response = FALSE, func = "logSumExp") {
+    cli::cli_alert_info("Computing energies for {.val {length(pbm_list)}} PBMs on {.val {length(sequences)}} sequences")
+    energies <- plyr::llply(pbm_list, function(pbm) {
+        pbm.compute(pbm, sequences, response, func = func)
+    }, .parallel = TRUE)
+    energies <- do.call(cbind, energies)
+
+    return(energies)
+}
+
+#' Compute energy for a list of pbm lists (multiple trajectories)
+#'
+#'
+#' @param multi_traj A list of PBM lists
+#'
+#' @return A matrix containing the computed energies for each PBM
+#'
+#' @inheritParams pbm_list.compute
+#' @export
+pbm_list.multi_traj.compute_energy <- function(multi_traj, sequences, func = "logSumExp") {
+    pbm_list <- purrr::flatten(multi_traj)
+    pbm_list <- pbm_list[unique(names(pbm_list))]
+    pbm_list.compute(pbm_list, sequences, response = FALSE, func = func)
+}
+
+#' Extract energy for a list of pbm lists (multiple trajectories)
+#'
+#' @return A matrix containing the computed energies for each PBM
+#'
+#' @inheritParams pbm.gextract
+#' @inheritParams pbm_list.multi_traj.compute_energy
+#'
+#' @export
+pbm_list.multi_traj.gextract_energy <- function(multi_traj, intervals, func = "logSumExp") {
+    sequences <- prego::intervals_to_seq(intervals)
+    pbm_list.multi_traj.compute_energy(multi_traj, sequences, func)
+}
+
+
 #' Extract PBM scores / response for a list of PBMs
 #'
 #' This function extracts  PBM scores for genomic intervals and optionally computes the response for a list of PBMs.
@@ -247,13 +297,7 @@ pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp") {
 #' @export
 pbm_list.gextract <- function(pbm_list, intervals, response = FALSE, func = "logSumExp") {
     sequences <- prego::intervals_to_seq(intervals)
-
-    cli::cli_alert_info("Computing energies for {.val {length(pbm_list)}} PBMs on {.val {nrow(intervals)}} intervals")
-
-    energies <- plyr::llply(pbm_list, function(pbm) {
-        pbm.compute(pbm, sequences, response, func = func)
-    }, .parallel = TRUE)
-    energies <- do.call(cbind, energies)
+    energies <- pbm_list.compute(pbm_list, sequences, response, func)
     energies <- cbind(intervals, energies)
 
     return(energies)

@@ -21,7 +21,7 @@ compute_tracks_q(
 
 \item{iterator}{An iterator object used for computing quantiles.}
 
-\item{norm_q}{A numeric vector specifying the quantiles to compute.}
+\item{norm_q}{A numeric vector specifying the quantiles to compute for each track. If a single value, the same quantile is used for all tracks.}
 
 \item{norm_intervals}{A numeric vector specifying the intervals for computing quantiles.}
 
