@@ -36,6 +36,7 @@ Imports:
     stringi,
     scattermore,
     magrittr,
+    ggrastr,
     circlize,
     chameleon,
     ggtext

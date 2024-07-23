@@ -29,16 +29,23 @@ plot_iq_locus(
   normalize_tn5bias = TRUE,
   tss_intervals = "intervs.global.tss",
   exon_intervals = "intervs.global.exon",
-  annot_tracks = NULL,
-  annot_track_names = NULL,
-  annot_colors = NULL,
-  annot_tracks_iterator = 1,
-  annot_tracks_smooth = 1,
+  annot_track = NULL,
+  annot_track_name = NULL,
+  annot_colors = c("#FF9800", "#009688"),
+  annot_track_iterator = 1,
+  annot_track_smooth = 1,
+  mark_conservation = FALSE,
+  conservation_threshold = 1.5,
   scale_cex = 500,
   filename = NULL,
   dev = grDevices::pdf,
   plot_width = 15,
-  plot_height = 8
+  plot_height = 8,
+  base_size = 8,
+  base_family = "ArialMT",
+  rasterize = FALSE,
+  raster_device = "ragg",
+  ...
 )
 }
 \arguments{
@@ -95,6 +102,8 @@ plot_iq_locus(
 \item{plot_width}{Numeric, width of the output plot.}
 
 \item{plot_height}{Numeric, height of the output plot.}
+
+\item{...}{additional arguments to pass to the plotting function.}
 }
 \value{
 A ggplot object containing the IQ locus plot.
