@@ -29,6 +29,7 @@
 #' @param dev Function, device to use for plotting.
 #' @param plot_width Numeric, width of the output plot.
 #' @param plot_height Numeric, height of the output plot.
+#' @param ... additional arguments to pass to the plotting function.
 #'
 #' @return A ggplot object containing the IQ locus plot.
 #'
@@ -50,16 +51,23 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           normalize_tn5bias = TRUE,
                           tss_intervals = "intervs.global.tss",
                           exon_intervals = "intervs.global.exon",
-                          annot_tracks = NULL,
-                          annot_track_names = NULL,
-                          annot_colors = NULL,
-                          annot_tracks_iterator = 1,
-                          annot_tracks_smooth = 1,
+                          annot_track = NULL,
+                          annot_track_name = NULL,
+                          annot_colors = c("#FF9800", "#009688"),
+                          annot_track_iterator = 1,
+                          annot_track_smooth = 1,
+                          mark_conservation = FALSE,
+                          conservation_threshold = 1.5,
                           scale_cex = 500,
                           filename = NULL,
                           dev = grDevices::pdf,
                           plot_width = 15,
-                          plot_height = 8) {
+                          plot_height = 8,
+                          base_size = 8,
+                          base_family = "ArialMT",
+                          rasterize = FALSE,
+                          raster_device = "ragg",
+                          ...) {
     pbm_list <- preprocess_pbm_list(pbm_list, bits_threshold)
     interval <- preprocess_interval(interval, width)
     dna <- prego::intervals_to_seq(interval)
@@ -83,13 +91,16 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     atac_colors <- prepare_atac_colors(atac_colors, atac_data)
     atac_sizes <- prepare_atac_sizes(atac_sizes, atac_names)
 
-    p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, width, atac_smooth)
-    p_atac_ext <- plot_atac_ext(atac_data, atac_colors, atac_sizes, ext_width, width, ext_atac_smooth, interval = interval, tss_intervals = tss_intervals, exon_intervals = exon_intervals)
+    p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, width, atac_smooth, base_size, base_family, rasterize, raster_device = raster_device)
+    p_atac_ext <- plot_atac_ext(atac_data, atac_colors, atac_sizes, ext_width, width, ext_atac_smooth, interval = interval, tss_intervals = tss_intervals, exon_intervals = exon_intervals, base_size = base_size, base_family = base_family, rasterize = rasterize, raster_device = raster_device)
 
-    if (!is.null(annot_tracks)) {
-        annot_data <- prepare_annot_data(annot_tracks, annot_track_names, annot_tracks_iterator, annot_tracks_smooth, interval)
-        annot_colors <- prepare_atac_colors(annot_colors, annot_data)
-        p_annot <- plot_annotation(annot_data, annot_colors, annot_tracks_smooth, interval = interval, width = width, diffs_df = diffs_df)
+    if (!is.null(annot_track)) {
+        annot_data <- prepare_annot_data(annot_track, annot_track_name, annot_track_iterator, annot_track_smooth, interval)
+        p_annot <- plot_annotation(annot_data, annot_colors, annot_track_smooth, interval = interval, width = width, dna_df = dna_df, diffs_df = diffs_df, base_size = base_size, base_family = base_family, rasterize = rasterize, raster_device = raster_device)
+
+        if (mark_conservation) {
+            dna_df <- add_conservation_to_dna(dna_df, annot_data %>% filter(type == "Conservation"), threshold = conservation_threshold)
+        }
     }
 
     if (is.null(title)) {
@@ -103,12 +114,12 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
 
     p_atac_ext <- p_atac_ext + labs(title = title)
 
-    p_dna <- plot_dna(dna_df, diffs_df)
+    p_dna <- plot_dna(dna_df, diffs_df, base_size, base_family, rasterize, raster_device = raster_device)
     p_logos <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "probability")
     p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], rc = TRUE, logos_method = "probability")
     p_logos_bits <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "bits")
 
-    if (is.null(annot_tracks)) {
+    if (is.null(annot_track)) {
         design <- "
                 ##5
                 ##1
@@ -119,16 +130,19 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     } else {
         design <- "
             ##6
-            ##5
             ##1
             432
+            ##5
         "
-        p <- p_atac + p_dna + p_logos_bits + p_logos + p_annot + p_atac_ext + patchwork::plot_layout(design = design, heights = c(0.2, 0.05, 0.45, 0.3), width = c(0.05, 0.05, 0.9), guides = "collect") &
+        widths <- c(0.05, 0.05, 0.9)
+
+        heights <- c(0.2, 0.45, 0.3, 0.05)
+        p <- p_atac + p_dna + p_logos_bits + p_logos + p_annot + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = widths, guides = "collect") &
             theme(legend.position = "bottom")
     }
 
     if (!is.null(filename)) {
-        save_plot(p, filename, dev, plot_width, plot_height)
+        save_plot(p, filename, dev, plot_width, plot_height, ...)
     }
 
     return(p)
@@ -151,7 +165,7 @@ plot_logos <- function(pbm_list, rc = FALSE, logos_method = "probability") {
         scale_y_discrete(expand = c(0, 0))
 }
 
-plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smooth) {
+plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smooth, base_size, base_family, rasterize, raster_device) {
     p <- atac_data %>%
         group_by(type) %>%
         mutate(atac = zoo::rollmean(atac_n, atac_smooth, fill = "extend", na.rm = TRUE)) %>%
@@ -161,8 +175,17 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
         geom_hline(yintercept = 0, color = "black") +
         geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = pos, y = 1, yend = 0), size = 0.5, linetype = "dashed", color = "gray") +
         geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = lpos, y = 0, yend = -0.3), size = 0.5) +
-        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), size = 0.5) +
-        geom_line() +
+        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), size = 0.5)
+
+    if (rasterize) {
+        p <- p +
+            ggrastr::rasterize(geom_line(), dpi = 300, device = raster_device)
+    } else {
+        p <- p +
+            geom_line()
+    }
+
+    p <- p +
         scale_linewidth_manual(values = atac_sizes) +
         scale_color_manual(name = "", values = atac_colors) +
         guides(linewidth = "none") +
@@ -170,10 +193,12 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
             "text",
             x = l / 20,
             y = -0.1,
-            size = 3,
+            size = base_size / (14 / 5),
+            family = base_family,
+            # size = 3,
             label = paste("<->", glue::glue("{l}bp"), collapse = "\n")
         ) +
-        theme_classic() +
+        theme_classic(base_size = base_size, base_family = base_family) +
         theme(
             axis.text.x = element_blank(),
             axis.ticks.x = element_blank(),
@@ -188,19 +213,34 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
     return(p)
 }
 
-plot_annotation <- function(annot_data, annot_colors, annot_tracks_smooth, interval, width, diffs_df) {
+
+plot_annotation <- function(annot_data, annot_colors, annot_track_smooth, interval, width, diffs_df, dna_df, base_size, base_family, rasterize, raster_device) {
     p <- annot_data %>%
         group_by(type) %>%
-        mutate(annot = zoo::rollmean(annot, annot_tracks_smooth, fill = "extend", na.rm = TRUE)) %>%
+        mutate(annot = zoo::rollmean(annot, annot_track_smooth, fill = "extend", na.rm = TRUE)) %>%
         ungroup() %>%
         filter(pos >= 1, pos <= width + 1) %>%
-        ggplot(aes(x = pos, ymax = annot, fill = type)) +
-        geom_hline(yintercept = 0, color = "black") +
-        geom_ribbon(ymin = 0) +
+        left_join(dna_df %>% select(pos, letter_pos), by = "pos") %>%
+        mutate(
+            sign = ifelse(annot > 0, "positive", "negative"),
+            xmin = letter_pos - 0.5,
+            xmax = lead(letter_pos - 0.5, default = last(letter_pos) + 0.5)
+        ) %>%
+        ggplot(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = annot, fill = sign)) +
+        geom_hline(yintercept = 0, color = "black")
+
+    if (rasterize) {
+        p <- p +
+            ggrastr::rasterize(geom_rect(), dpi = 300, device = raster_device)
+    } else {
+        p <- p +
+            geom_rect()
+    }
+
+    p <- p +
         scale_fill_manual(name = "", values = annot_colors) +
         guides(linewidth = "none") +
-        geom_vline(data = diffs_df, aes(xintercept = pos), color = "gray", linetype = "dashed") +
-        theme_classic() +
+        theme_classic(base_size = base_size, base_family = base_family) +
         theme(
             axis.text.x = element_blank(),
             axis.ticks.x = element_blank(),
@@ -208,14 +248,14 @@ plot_annotation <- function(annot_data, annot_colors, annot_tracks_smooth, inter
             axis.line.x = element_blank(),
             legend.position = "right"
         ) +
-        labs(x = NULL, y = NULL, title = "") +
+        labs(x = NULL, y = annot_data$type[1], title = "") +
         scale_x_continuous(expand = c(0, 0)) +
         theme(plot.margin = margin(0, 0, 0, 0))
 
     return(p)
 }
 
-plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smooth, interval, tss_intervals, exon_intervals) {
+plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smooth, interval, tss_intervals, exon_intervals, base_size, base_family, rasterize, raster_device) {
     ext_interval <- gintervals.normalize(interval, l_ext)
 
     tss_data <- gintervals.neighbors1(tss_intervals, ext_interval) %>%
@@ -250,8 +290,17 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
         geom_segment(x = zoom_min, xend = 0, y = 0, yend = -0.6, color = "darkgray", linetype = "dotted") +
         geom_segment(x = 0, xend = 0, y = -0.6, yend = -1, color = "darkgray") +
         geom_segment(x = zoom_max, xend = l_ext + 1, y = 0, yend = -0.6, color = "darkgray", linetype = "dotted") +
-        geom_segment(x = l_ext + 1, xend = l_ext + 1, y = -0.6, yend = -1, color = "darkgray") +
-        geom_line() +
+        geom_segment(x = l_ext + 1, xend = l_ext + 1, y = -0.6, yend = -1, color = "darkgray")
+
+    if (rasterize) {
+        p <- p +
+            ggrastr::rasterize(geom_line(), dpi = 300, device = raster_device)
+    } else {
+        p <- p +
+            geom_line()
+    }
+
+    p <- p +
         scale_linewidth_manual(values = atac_sizes) +
         scale_color_manual(name = "", values = atac_colors) +
         # TSS
@@ -265,7 +314,9 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
             inherit.aes = FALSE,
             aes(x = ext_pos, y = 1.4, label = Gene),
             vjust = 0.5,
-            size = 3
+            size = base_size / (14 / 5),
+            family = base_family
+            # size = 3
             # vjust = 1.5, hjust = 0.5, size = 3
         ) +
         geom_rect(
@@ -279,14 +330,16 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
             "text",
             x = l_ext / 20,
             y = -0.3,
-            size = 3,
+            # size = 3,
+            size = base_size / (14 / 5),
+            family = base_family,
             label = paste("<->", glue::glue("{scales::scientific(l_ext)}bp"), collapse = "\n")
         )
 
 
     p <- p +
         guides(linewidth = "none") +
-        theme_classic() +
+        theme_classic(base_size = base_size, base_family = base_family) +
         theme(
             axis.text.x = element_blank(),
             axis.ticks.x = element_blank(),
@@ -308,9 +361,31 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
     return(p)
 }
 
+add_conservation_to_dna <- function(dna_df, annot_data, threshold) {
+    if (nrow(annot_data) == 0) {
+        return(dna_df)
+    }
+    cons_bp <- annot_data %>%
+        filter(abs(annot) >= threshold) %>%
+        select(pos, annot) %>%
+        mutate(cons = ifelse(annot > 0, "conserved", "anti-conserved"))
 
-plot_dna <- function(dna_df, diffs_df) {
-    dna_df %>%
+    dot_above <- "\u0307" # Combining dot above
+    dot_below <- "\u0323" # Combining dot below
+    dna_df <- dna_df %>%
+        left_join(cons_bp, by = "pos") %>%
+        mutate(nuc = case_when(
+            cons == "conserved" ~ paste0(nuc, dot_above),
+            cons == "anti-conserved" ~ paste0(nuc, dot_below),
+            TRUE ~ nuc
+        ))
+
+    return(dna_df)
+}
+
+
+plot_dna <- function(dna_df, diffs_df, base_size, base_family, rasterize, raster_device) {
+    p <- dna_df %>%
         ggplot(aes(x = letter_pos, y = motif, label = nuc, size = size, color = response)) +
         geom_segment(
             data = diffs_df,
@@ -324,11 +399,20 @@ plot_dna <- function(dna_df, diffs_df) {
             size = 0.2,
             linetype = "dashed",
             color = "gray"
-        ) +
-        geom_text() +
+        )
+
+    if (rasterize) {
+        p <- p +
+            ggrastr::rasterize(geom_text(), dpi = 300, dev = raster_device)
+    } else {
+        p <- p +
+            geom_text()
+    }
+
+    p <- p +
         scale_size_identity() +
-        scale_color_gradient2(name = "Response", low = "blue", mid = "darkgray", high = "red", midpoint = 0) +
-        theme_minimal() +
+        scale_color_gradient2(name = "Response", low = "blue", mid = "#5e5b5b", high = "red", midpoint = 0) +
+        theme_minimal(base_size = base_size, base_family = base_family) +
         theme(
             axis.text.x = element_blank(),
             axis.ticks.x = element_blank(),
@@ -339,11 +423,13 @@ plot_dna <- function(dna_df, diffs_df) {
         scale_x_continuous(expand = c(0, 0), limits = c(0, 1)) +
         scale_y_discrete(expand = c(0, 0)) +
         theme(plot.margin = margin(0, 0, 0, 0))
+
+    return(p)
 }
 
 
-save_plot <- function(p, filename, dev, plot_width, plot_height) {
-    dev(filename, width = plot_width, height = plot_height)
+save_plot <- function(p, filename, dev, plot_width, plot_height, ...) {
+    dev(filename, width = plot_width, height = plot_height, ...)
     print(p)
     dev.off()
 }
@@ -515,17 +601,17 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
     return(atac_data)
 }
 
-prepare_annot_data <- function(annot_tracks, annot_track_names, annot_tracks_iterator, annot_tracks_smooth, interval) {
-    cli::cli_alert("Preparing annotation data ({.val {length(annot_track_names)}} tracks)")
-    purrr::walk2(annot_track_names, annot_tracks, ~ gvtrack.create(.x, .y, func = "sum"))
+prepare_annot_data <- function(annot_track, annot_track_name, annot_track_iterator, annot_track_smooth, interval) {
+    cli::cli_alert("Preparing annotation data ({.val {length(annot_track_name)}} tracks)")
+    purrr::walk2(annot_track_name, annot_track, ~ gvtrack.create(.x, .y, func = "sum"))
 
-    annot_data <- misha::gextract(annot_track_names, gintervals.expand(interval, annot_tracks_iterator * annot_tracks_smooth), iterator = annot_tracks_iterator, colnames = annot_track_names) %>%
+    annot_data <- misha::gextract(annot_track_name, gintervals.expand(interval, annot_track_iterator * annot_track_smooth), iterator = annot_track_iterator, colnames = annot_track_name) %>%
         select(-intervalID) %>%
         mutate(pos = start - interval$start + 1) %>%
         mutate(ext_pos = start - interval$start + 1) %>%
         gather("type", "annot", -pos, -ext_pos, -chrom, -start, -end) %>%
         mutate(annot = ifelse(is.na(annot), 0, annot)) %>%
-        mutate(type = factor(type, levels = annot_track_names))
+        mutate(type = factor(type, levels = annot_track_name))
 
     return(annot_data)
 }
