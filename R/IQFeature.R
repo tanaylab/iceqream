@@ -42,7 +42,19 @@ setMethod("show", signature = "IQFeature", definition = function(object) {
 #' @export
 traj_model_to_iq_feature_list <- function(traj_model) {
     f2v <- feat_to_variable(traj_model)
-    iq_features <- purrr::map(colnames(traj_model@additional_features), function(name) {
+    all_feats <- colnames(traj_model@additional_features)
+
+    dinucs <- c("AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT", "GA", "GC", "GG", "GT", "TA", "TC", "TG", "TT")
+    dinuc_feats <- all_feats[all_feats %in% dinucs]
+
+    if (length(dinuc_feats) > 0) {
+        iq_features <- list(dinucleotides = create_dinuc_feature_group(traj_model, dinucleotides = dinuc_feats))
+        all_feats <- all_feats[!(all_feats %in% dinuc_feats)]
+    } else {
+        iq_features <- list()
+    }
+
+    other_features <- purrr::map(all_feats, function(name) {
         variables <- f2v %>%
             filter(variable == name) %>%
             pull(feature)
@@ -50,12 +62,14 @@ traj_model_to_iq_feature_list <- function(traj_model) {
         names(coefs) <- gsub(paste0("^", name, "_"), "", names(coefs))
         IQFeature(name = name, coefs = coefs)
     })
-    names(iq_features) <- colnames(traj_model@additional_features)
+    names(other_features) <- all_feats
+
+    iq_features <- c(iq_features, other_features)
 
     return(iq_features)
 }
 
-#' Compute the IQ feature
+#' Compute the IQ feature response
 #'
 #' This function computes the IQ feature response for a given set of values.
 #'
@@ -65,13 +79,13 @@ traj_model_to_iq_feature_list <- function(traj_model) {
 #' @return A vector of computed IQ feature responses.
 #'
 #' @export
-iq_feature.compute <- function(iq, values) {
+iq_feature.compute_response <- function(iq, values) {
     logist_e <- create_logist_features(as.matrix(values))
     return((logist_e %*% iq@coefs)[, 1])
 }
 
 
-#' Compute IQ feature list
+#' Compute IQ feature list response
 #'
 #' This function computes the IQ response for a given list of IQ features and a matrix of values.
 #'
@@ -81,12 +95,97 @@ iq_feature.compute <- function(iq, values) {
 #' @return A matrix containing the computed IQ feature responses.
 #'
 #' @export
-iq_feature_list.compute <- function(iq_list, mat) {
-    resp <- purrr::imap(iq_list, ~ {
+iq_feature_list.compute_response <- function(iq_list, mat) {
+    compute <- function(.x, .y) {
         if (!(.y %in% colnames(mat))) {
             return(rep(NA, nrow(mat)))
         }
-        iq_feature.compute(.x, mat[, .y])
+        iq_feature.compute_response(.x, mat[, .y])
+    }
+
+    resp <- purrr::imap(iq_list, ~ {
+        if (inherits(.x, "IQFeatureGroup")) {
+            return(purrr::imap(.x@features, compute))
+        }
+        compute(.x, .y)
     })
-    return(do.call(cbind, resp))
+
+    result <- list()
+    for (i in 1:length(resp)) {
+        if (is.list(resp[[i]])) {
+            result <- c(result, resp[[i]])
+        } else {
+            result <- c(result, list(resp[[i]]))
+            names(result)[length(result)] <- names(resp)[i]
+        }
+    }
+    result <- do.call(cbind, result)
+
+    return(result)
+}
+
+#' Compute features for a list of IQFeature and IQFeatureGroup objects
+#'
+#' This function computes features for a given list of IQFeature and IQFeatureGroup objects,
+#' using either provided sequences or intervals.
+#'
+#' @param feature_list A list of IQFeature and/or IQFeatureGroup objects.
+#' @param sequences A vector of DNA sequences. Optional if intervals are provided.
+#' @param intervals A data frame of genomic intervals with columns 'chrom', 'start', and 'end'. Optional if sequences are provided.
+#'
+#' @return A data frame containing the computed features for all objects in the feature_list.
+#'
+#' @export
+iq_feature_list.compute <- function(feature_list, sequences = NULL, intervals = NULL) {
+    if (is.null(sequences) && is.null(intervals)) {
+        cli::cli_abort("Either sequences or intervals must be provided.")
+    }
+
+    # Initialize an empty list to store results
+    results <- list()
+
+    # Iterate through the feature_list
+    for (feature_obj in feature_list) {
+        if (inherits(feature_obj, "IQFeatureGroup")) {
+            # Compute features for IQFeatureGroup
+            group_results <- iq_feature_group.compute(feature_obj, sequences, intervals)
+            results[[length(results) + 1]] <- group_results
+        } else if (inherits(feature_obj, "IQSeqFeature")) {
+            # Compute features for individual IQFeature or IQSeqFeature
+            if (is.null(sequences)) {
+                sequences <- prego::intervals_to_seq(gintervals.normalize(intervals, feature_obj@size))
+            }
+            feature_result <- iq_seq_feature.compute(feature_obj, sequences)
+            results[[length(results) + 1]] <- data.frame(feature_result)
+            colnames(results[[length(results)]]) <- feature_obj@name
+        } else if (inherits(feature_obj, "IQFeature")) {
+            # check if the feature has a compute function
+            if ("compute_func" %in% slotNames(feature_obj)) {
+                feature_result <- feature_obj@compute_func(intervals)
+                results[[length(results) + 1]] <- data.frame(feature_result)
+                colnames(results[[length(results)]]) <- feature_obj@name
+            } else {
+                cli::cli_warn("Skipping IQFeature object without a compute function: {.val {feature_obj@name}}")
+            }
+        } else {
+            cli::cli_warn("Skipping unknown object type in feature_list: {.type {class(feature_obj)}}")
+        }
+    }
+
+    # Combine all results into a single data frame
+    combined_results <- do.call(cbind, results)
+
+    # make sure that the number of rows in the results match the number of intervals
+    if (!is.null(intervals)) {
+        if (nrow(combined_results) != nrow(intervals)) {
+            cli::cli_abort("The number of rows in the results of the IQ features ({.val {nrow(combined_results)}}) did not match the number of intervals ({.val {nrow(intervals)}}).")
+        }
+    }
+
+    # if intervals had rownames then add them back
+    if (!is.null(intervals)) {
+        rownames(combined_results) <- rownames(intervals)
+    }
+
+    return(as.data.frame(combined_results))
 }
