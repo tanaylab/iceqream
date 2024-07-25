@@ -181,7 +181,7 @@ norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energ
 
 
 
-norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+norm_energy_matrix_old <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
     not_in_x <- colnames(dataset_x)[!(colnames(dataset_x) %in% colnames(x))]
     if (length(not_in_x) > 0) {
         cli_abort("The following columns are missing in the input matrix: {.val {not_in_x}}")
@@ -218,7 +218,7 @@ norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy
 #' normalized_data <- norm_energy_matrix(data, data, min_energy = -7, q = 1, norm_energy_max = 10)
 #'
 #' @export
-norm_energy_matrix_new <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
     # Check for missing columns
     not_in_x <- setdiff(colnames(dataset_x), colnames(x))
     if (length(not_in_x) > 0) {
