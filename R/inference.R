@@ -130,7 +130,7 @@ predict_traj_model <- function(traj_model, feats) {
 
     min_val <- min(pred_train)
     max_val <- max(pred_train)
-    normalized_pred_train <- (pred_train - min_val) / (max_val - min_val)
+    # normalized_pred_train <- (pred_train - min_val) / (max_val - min_val)
 
     pred <- (pred - min_val) / (max_val - min_val)
     # pred[pred > max_val] <- max_val
