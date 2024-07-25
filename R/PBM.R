@@ -1,8 +1,8 @@
 #' PBM Class
 #'
 #' This class represents a PBM (Physical Binding Model) object.
+#' It inherits from the IQFeature class.
 #'
-#' @slot name A character string representing the name of the PBM.
 #' @slot pssm A matrix representing the position-specific scoring matrix.
 #' @slot max_energy A numeric value representing the maximum energy for value normalization
 #' @slot min_energy A numeric value representing the minimal energy for value normalization
@@ -11,13 +11,11 @@
 #' @slot spat_min A numeric value representing the spatial minimum (optional).
 #' @slot spat_max A numeric value representing the spatial maximum (optional)
 #' @slot seq_length A numeric value representing the length of the sequence for spatial distribution (optional)
-#' @slot coefs A set of coefficients learned by IceQream trajectory model (optional)
 #'
 #' @export
 PBM <- setClass(
     "PBM",
     slots = list(
-        name = "character",
         pssm = "matrix",
         max_energy = "numeric",
         min_energy = "numeric",
@@ -25,9 +23,9 @@ PBM <- setClass(
         spat = "data.frame",
         spat_min = "numeric",
         spat_max = "numeric",
-        seq_length = "numeric",
-        coefs = "numeric"
-    )
+        seq_length = "numeric"
+    ),
+    contains = "IQFeature"
 )
 
 setMethod("show", signature = "PBM", definition = function(object) {
@@ -162,6 +160,7 @@ traj_model_to_pbm_list <- function(
         validate_pbm(pbm)
         pbm
     })
+
     return(pbm_list)
 }
 
@@ -214,6 +213,7 @@ pbm.compute <- function(pbm, sequences, response = FALSE, func = "logSumExp") {
 
     return(energies)
 }
+
 
 #' Extract PBM scores for genomic intervals
 #'

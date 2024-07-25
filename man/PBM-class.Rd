@@ -7,12 +7,11 @@
 \title{PBM Class}
 \description{
 This class represents a PBM (Physical Binding Model) object.
+It inherits from the IQFeature class.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{name}}{A character string representing the name of the PBM.}
-
 \item{\code{pssm}}{A matrix representing the position-specific scoring matrix.}
 
 \item{\code{max_energy}}{A numeric value representing the maximum energy for value normalization}
@@ -28,7 +27,5 @@ This class represents a PBM (Physical Binding Model) object.
 \item{\code{spat_max}}{A numeric value representing the spatial maximum (optional)}
 
 \item{\code{seq_length}}{A numeric value representing the length of the sequence for spatial distribution (optional)}
-
-\item{\code{coefs}}{A set of coefficients learned by IceQream trajectory model (optional)}
 }}
 
