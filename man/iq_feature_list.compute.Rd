@@ -2,18 +2,21 @@
 % Please edit documentation in R/IQFeature.R
 \name{iq_feature_list.compute}
 \alias{iq_feature_list.compute}
-\title{Compute IQ feature list}
+\title{Compute features for a list of IQFeature and IQFeatureGroup objects}
 \usage{
-iq_feature_list.compute(iq_list, mat)
+iq_feature_list.compute(feature_list, sequences = NULL, intervals = NULL)
 }
 \arguments{
-\item{iq_list}{A list of IQFeature objects}
+\item{feature_list}{A list of IQFeature and/or IQFeatureGroup objects.}
 
-\item{mat}{The input matrix}
+\item{sequences}{A vector of DNA sequences. Optional if intervals are provided.}
+
+\item{intervals}{A data frame of genomic intervals with columns 'chrom', 'start', and 'end'. Optional if sequences are provided.}
 }
 \value{
-A matrix containing the computed IQ feature responses.
+A data frame containing the computed features for all objects in the feature_list.
 }
 \description{
-This function computes the IQ response for a given list of IQ features and a matrix of values.
+This function computes features for a given list of IQFeature and IQFeatureGroup objects,
+using either provided sequences or intervals.
 }
