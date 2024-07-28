@@ -12,6 +12,7 @@ plot_iq_locus(
   ext_width = 200000,
   T_emax = 8,
   T_rmax = NULL,
+  motifs = NULL,
   bits_threshold = NULL,
   order_motifs = TRUE,
   atac_names = atac_tracks,
@@ -39,6 +40,7 @@ plot_iq_locus(
   mark_conservation = FALSE,
   conservation_threshold = 1.5,
   scale_cex = 500,
+  dna_height = 0.03,
   filename = NULL,
   dev = grDevices::pdf,
   plot_width = 15,
@@ -64,6 +66,8 @@ plot_iq_locus(
 \item{T_emax}{Numeric, threshold for maximum energy.}
 
 \item{T_rmax}{Numeric, threshold for maximum response.}
+
+\item{motifs}{A list of specific motifs to plot.}
 
 \item{bits_threshold}{Numeric, threshold for trimming PSSMs.}
 
@@ -100,6 +104,8 @@ plot_iq_locus(
 \item{normalize_tn5bias}{Logical, whether to normalize using the TN5 bias track. If a vector, should have the same length as atac_names.}
 
 \item{scale_cex}{Numeric, scaling factor for letter sizes.}
+
+\item{dna_height}{Numeric, height of each row of DNA sequence relative to the entire plot.}
 
 \item{filename}{Character, output filename (if NULL, plot is not saved).}
 
