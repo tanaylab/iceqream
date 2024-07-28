@@ -11,6 +11,7 @@ plot_iq_locus(
   width = 500,
   ext_width = 200000,
   T_emax = 8,
+  T_rmax = NULL,
   bits_threshold = NULL,
   order_motifs = TRUE,
   atac_names = atac_tracks,
@@ -19,6 +20,7 @@ plot_iq_locus(
   line_thresh = 0.9,
   title = NULL,
   score = NULL,
+  dna = NULL,
   norm_q = 0.995,
   tracks_q = NULL,
   iterator = 20,
@@ -61,6 +63,8 @@ plot_iq_locus(
 
 \item{T_emax}{Numeric, threshold for maximum energy.}
 
+\item{T_rmax}{Numeric, threshold for maximum response.}
+
 \item{bits_threshold}{Numeric, threshold for trimming PSSMs.}
 
 \item{order_motifs}{Logical, whether to order motifs by maximum response.}
@@ -76,6 +80,8 @@ plot_iq_locus(
 \item{title}{Character, optional title for the plot.}
 
 \item{score}{Numeric, optional score to display in the plot title.}
+
+\item{dna}{Character, DNA sequence to plot. If NULL, the sequence is extracted from the interval.}
 
 \item{norm_q}{Numeric, quantile for normalization. If a vector, should have the same length as atac_names.}
 
