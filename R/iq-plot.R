@@ -8,8 +8,10 @@
 #' @param width Width of the plot in bp.
 #' @param ext_width Width of the top plot in bp.
 #' @param scale_cex Numeric, scaling factor for letter sizes.
+#' @param dna_height Numeric, height of each row of DNA sequence relative to the entire plot.
 #' @param T_emax Numeric, threshold for maximum energy.
 #' @param T_rmax Numeric, threshold for maximum response.
+#' @param motifs A list of specific motifs to plot.
 #' @param bits_threshold Numeric, threshold for trimming PSSMs.
 #' @param order_motifs Logical, whether to order motifs by maximum response.
 #' @param atac_names Character vector, names for ATAC-seq tracks.
@@ -39,6 +41,7 @@
 plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           width = 500, ext_width = 2e5, T_emax = 8,
                           T_rmax = NULL,
+                          motifs = NULL,
                           bits_threshold = NULL, order_motifs = TRUE, atac_names = atac_tracks, atac_colors = NULL,
                           atac_sizes = NULL,
                           line_thresh = 0.9,
@@ -63,6 +66,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           mark_conservation = FALSE,
                           conservation_threshold = 1.5,
                           scale_cex = 500,
+                          dna_height = 0.03,
                           filename = NULL,
                           dev = grDevices::pdf,
                           plot_width = 15,
@@ -83,7 +87,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
         }
     }
 
-    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax, T_rmax)
+    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax, T_rmax, motifs)
     e_mat <- energy_response_data$e_mat
     r_mat <- energy_response_data$r_mat
 
@@ -136,7 +140,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                 ##1
                 342
             "
-        heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat)))
+        heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat), dna_height))
 
         p <- p_atac + p_dna + p_logos + p_logos_bits + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = c(0.05, 0.05, 0.9), guides = "collect") &
             theme(legend.position = "bottom")
@@ -149,7 +153,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
         "
         widths <- c(0.05, 0.05, 0.9)
 
-        heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat)), 0.05)
+        heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat), dna_height), 0.05)
 
         p <- p_atac + p_dna + p_logos_bits + p_logos + p_annot + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = widths, guides = "collect") &
             theme(legend.position = "bottom")
@@ -158,18 +162,17 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     if (!is.null(filename)) {
         save_plot(p, filename, dev, plot_width, plot_height, ...)
     }
-    browser()
 
     return(p)
 }
 
-dna_plot_height <- function(n_motifs) {
-    0.03 * n_motifs
+dna_plot_height <- function(n_motifs, dna_height = 0.03) {
+    dna_height * n_motifs
 }
 
 plot_logos <- function(pbm_list, rc = FALSE, logos_method = "probability") {
     if (rc) {
-        pssms <- purrr::map(pbm_list, ~ t(pssm_rc(.x@pssm)))
+        pssms <- purrr::map(pbm_list, ~ t(prego::pssm_rc(.x@pssm)))
     } else {
         pssms <- purrr::map(pbm_list, ~ t(.x@pssm))
     }
@@ -464,7 +467,7 @@ preprocess_interval <- function(interval, width) {
     gintervals.normalize(interval, width)
 }
 
-compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax) {
+compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs = NULL) {
     cli_alert("Computing energies and responses for {.val {length(pbm_list)}} PBM models")
 
     energies <- pbm_list.compute_local(pbm_list, dna)
@@ -476,6 +479,15 @@ compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax) {
     rownames(e_mat) <- names(pbm_list)
     rownames(r_mat) <- names(pbm_list)
     colnames(e_mat) <- colnames(r_mat) <- 1:nchar(dna)
+
+    if (!is.null(motifs)) {
+        motifs <- intersect(motifs, rownames(e_mat))
+        missing <- setdiff(motifs, rownames(e_mat))
+        if (length(missing) > 0) {
+            cli::cli_warn("The following motifs are not present in the PBM models: {.val {missing}}")
+        }
+        return(list(e_mat = e_mat[motifs, , drop = FALSE], r_mat = r_mat[motifs, , drop = FALSE]))
+    }
 
     tf_maxs <- matrixStats::rowMaxs(e_mat, na.rm = TRUE)
     f <- tf_maxs >= T_emax
