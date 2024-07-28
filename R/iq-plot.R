@@ -9,12 +9,14 @@
 #' @param ext_width Width of the top plot in bp.
 #' @param scale_cex Numeric, scaling factor for letter sizes.
 #' @param T_emax Numeric, threshold for maximum energy.
+#' @param T_rmax Numeric, threshold for maximum response.
 #' @param bits_threshold Numeric, threshold for trimming PSSMs.
 #' @param order_motifs Logical, whether to order motifs by maximum response.
 #' @param atac_names Character vector, names for ATAC-seq tracks.
 #' @param atac_colors Named vector, colors for ATAC-seq tracks.
 #' @param atac_sizes Named vector, line sizes for ATAC-seq tracks.
 #' @param line_thresh Numeric, threshold for drawing vertical lines.
+#' @param dna Character, DNA sequence to plot. If NULL, the sequence is extracted from the interval.
 #' @param score Numeric, optional score to display in the plot title.
 #' @param title Character, optional title for the plot.
 #' @param norm_q Numeric, quantile for normalization. If a vector, should have the same length as atac_names.
@@ -36,11 +38,13 @@
 #' @export
 plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           width = 500, ext_width = 2e5, T_emax = 8,
+                          T_rmax = NULL,
                           bits_threshold = NULL, order_motifs = TRUE, atac_names = atac_tracks, atac_colors = NULL,
                           atac_sizes = NULL,
                           line_thresh = 0.9,
                           title = NULL,
                           score = NULL,
+                          dna = NULL,
                           norm_q = 0.995,
                           tracks_q = NULL,
                           iterator = 20,
@@ -70,9 +74,16 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           ...) {
     pbm_list <- preprocess_pbm_list(pbm_list, bits_threshold)
     interval <- preprocess_interval(interval, width)
-    dna <- prego::intervals_to_seq(interval)
 
-    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax)
+    if (is.null(dna)) {
+        dna <- prego::intervals_to_seq(interval)
+    } else {
+        if (nchar(dna) != width) {
+            cli_abort("The length of the DNA sequence should be equal to {.field width} ({.val {width}})")
+        }
+    }
+
+    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax, T_rmax)
     e_mat <- energy_response_data$e_mat
     r_mat <- energy_response_data$r_mat
 
@@ -125,7 +136,9 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                 ##1
                 342
             "
-        p <- p_atac + p_dna + p_logos + p_logos_bits + p_atac_ext + patchwork::plot_layout(design = design, heights = c(0.2, 0.45, 0.3), width = c(0.05, 0.05, 0.9), guides = "collect") &
+        heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat)))
+
+        p <- p_atac + p_dna + p_logos + p_logos_bits + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = c(0.05, 0.05, 0.9), guides = "collect") &
             theme(legend.position = "bottom")
     } else {
         design <- "
@@ -136,7 +149,8 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
         "
         widths <- c(0.05, 0.05, 0.9)
 
-        heights <- c(0.2, 0.45, 0.3, 0.05)
+        heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat)), 0.05)
+
         p <- p_atac + p_dna + p_logos_bits + p_logos + p_annot + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = widths, guides = "collect") &
             theme(legend.position = "bottom")
     }
@@ -144,8 +158,13 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     if (!is.null(filename)) {
         save_plot(p, filename, dev, plot_width, plot_height, ...)
     }
+    browser()
 
     return(p)
+}
+
+dna_plot_height <- function(n_motifs) {
+    0.03 * n_motifs
 }
 
 plot_logos <- function(pbm_list, rc = FALSE, logos_method = "probability") {
@@ -445,7 +464,7 @@ preprocess_interval <- function(interval, width) {
     gintervals.normalize(interval, width)
 }
 
-compute_energy_response <- function(pbm_list, dna, T_emax) {
+compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax) {
     cli_alert("Computing energies and responses for {.val {length(pbm_list)}} PBM models")
 
     energies <- pbm_list.compute_local(pbm_list, dna)
@@ -460,6 +479,12 @@ compute_energy_response <- function(pbm_list, dna, T_emax) {
 
     tf_maxs <- matrixStats::rowMaxs(e_mat, na.rm = TRUE)
     f <- tf_maxs >= T_emax
+
+    if (!is.null(T_rmax)) {
+        tf_maxs <- matrixStats::rowMaxs(abs(r_mat), na.rm = TRUE)
+        f <- f & tf_maxs >= T_rmax
+    }
+
     cli_alert("{.val {sum(f)}} PBM models have at least one position with energy >= {.val {T_emax}}")
 
     list(e_mat = e_mat[f, , drop = FALSE], r_mat = r_mat[f, , drop = FALSE])
@@ -484,9 +509,11 @@ prepare_dna_data <- function(dna, max_e, r_mat, e_mat, scale_cex, pbm_list, eps)
     dna_df <- tibble(
         pos = 1:l,
         nuc = strsplit(dna, "")[[1]],
-        e = max_e,
-        size = e * scale_cex * 1.1
+        e = max_e
     ) %>%
+        mutate(
+            size = e * scale_cex * 1.1
+        ) %>%
         mutate(nuc = ifelse(max_e == e_min, "*", nuc)) %>%
         left_join(
             t(r_mat) %>%
