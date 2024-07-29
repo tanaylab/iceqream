@@ -321,7 +321,7 @@ calc_track_pos_data <- function(track, intervals, threshold = 7, direction = NUL
 #' @param k27me3_track name of k27me3 track
 #' @param k27ac_track name of k27ac track
 #' @param orient_to_intervals A data frame containing the intervals to orient the sequences to
-#' @param align_to_max A logical indicating whether to align the sequences to the maximum in each sequence at the epigenetic tracks and atac signla
+#' @param align_to_max A logical indicating whether to align the sequences to the maximum in each sequence at the epigenetic tracks and atac signal
 #' @param atac_track name of ATAC-seq marginal track
 #' @param parallel Whether to use parallel processing
 #' @param motifs A vector of motif names to compute spatial frequency for. Default is all motifs in the trajectory model.
