@@ -21,6 +21,7 @@ plot_iq_locus(
   line_thresh = 0.9,
   title = NULL,
   score = NULL,
+  predicted_score = NULL,
   dna = NULL,
   norm_q = 0.995,
   tracks_q = NULL,
@@ -37,6 +38,8 @@ plot_iq_locus(
   annot_colors = c("#FF9800", "#009688"),
   annot_track_iterator = 1,
   annot_track_smooth = 1,
+  annot_intervals = NULL,
+  annot_intervals_color = "darkgreen",
   mark_conservation = FALSE,
   conservation_threshold = 1.5,
   scale_cex = 500,
@@ -85,6 +88,8 @@ plot_iq_locus(
 
 \item{score}{Numeric, optional score to display in the plot title.}
 
+\item{predicted_score}{Numeric, optional predicted score to display in the plot title.}
+
 \item{dna}{Character, DNA sequence to plot. If NULL, the sequence is extracted from the interval.}
 
 \item{norm_q}{Numeric, quantile for normalization. If a vector, should have the same length as atac_names.}
@@ -102,6 +107,10 @@ plot_iq_locus(
 \item{tn5bias_track}{Character, name of the Tn5 bias track.}
 
 \item{normalize_tn5bias}{Logical, whether to normalize using the TN5 bias track. If a vector, should have the same length as atac_names.}
+
+\item{annot_intervals}{Genomic intervals for annotation (start positions would be used).}
+
+\item{annot_intervals_color}{Color for annotation intervals.}
 
 \item{scale_cex}{Numeric, scaling factor for letter sizes.}
 

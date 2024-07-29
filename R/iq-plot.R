@@ -20,9 +20,12 @@
 #' @param line_thresh Numeric, threshold for drawing vertical lines.
 #' @param dna Character, DNA sequence to plot. If NULL, the sequence is extracted from the interval.
 #' @param score Numeric, optional score to display in the plot title.
+#' @param predicted_score Numeric, optional predicted score to display in the plot title.
 #' @param title Character, optional title for the plot.
 #' @param norm_q Numeric, quantile for normalization. If a vector, should have the same length as atac_names.
 #' @param tracks_q Data frame, pre-computed quantiles for tracks. Should have a 'type' column and a 'q' column.
+#' @param annot_intervals Genomic intervals for annotation (start positions would be used).
+#' @param annot_intervals_color Color for annotation intervals.
 #' @param iterator Numeric, iterator for gextract.
 #' @param norm_intervals Genomic intervals for normalization.
 #' @param atac_smooth Numeric, smoothing factor for ATAC-seq tracks.
@@ -47,6 +50,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           line_thresh = 0.9,
                           title = NULL,
                           score = NULL,
+                          predicted_score = NULL,
                           dna = NULL,
                           norm_q = 0.995,
                           tracks_q = NULL,
@@ -63,6 +67,8 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           annot_colors = c("#FF9800", "#009688"),
                           annot_track_iterator = 1,
                           annot_track_smooth = 1,
+                          annot_intervals = NULL,
+                          annot_intervals_color = "darkgreen",
                           mark_conservation = FALSE,
                           conservation_threshold = 1.5,
                           scale_cex = 500,
@@ -106,7 +112,12 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     atac_colors <- prepare_atac_colors(atac_colors, atac_data)
     atac_sizes <- prepare_atac_sizes(atac_sizes, atac_names)
 
-    p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, width, atac_smooth, base_size, base_family, rasterize, raster_device = raster_device)
+    if (!is.null(annot_intervals)) {
+        annot_intervals <- compute_annot_intervals_df(annot_intervals, interval, dna_df, width)
+        dna_df <- add_annotation_to_dna(dna_df, annot_intervals)
+    }
+
+    p_atac <- plot_atac(atac_data, diffs_df, atac_colors, atac_sizes, width, atac_smooth, base_size, base_family, rasterize, interval = interval, raster_device = raster_device, annot_intervals = annot_intervals, annot_intervals_color = annot_intervals_color)
     p_atac_ext <- plot_atac_ext(atac_data, atac_colors, atac_sizes, ext_width, width, ext_atac_smooth, interval = interval, tss_intervals = tss_intervals, exon_intervals = exon_intervals, base_size = base_size, base_family = base_family, rasterize = rasterize, raster_device = raster_device)
 
     if (!is.null(annot_track)) {
@@ -125,6 +136,9 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
     title <- paste0(title, ", ", sprintf("%s:%d-%d", interval$chrom, interval$start, interval$end))
     if (!is.null(score)) {
         title <- paste0(title, ", ", sprintf("Score: %.2f", score))
+    }
+    if (!is.null(predicted_score)) {
+        title <- paste0(title, ", ", sprintf("Predicted Score: %.2f", predicted_score))
     }
 
     p_atac_ext <- p_atac_ext + labs(title = title)
@@ -187,7 +201,7 @@ plot_logos <- function(pbm_list, rc = FALSE, logos_method = "probability") {
         scale_y_discrete(expand = c(0, 0))
 }
 
-plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smooth, base_size, base_family, rasterize, raster_device) {
+plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smooth, base_size, base_family, rasterize, raster_device, interval, annot_intervals = NULL, annot_intervals_color = NULL) {
     p <- atac_data %>%
         group_by(type) %>%
         mutate(atac = zoo::rollmean(atac_n, atac_smooth, fill = "extend", na.rm = TRUE)) %>%
@@ -198,6 +212,13 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
         geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = pos, y = 1, yend = 0), size = 0.5, linetype = "dashed", color = "gray") +
         geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = lpos, y = 0, yend = -0.3), size = 0.5) +
         geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), size = 0.5)
+
+    if (!is.null(annot_intervals)) {
+        p <- p +
+            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = pos, xend = pos, y = 1, yend = 0), size = 0.5, color = annot_intervals_color, linetype = "dashed") +
+            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = pos, xend = lpos, y = 0, yend = -0.3), size = 0.5, color = annot_intervals_color) +
+            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), size = 0.5, color = annot_intervals_color)
+    }
 
     if (rasterize) {
         p <- p +
@@ -401,6 +422,23 @@ add_conservation_to_dna <- function(dna_df, annot_data, threshold) {
             cons == "anti-conserved" ~ paste0(nuc, dot_below),
             TRUE ~ nuc
         ))
+
+    return(dna_df)
+}
+
+add_annotation_to_dna <- function(dna_df, annot_intervals) {
+    if (nrow(annot_intervals) == 0) {
+        return(dna_df)
+    }
+
+    annot_intervals <- annot_intervals %>%
+        select(pos) %>%
+        mutate(annot = TRUE)
+
+    dna_df <- dna_df %>%
+        left_join(annot_intervals, by = "pos") %>%
+        mutate(nuc = ifelse(!is.na(annot), paste0(nuc, "\u0307"), nuc)) %>%
+        select(-annot)
 
     return(dna_df)
 }
@@ -671,6 +709,24 @@ compute_diffs <- function(dna_df, line_thresh, width) {
         arrange(grp, desc(d)) %>%
         distinct(grp, .keep_all = TRUE) %>%
         arrange(pos)
+}
+
+compute_annot_intervals_df <- function(annot_intervals, interval, dna_df, width) {
+    if (is.null(annot_intervals)) {
+        return(NULL)
+    }
+
+    annot_intervals <- gintervals.neighbors1(annot_intervals, interval) %>%
+        filter(dist == 0) %>%
+        mutate(pos = start - start1 + 1)
+
+    annot_intervals <- annot_intervals %>%
+        select(pos) %>%
+        inner_join(dna_df %>% filter(motif == motif[1]), by = "pos") %>%
+        mutate(lpos = letter_pos * width - 0.003)
+
+
+    return(annot_intervals)
 }
 
 prepare_atac_colors <- function(atac_colors, atac_data) {
