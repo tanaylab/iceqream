@@ -198,14 +198,15 @@ pbm.normalize_energies <- function(pbm, energies, max_energy = pbm@max_energy, m
 #'
 #' @inheritParams prego::compute_pwm
 #' @export
-pbm.compute <- function(pbm, sequences, response = FALSE, func = "logSumExp") {
+pbm.compute <- function(pbm, sequences, response = FALSE, func = "logSumExp", normalize_energies = TRUE) {
     pssm <- pbm@pssm %>%
         as.data.frame() %>%
         mutate(pos = row_number() - 1) %>%
         select(pos, everything())
     energies <- prego::compute_pwm(sequences, pssm, spat = pbm@spat, spat_min = pbm@spat_min %||% 1, spat_max = pbm@spat_max, func = func)
-    energies <- pbm.normalize_energies(pbm, energies)
-
+    if (normalize_energies){
+        energies <- pbm.normalize_energies(pbm, energies)
+    }
     if (response) {
         logist_e <- create_logist_features(as.matrix(energies))
         energies <- (logist_e %*% pbm@coefs)[, 1]
@@ -245,10 +246,10 @@ pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp") {
 #' @return A matrix containing the computed energies for each PBM
 #'
 #' @export
-pbm_list.compute <- function(pbm_list, sequences, response = FALSE, func = "logSumExp") {
+pbm_list.compute <- function(pbm_list, sequences, response = FALSE, func = "logSumExp", normalize_energies = TRUE) {
     cli::cli_alert_info("Computing energies for {.val {length(pbm_list)}} PBMs on {.val {length(sequences)}} sequences")
     energies <- plyr::llply(pbm_list, function(pbm) {
-        pbm.compute(pbm, sequences, response, func = func)
+        pbm.compute(pbm, sequences, response, func = func, normalize_energies = normalize_energies)
     }, .parallel = TRUE)
     energies <- do.call(cbind, energies)
 
@@ -264,10 +265,10 @@ pbm_list.compute <- function(pbm_list, sequences, response = FALSE, func = "logS
 #'
 #' @inheritParams pbm_list.compute
 #' @export
-pbm_list.multi_traj.compute_energy <- function(multi_traj, sequences, func = "logSumExp") {
+pbm_list.multi_traj.compute_energy <- function(multi_traj, sequences, func = "logSumExp", normalize_energies = TRUE) {
     pbm_list <- purrr::flatten(multi_traj)
     pbm_list <- pbm_list[unique(names(pbm_list))]
-    pbm_list.compute(pbm_list, sequences, response = FALSE, func = func)
+    pbm_list.compute(pbm_list, sequences, response = FALSE, func = func, normalize_energies = normalize_energies)
 }
 
 #' Extract energy for a list of pbm lists (multiple trajectories)
@@ -278,9 +279,9 @@ pbm_list.multi_traj.compute_energy <- function(multi_traj, sequences, func = "lo
 #' @inheritParams pbm_list.multi_traj.compute_energy
 #'
 #' @export
-pbm_list.multi_traj.gextract_energy <- function(multi_traj, intervals, func = "logSumExp") {
+pbm_list.multi_traj.gextract_energy <- function(multi_traj, intervals, func = "logSumExp", normalize_energies = TRUE) {
     sequences <- prego::intervals_to_seq(intervals)
-    pbm_list.multi_traj.compute_energy(multi_traj, sequences, func)
+    pbm_list.multi_traj.compute_energy(multi_traj, sequences, func, normalize_energies = normalize_energies)
 }
 
 
