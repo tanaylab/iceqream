@@ -13,6 +13,7 @@ plot_iq_locus(
   T_emax = 8,
   T_rmax = NULL,
   motifs = NULL,
+  plot_others = FALSE,
   bits_threshold = NULL,
   order_motifs = TRUE,
   atac_names = atac_tracks,
@@ -71,6 +72,8 @@ plot_iq_locus(
 \item{T_rmax}{Numeric, threshold for maximum response.}
 
 \item{motifs}{A list of specific motifs to plot.}
+
+\item{plot_others}{Logical, whether to plot other motifs that pass the threshold when specific motifs are provided.}
 
 \item{bits_threshold}{Numeric, threshold for trimming PSSMs.}
 
