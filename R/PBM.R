@@ -194,6 +194,7 @@ pbm.normalize_energies <- function(pbm, energies, max_energy = pbm@max_energy, m
 #' @param pbm  A PBM object
 #' @param sequences A set of sequences on which to compute the energies.
 #' @param response A logical flag indicating whether to compute the response. Default is FALSE.
+#' @param normalize_energies A logical flag indicating whether to normalize the energies to a range of 0-10. Default is TRUE. Note that response computation requires normalized energies.
 #' @return A data frame containing the computed energies.
 #'
 #' @inheritParams prego::compute_pwm
@@ -204,10 +205,13 @@ pbm.compute <- function(pbm, sequences, response = FALSE, func = "logSumExp", no
         mutate(pos = row_number() - 1) %>%
         select(pos, everything())
     energies <- prego::compute_pwm(sequences, pssm, spat = pbm@spat, spat_min = pbm@spat_min %||% 1, spat_max = pbm@spat_max, func = func)
-    if (normalize_energies){
+    if (normalize_energies) {
         energies <- pbm.normalize_energies(pbm, energies)
     }
     if (response) {
+        if (!normalize_energies) {
+            cli::cli_abort("Response computation requires normalized energies, set {.field normalize_energies} to TRUE")
+        }
         logist_e <- create_logist_features(as.matrix(energies))
         energies <- (logist_e %*% pbm@coefs)[, 1]
     }
@@ -228,10 +232,10 @@ pbm.compute <- function(pbm, sequences, response = FALSE, func = "logSumExp", no
 #'
 #' @inheritParams pbm.compute
 #' @export
-pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp") {
+pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp", normalize_energies = TRUE) {
     sequences <- prego::intervals_to_seq(intervals)
     energies <- intervals
-    energies[, pbm@name] <- pbm.compute(pbm, sequences, response, func = func)
+    energies[, pbm@name] <- pbm.compute(pbm, sequences, response, func = func, normalize_energies = normalize_energies)
     return(energies)
 }
 
@@ -296,9 +300,9 @@ pbm_list.multi_traj.gextract_energy <- function(multi_traj, intervals, func = "l
 #' @return The intervals, with an additional column containing the PBM scores / response for each PBM
 #'
 #' @export
-pbm_list.gextract <- function(pbm_list, intervals, response = FALSE, func = "logSumExp") {
+pbm_list.gextract <- function(pbm_list, intervals, response = FALSE, func = "logSumExp", normalize_energies = TRUE) {
     sequences <- prego::intervals_to_seq(intervals)
-    energies <- pbm_list.compute(pbm_list, sequences, response, func)
+    energies <- pbm_list.compute(pbm_list, sequences, response, func, normalize_energies = normalize_energies)
     energies <- cbind(intervals, energies)
 
     return(energies)

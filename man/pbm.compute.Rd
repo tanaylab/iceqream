@@ -4,7 +4,13 @@
 \alias{pbm.compute}
 \title{Compute energies / response for a PBM on given sequences}
 \usage{
-pbm.compute(pbm, sequences, response = FALSE, func = "logSumExp")
+pbm.compute(
+  pbm,
+  sequences,
+  response = FALSE,
+  func = "logSumExp",
+  normalize_energies = TRUE
+)
 }
 \arguments{
 \item{pbm}{A PBM object}
@@ -14,6 +20,8 @@ pbm.compute(pbm, sequences, response = FALSE, func = "logSumExp")
 \item{response}{A logical flag indicating whether to compute the response. Default is FALSE.}
 
 \item{func}{the function to use to combine the PWMs for each sequence. Either 'logSumExp' or 'max'. The default is 'logSumExp'.}
+
+\item{normalize_energies}{A logical flag indicating whether to normalize the energies to a range of 0-10. Default is TRUE. Note that response computation requires normalized energies.}
 }
 \value{
 A data frame containing the computed energies.
