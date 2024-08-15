@@ -4,7 +4,13 @@
 \alias{pbm.gextract}
 \title{Extract PBM scores for genomic intervals}
 \usage{
-pbm.gextract(pbm, intervals, response = FALSE, func = "logSumExp")
+pbm.gextract(
+  pbm,
+  intervals,
+  response = FALSE,
+  func = "logSumExp",
+  normalize_energies = TRUE
+)
 }
 \arguments{
 \item{pbm}{A PBM object}
@@ -14,6 +20,8 @@ pbm.gextract(pbm, intervals, response = FALSE, func = "logSumExp")
 \item{response}{Logical, whether to compute the response (default is FALSE)}
 
 \item{func}{the function to use to combine the PWMs for each sequence. Either 'logSumExp' or 'max'. The default is 'logSumExp'.}
+
+\item{normalize_energies}{A logical flag indicating whether to normalize the energies to a range of 0-10. Default is TRUE. Note that response computation requires normalized energies.}
 }
 \value{
 The intervals, with an additional column containing the PBM scores / response

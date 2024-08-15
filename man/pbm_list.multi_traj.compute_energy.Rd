@@ -4,7 +4,12 @@
 \alias{pbm_list.multi_traj.compute_energy}
 \title{Compute energy for a list of pbm lists (multiple trajectories)}
 \usage{
-pbm_list.multi_traj.compute_energy(multi_traj, sequences, func = "logSumExp")
+pbm_list.multi_traj.compute_energy(
+  multi_traj,
+  sequences,
+  func = "logSumExp",
+  normalize_energies = TRUE
+)
 }
 \arguments{
 \item{multi_traj}{A list of PBM lists}
@@ -12,6 +17,8 @@ pbm_list.multi_traj.compute_energy(multi_traj, sequences, func = "logSumExp")
 \item{sequences}{A set of sequences on which to compute the energies.}
 
 \item{func}{the function to use to combine the PWMs for each sequence. Either 'logSumExp' or 'max'. The default is 'logSumExp'.}
+
+\item{normalize_energies}{A logical flag indicating whether to normalize the energies to a range of 0-10. Default is TRUE. Note that response computation requires normalized energies.}
 }
 \value{
 A matrix containing the computed energies for each PBM

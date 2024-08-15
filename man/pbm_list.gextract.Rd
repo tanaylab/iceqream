@@ -4,7 +4,13 @@
 \alias{pbm_list.gextract}
 \title{Extract PBM scores / response for a list of PBMs}
 \usage{
-pbm_list.gextract(pbm_list, intervals, response = FALSE, func = "logSumExp")
+pbm_list.gextract(
+  pbm_list,
+  intervals,
+  response = FALSE,
+  func = "logSumExp",
+  normalize_energies = TRUE
+)
 }
 \arguments{
 \item{pbm_list}{A list of PBM objects}
@@ -14,6 +20,8 @@ pbm_list.gextract(pbm_list, intervals, response = FALSE, func = "logSumExp")
 \item{response}{Logical, whether to compute the response (default is FALSE)}
 
 \item{func}{the function to use to combine the PWMs for each sequence. Either 'logSumExp' or 'max'. The default is 'logSumExp'.}
+
+\item{normalize_energies}{A logical flag indicating whether to normalize the energies to a range of 0-10. Default is TRUE. Note that response computation requires normalized energies.}
 }
 \value{
 The intervals, with an additional column containing the PBM scores / response for each PBM
