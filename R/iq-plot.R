@@ -12,6 +12,7 @@
 #' @param T_emax Numeric, threshold for maximum energy.
 #' @param T_rmax Numeric, threshold for maximum response.
 #' @param motifs A list of specific motifs to plot.
+#' @param plot_others Logical, whether to plot other motifs that pass the threshold when specific motifs are provided.
 #' @param bits_threshold Numeric, threshold for trimming PSSMs.
 #' @param order_motifs Logical, whether to order motifs by maximum response.
 #' @param atac_names Character vector, names for ATAC-seq tracks.
@@ -45,6 +46,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           width = 500, ext_width = 2e5, T_emax = 8,
                           T_rmax = NULL,
                           motifs = NULL,
+                          plot_others = FALSE,
                           bits_threshold = NULL, order_motifs = TRUE, atac_names = atac_tracks, atac_colors = NULL,
                           atac_sizes = NULL,
                           line_thresh = 0.9,
@@ -93,7 +95,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
         }
     }
 
-    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax, T_rmax, motifs)
+    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax, T_rmax, motifs, plot_others)
     e_mat <- energy_response_data$e_mat
     r_mat <- energy_response_data$r_mat
 
@@ -505,7 +507,7 @@ preprocess_interval <- function(interval, width) {
     gintervals.normalize(interval, width)
 }
 
-compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs = NULL) {
+compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs = NULL, plot_others = FALSE) {
     cli_alert("Computing energies and responses for {.val {length(pbm_list)}} PBM models")
 
     energies <- pbm_list.compute_local(pbm_list, dna)
@@ -524,7 +526,9 @@ compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs
         if (length(missing) > 0) {
             cli::cli_warn("The following motifs are not present in the PBM models: {.val {missing}}")
         }
-        return(list(e_mat = e_mat[motifs, , drop = FALSE], r_mat = r_mat[motifs, , drop = FALSE]))
+        if (!plot_others) {
+            return(list(e_mat = e_mat[motifs, , drop = FALSE], r_mat = r_mat[motifs, , drop = FALSE]))
+        }
     }
 
     tf_maxs <- matrixStats::rowMaxs(e_mat, na.rm = TRUE)
@@ -536,6 +540,10 @@ compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs
     }
 
     cli_alert("{.val {sum(f)}} PBM models have at least one position with energy >= {.val {T_emax}}")
+
+    if (!is.null(motifs)) {
+        f <- f | rownames(e_mat) %in% motifs
+    }
 
     list(e_mat = e_mat[f, , drop = FALSE], r_mat = r_mat[f, , drop = FALSE])
 }

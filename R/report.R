@@ -192,7 +192,7 @@ plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = past
 
     subtitle_color <- "black"
     if (is.null(subtitle)) {
-        if (sum(plot_df$energy == "0-3") >= 3 && sum(plot_df$energy == "9-10") >= 3) {
+        if (sum(plot_df$energy == "0-3", na.rm = TRUE) >= 3 && sum(plot_df$energy == "9-10", na.rm = TRUE) >= 3) {
             ks <- stats::ks.test(plot_df$observed[plot_df$energy == "0-3"], plot_df$observed[plot_df$energy == "9-10"])
             subtitle <- glue::glue("KS.D={round(ks$statistic, digits = 2)} (pv={round(ks$p.value, digits = 3)})")
             if (ks$p.value <= 0.01) {
