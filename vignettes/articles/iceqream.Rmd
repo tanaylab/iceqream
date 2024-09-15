@@ -127,8 +127,7 @@ traj_model <- iq_regression(
     norm_intervals = normalization_intervals,
     seed = 60427,
     frac_train = 0.8,
-    max_motif_num = 30,
-    n_prego_motifs = 0 # increase this in order to infer de-novo motifs, e.g. 5
+    max_motif_num = 30
 )
 
 traj_model
