@@ -181,7 +181,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
                 cli::cli_alert_warning("No current model found for {.val {x$feat}}. Distilling on a single motif")
             }
         } else {
-            cli_alert_info("Running {.field prego} on cluster {.val {x$feat}} (distilling {.val {n_feats}} features)")
+            cli_alert_info("Running {.field prego} on cluster {.val {x$feat}} (distilling {.val {n_feats}} motifs)")
         }
 
         res <- run_prego_on_clust_residuals(

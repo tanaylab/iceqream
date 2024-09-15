@@ -1,12 +1,12 @@
 Package: iceqream
 Title: Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs
-Version: 0.0.0.9000
+Version: 0.0.1
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il", role = c("aut", "cre")),
     person("Akhiad", "Bercovich", , "akhiad.bercovich@weizmann.ac.il", role = "aut"),
     person("Amos", "Tanay", , "amos.tanay@weizmann.ac.il", role = "aut")
   )
-Description: What the package does (one paragraph).
+Description: iceqream is a package for regressing accessibility from sequences using physical models of TF binding, It models TF effective concentrations as latent variables that activate or repress regulatory elements in a nonlinear fashion, with possible contribution from pairwise interactions and synergistic chromosomal domain effects. iceqream allows inference and synthesis of models explaining accessibility dynamics over an entire single cell manifold. 
 License: MIT + file LICENSE
 Imports: 
     cli,
@@ -32,11 +32,14 @@ Imports:
     ComplexHeatmap,
     zoo,
     glue,
-    ggtext,
+    scales,
     stringi,
     scattermore,
     magrittr,
     ggrastr,
+    ggsci,
+    ggseqlogo,
+    stringr,
     circlize,
     chameleon,
     ggtext
@@ -50,3 +53,8 @@ Encoding: UTF-8
 Language: es
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
+Config/Needs/website: rmarkdown
+Depends: 
+    R (>= 2.10)
+LazyData: true
+URL: https://tanaylab.github.io/iceqream/

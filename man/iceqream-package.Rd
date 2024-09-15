@@ -8,7 +8,14 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-What the package does (one paragraph).
+iceqream is a package for regressing accessibility from sequences using physical models of TF binding, It models TF effective concentrations as latent variables that activate or repress regulatory elements in a nonlinear fashion, with possible contribution from pairwise interactions and synergistic chromosomal domain effects. iceqream allows inference and synthesis of models explaining accessibility dynamics over an entire single cell manifold.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://tanaylab.github.io/iceqream/}
+}
+
 }
 \author{
 \strong{Maintainer}: Aviezer Lifshitz \email{aviezer.lifshitz@weizmann.ac.il}
