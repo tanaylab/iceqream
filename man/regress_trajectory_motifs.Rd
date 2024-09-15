@@ -5,23 +5,25 @@
 \title{Perform motif regression on ATAC trajectories.}
 \usage{
 regress_trajectory_motifs(
-  atac_scores,
   peak_intervals,
+  atac_scores = NULL,
+  atac_diff = NULL,
+  normalize_bins = TRUE,
   norm_intervals = NULL,
-  max_motif_num = 50,
+  max_motif_num = 30,
   n_clust_factor = 1,
   motif_energies = NULL,
   norm_motif_energies = NULL,
-  pssm_db = prego::all_motif_datasets(),
+  pssm_db = motif_db,
   additional_features = NULL,
   min_tss_distance = 5000,
   bin_start = 1,
-  bin_end = ncol(atac_scores),
+  bin_end = NULL,
   min_initial_energy_cor = 0.05,
   normalize_energies = TRUE,
   energy_norm_quantile = 1,
   norm_energy_max = 10,
-  n_prego_motifs = 4,
+  n_prego_motifs = 0,
   traj_prego = NULL,
   min_diff = 0.1,
   distill_on_diff = FALSE,
@@ -33,16 +35,20 @@ regress_trajectory_motifs(
   filter_using_r2 = FALSE,
   r2_threshold = 0.0005,
   parallel = TRUE,
-  peaks_size = 300,
+  peaks_size = 500,
   spat_num_bins = NULL,
-  spat_bin_size = NULL,
-  kmer_sequence_length = NULL
+  spat_bin_size = 2,
+  kmer_sequence_length = 300
 )
 }
 \arguments{
-\item{atac_scores}{A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.}
-
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
+
+\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to \link{0, 1}.}
+
+\item{atac_diff}{Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.}
+
+\item{normalize_bins}{whether to normalize the ATAC scores to \link{0, 1}. Default: TRUE}
 
 \item{norm_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.}
 
@@ -63,7 +69,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{bin_start}{the start of the trajectory. Default: 1}
 
-\item{bin_end}{the end of the trajectory. Default: the last bin}
+\item{bin_end}{the end of the trajectory. Default: the last bin (only used when atac_scores is provided)}
 
 \item{min_initial_energy_cor}{minimal correlation between the motif normalized energy and the ATAC difference.}
 
@@ -73,7 +79,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{norm_energy_max}{maximum value of the normalized energy. Default: 10}
 
-\item{n_prego_motifs}{number of prego motifs to consider.}
+\item{n_prego_motifs}{number of prego motifs (de-novo motifs) to consider.}
 
 \item{traj_prego}{output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.}
 
@@ -116,7 +122,7 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{kmer_sequence_length}{length of the kmer sequence to use for kmer screening. By default the full sequence is used.}
 }
 \value{
-An instance of \code{TrajectoryModel} containing:
+An instance of \code{TrajectoryModel} containing model information and results:
 \itemize{
 \item{model}{The final General Linear Model (GLM) object.}
 \item{motif_models}{Named List, PSSM and spatial models for each motif cluster.}
@@ -129,5 +135,8 @@ An instance of \code{TrajectoryModel} containing:
 }
 }
 \description{
-This function performs motif regression on ATAC trajectories. Given ATAC scores on trajectory bins, it predicts the differential accessibility between the start and end of the trajectory and returns the motifs that are most likely to be responsible for this differential accessibility.
+This function performs motif regression on ATAC trajectories. It can work with either ATAC scores on trajectory bins or directly with differential accessibility.
+
+The basic inputs for regression are the genomic positions of the peaks, two vectors of ATAC scores (as an \code{atac_scores} matrix) or differential accessibility (\code{atac_diff}), and database energies computed for all the genomics positions.
+Optionally, additional features such as epigenomic features can be provided.
 }

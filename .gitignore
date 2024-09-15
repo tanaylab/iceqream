@@ -3,3 +3,9 @@ work/
 .vscode
 README.html
 work
+example-data
+docs
+vignettes/articles/gastrulation_energies.rds
+vignettes/articles/gastrulation-example
+vignettes/articles/mm10
+example_data

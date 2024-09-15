@@ -1,25 +1,30 @@
 #' Perform motif regression on ATAC trajectories.
 #'
-#' @description This function performs motif regression on ATAC trajectories. Given ATAC scores on trajectory bins, it predicts the differential accessibility between the start and end of the trajectory and returns the motifs that are most likely to be responsible for this differential accessibility.
+#' @description This function performs motif regression on ATAC trajectories. It can work with either ATAC scores on trajectory bins or directly with differential accessibility.
 #'
-#' @param atac_scores A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.
+#' The basic inputs for regression are the genomic positions of the peaks, two vectors of ATAC scores (as an \code{atac_scores} matrix) or differential accessibility (\code{atac_diff}), and database energies computed for all the genomics positions.
+#' Optionally, additional features such as epigenomic features can be provided.
+#'
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
+#' @param atac_scores Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to [0, 1].
+#' @param atac_diff Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.
+#' @param normalize_bins whether to normalize the ATAC scores to [0, 1]. Default: TRUE
 #' @param norm_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.
+#' @param max_motif_num maximum number of motifs to consider. Default: 50
+#' @param n_clust_factor factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1
 #' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param norm_motif_energies A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
-#' @param max_motif_num maximum number of motifs to consider. Default: 50
-#' @param n_clust_factor factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1
 #' @param min_tss_distance distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 #' Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.
 #' @param bin_start the start of the trajectory. Default: 1
-#' @param bin_end the end of the trajectory. Default: the last bin
+#' @param bin_end the end of the trajectory. Default: the last bin (only used when atac_scores is provided)
 #' @param normalize_energies whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param norm_energy_max maximum value of the normalized energy. Default: 10
-#' @param n_prego_motifs number of prego motifs to consider.
+#' @param n_prego_motifs number of prego motifs (de-novo motifs) to consider.
 #' @param traj_prego output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.
 #' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).
 #' @param distill_on_diff whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.
@@ -34,7 +39,7 @@
 #' @param spat_bin_size size of each spatial bin.
 #' @param kmer_sequence_length length of the kmer sequence to use for kmer screening. By default the full sequence is used.
 #'
-#' @return An instance of `TrajectoryModel` containing:
+#' @return An instance of `TrajectoryModel` containing model information and results:
 #' \itemize{
 #'   \item{model}{The final General Linear Model (GLM) object.}
 #'   \item{motif_models}{Named List, PSSM and spatial models for each motif cluster.}
@@ -48,23 +53,25 @@
 #'
 #' @inheritParams glmnet::glmnet
 #' @export
-regress_trajectory_motifs <- function(atac_scores,
-                                      peak_intervals,
+regress_trajectory_motifs <- function(peak_intervals,
+                                      atac_scores = NULL,
+                                      atac_diff = NULL,
+                                      normalize_bins = TRUE,
                                       norm_intervals = NULL,
-                                      max_motif_num = 50,
+                                      max_motif_num = 30,
                                       n_clust_factor = 1,
                                       motif_energies = NULL,
                                       norm_motif_energies = NULL,
-                                      pssm_db = prego::all_motif_datasets(),
+                                      pssm_db = motif_db,
                                       additional_features = NULL,
                                       min_tss_distance = 5000,
                                       bin_start = 1,
-                                      bin_end = ncol(atac_scores),
+                                      bin_end = NULL,
                                       min_initial_energy_cor = 0.05,
                                       normalize_energies = TRUE,
                                       energy_norm_quantile = 1,
                                       norm_energy_max = 10,
-                                      n_prego_motifs = 4,
+                                      n_prego_motifs = 0,
                                       traj_prego = NULL,
                                       min_diff = 0.1,
                                       distill_on_diff = FALSE,
@@ -76,31 +83,49 @@ regress_trajectory_motifs <- function(atac_scores,
                                       filter_using_r2 = FALSE,
                                       r2_threshold = 0.0005,
                                       parallel = TRUE,
-                                      peaks_size = 300,
+                                      peaks_size = 500,
                                       spat_num_bins = NULL,
-                                      spat_bin_size = NULL,
-                                      kmer_sequence_length = NULL) {
+                                      spat_bin_size = 2,
+                                      kmer_sequence_length = 300) {
     withr::local_options(list(gmax.data.size = 1e9))
-    atac_scores <- as.matrix(atac_scores)
 
-    validate_atac_scores(atac_scores, bin_start, bin_end)
-    validate_peak_intervals(peak_intervals, atac_scores)
+    if (is.null(atac_scores) && is.null(atac_diff)) {
+        cli_abort("Either 'atac_scores' or 'atac_diff' must be provided.")
+    }
+
+    if (!is.null(atac_scores) && !is.null(atac_diff)) {
+        cli_abort("Only one of 'atac_scores' or 'atac_diff' should be provided.")
+    }
+
+    if (!is.null(atac_scores)) {
+        atac_scores <- as.matrix(atac_scores)
+        if (is.null(bin_end)) {
+            bin_end <- ncol(atac_scores)
+        }
+        validate_atac_scores(atac_scores, bin_start, bin_end)
+        if (normalize_bins) {
+            atac_scores[, bin_start] <- norm01(atac_scores[, bin_start])
+            atac_scores[, bin_end] <- norm01(atac_scores[, bin_end])
+        }
+        if (nrow(peak_intervals) != nrow(atac_scores)) {
+            cli_abort("Number of rows in {.field {peak_intervals}} must be equal to the number of rows in {.field {atac_scores}}")
+        }
+        atac_diff <- atac_scores[, bin_end] - atac_scores[, bin_start]
+    } else {
+        if (length(atac_diff) != nrow(peak_intervals)) {
+            cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows in {.field {peak_intervals}}")
+        }
+    }
+
+    validate_peak_intervals(peak_intervals)
     validate_additional_features(additional_features, peak_intervals)
     if (is.null(norm_intervals)) {
         norm_intervals <- peak_intervals
-        norm_motif_energies <- motif_energies
     }
 
-    # Extract features
-    motif_energies <- calc_motif_energies(peak_intervals, pssm_db, motif_energies, field_name = "motif_energies", intervals_field_name = "peak_intervals")
+    validate_motif_energies(motif_energies, peak_intervals, pssm_db)
 
     min_energy <- -7
-
-    if (normalize_energies) {
-        cli_alert_info("Normalizing motif energies...")
-        norm_motif_energies <- calc_motif_energies(norm_intervals, pssm_db, norm_motif_energies, field_name = "norm_motif_energies", intervals_field_name = "norm_intervals")
-        motif_energies <- norm_energy_matrix(motif_energies, norm_motif_energies, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
-    }
 
     # filter peaks that are too close to TSS
     if (!is.null(min_tss_distance)) {
@@ -130,8 +155,7 @@ regress_trajectory_motifs <- function(atac_scores,
 
     cli_alert_info("Number of peaks: {.val {nrow(peak_intervals)}}")
 
-    # calculate differential accessibility
-    atac_diff <- atac_scores[, bin_end] - atac_scores[, bin_start]
+    # normalize differential accessibility
     atac_diff_n <- norm01(atac_diff)
 
     diff_filter <- abs(atac_diff) >= min_diff
@@ -159,17 +183,16 @@ regress_trajectory_motifs <- function(atac_scores,
         prego_models <- list()
     }
 
-
     cli_alert_info("Calculating correlations between {.val {ncol(motif_energies)}} motif energies and ATAC difference...")
     cm <- tgs_cor(motif_energies, as.matrix(atac_diff), pairwise.complete.obs = TRUE)[, 1]
     cm <- cm[!is.na(cm)]
     motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
-    if (length(motifs) == 0) {
+    if (length(motifs) < min(max_motif_num, ncol(motif_energies))) {
+        cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with {.val {min_initial_energy_cor/2}}")
         min_initial_energy_cor <- min_initial_energy_cor / 2
-        cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with {.val {min_initial_energy_cor}}")
         motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
         if (length(motifs) == 0) {
-            n <- min(30, length(motifs))
+            n <- min(min(max_motif_num, ncol(motif_energies)), length(motifs))
             motifs <- names(sort(abs(cm), decreasing = TRUE)[1:n])
             cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with top {.val {n}} features")
         }
@@ -273,7 +296,7 @@ validate_atac_scores <- function(atac_scores, bin_start, bin_end) {
     }
 }
 
-validate_peak_intervals <- function(peak_intervals, atac_scores, columns = c("chrom", "start", "end", "const")) {
+validate_peak_intervals <- function(peak_intervals, columns = c("chrom", "start", "end", "const")) {
     # make sure that peak intervals have 'chrom' 'start' 'end' and 'const' columns
     if (!all(columns %in% colnames(peak_intervals))) {
         cli_abort("{.field 'peak_intervals'} must have '{.val {columns}} columns", call = parent.frame(1))
@@ -290,10 +313,6 @@ validate_peak_intervals <- function(peak_intervals, atac_scores, columns = c("ch
     if (unique(peak_sizes) < 100) {
         cli_warn("Peak sizes are smaller than 100bp", call = parent.frame(1))
     }
-
-    if (nrow(peak_intervals) != nrow(atac_scores)) {
-        cli_abort("{.field 'peak_intervals'} must have the same number of rows as {.field 'atac_scores'}. intervals number of rows {.val {nrow(peak_intervals)}} != atac_scores number of rows {.val {nrow(atac_scores)}}}}", call = parent.frame(1))
-    }
 }
 
 validate_additional_features <- function(additional_features, peak_intervals) {
@@ -304,26 +323,6 @@ validate_additional_features <- function(additional_features, peak_intervals) {
     }
 }
 
-
-calc_motif_energies <- function(peak_intervals, pssm_db = prego::all_motif_datasets(), motif_energies = NULL, field_name = "motif_energies", intervals_field_name = "peak_intervals") {
-    if (is.null(motif_energies)) {
-        cli_alert("Computing motif energies (this might take a while)")
-        motif_energies <- prego::gextract_pwm(peak_intervals %>% select(chrom, start, end), dataset = pssm_db, prior = 0.01) %>%
-            select(-chrom, -start, -end) %>%
-            as.matrix()
-    }
-
-    if (nrow(motif_energies) != nrow(peak_intervals)) {
-        cli_abort("{.field '{field_name}'} must have the same number of rows as {.field '{intervals_field_name}'}. {intervals_field_name} number of rows {.val {nrow(peak_intervals)}} != {field_name} number of rows {.val {nrow(motif_energies)}}}}", call = parent.frame(1))
-    }
-
-    missing_motifs <- colnames(motif_energies)[!(colnames(motif_energies) %in% pssm_db$motif)]
-    if (length(missing_motifs) > 0) {
-        cli_abort("Motifs {.val {missing_motifs}} are missing from the motif database ({.field pssm_db} parameter).", call = parent.frame(1))
-    }
-
-    return(motif_energies)
-}
 
 get_model_coefs <- function(model) {
     df <- coef(model, s = model$lambda) %>%

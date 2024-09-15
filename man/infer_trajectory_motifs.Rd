@@ -22,11 +22,11 @@ infer_trajectory_motifs(
 
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
 
-\item{atac_scores}{A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins.}
+\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to \link{0, 1}.}
 
 \item{bin_start}{the start of the trajectory. Default: 1}
 
-\item{bin_end}{the end of the trajectory. Default: the last bin}
+\item{bin_end}{the end of the trajectory. Default: the last bin (only used when atac_scores is provided)}
 
 \item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
 
