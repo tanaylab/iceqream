@@ -7,3 +7,14 @@
 ^work$
 ^README\.html$
 ^ice-qream-logo\.png$
+^vignettes/articles$
+^example-data$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^\.github$
+^vignettes/articles/gastrulation_energies\.rds$
+^vignettes/articles/gastrulation-example$
+^vignettes/articles/mm10$
+^man/figures/pipeline\.png$
+^example_data$

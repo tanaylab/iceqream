@@ -1,0 +1,152 @@
+---
+title: "iceqream"
+resource_files:
+  - gastrulation-example/peak_intervals.tsv
+  - gastrulation-example/atac_scores.rds
+  - gastrulation-example/additional_features.rds
+  - gastrulation-example/gastrulation_intervals.tsv  
+  - gastrulation_energies.rds
+  - mm10
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+    collapse = TRUE,
+    comment = "#>"
+)
+```
+
+```{r setup}
+library(iceqream)
+library(misha)
+library(misha.ext)
+options(timeout = 2 * 60 * 60) # 2 hours for loading large files
+```
+
+# Running IceQream on a mouse gastrulation trajectory 
+
+In this example we will run IceQream on a mouse gastrulation trajectory, Epiblast to Early nascent mesoderm. This is one of the datasets used in the original IceQream paper.
+
+## Download data 
+
+### Create a `misha` genome
+
+We will start by creating a misha database for mm10 genome. If you already have an `mm10` misha database you can skip this part and load the genome using `gsetroot("path/to/mm10")`.
+
+```{r create_genome, eval=FALSE}
+gdb.create_genome("mm10")
+```
+
+```{r load_genome}
+gsetroot("mm10")
+```
+
+### Download the example files
+
+The basic inputs for an iceqream regression are genomic positions of peaks and two vectors of ATAC scores. Optionally, additional features such as epigenomic features can be provided. We will download these files for the Epiblast to Early nascent mesoderm trajectory during mouse gastrulation.
+
+<!-- https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation-example.tar.gz -->
+
+```{r download_data, eval=FALSE}
+download.file("https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation-example.tar.gz", "gastrulation-example.tar.gz")
+untar("gastrulation-example.tar.gz")
+```
+
+```{r load_data}
+peak_intervals <- readr::read_tsv("gastrulation-example/peak_intervals.tsv", show_col_types = FALSE)
+atac_scores <- readr::read_rds("gastrulation-example/atac_scores.rds")
+additional_features <- readr::read_rds("gastrulation-example/additional_features.rds")
+
+normalization_intervals <- readr::read_tsv("gastrulation-example/gastrulation_intervals.tsv", show_col_types = FALSE)
+```
+
+We loaded the following objects:
+
+- `peak_intervals`: A data frame with genomic positions of peaks.
+
+```{r peak_intervals}
+head(peak_intervals)
+nrow(peak_intervals)
+```
+
+- `atac_scores`: A matrix with ATAC scores for each peak at the different bins of the trajectory. We will regress the last bin (bin4) vs the first bin (bin1).
+
+```{r atac_scores}
+head(atac_scores)
+nrow(atac_scores)
+```
+
+- `additional_features`: A data frame with additional features for each peak. This is optional.
+
+```{r additional_features}
+head(additional_features)
+nrow(additional_features)
+```
+
+In addition, we loaded a set of genomic intervals that will be used for motif energy normalization. These intervals are all the peaks including the ones that are close to TSSs.
+
+## Compute motif energies 
+
+The first step in the IceQream pipeline is to compute motif energies for each motif model and each peak. This process is computationally intensive as we are computing the energy for 21862 motifs collected from HOMER, JASPAR, Jolma et al., HOCOMOCO and SCENIC databases.
+
+```{r number_of_motifs}
+length(unique(motif_db$motif))
+```
+
+Calculation is done by: 
+
+```{r compute_motif_energies, eval=FALSE}
+# motif_energies <- compute_motif_energies(peak_intervals, db, normalization_intervals = normalization_intervals)
+```
+
+However, we will load the precomputed motif energies for this example.
+
+```{r download_motif_energies, eval=FALSE}
+download.file("https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation_energies.tar.gz", "gastrulation_energies.tar.gz")
+untar("gastrulation_energies.tar.gz")
+```
+
+Note that the next step requires ~23GB of RAM.
+
+```{r load_motif_energies}
+motif_energies <- readr::read_rds("gastrulation_energies.rds")
+motif_energies <- motif_energies[peak_intervals$peak_name, ]
+dim(motif_energies)
+```
+
+## Run IceQream
+
+We will now run IceQream on the gastrulation trajectory:
+
+```{r run_iceqream, cache=TRUE}
+traj_model <- iq_regression(
+    peak_intervals = peak_intervals,
+    atac_scores = atac_scores,
+    motif_energies = motif_energies,
+    additional_features = additional_features,
+    norm_intervals = normalization_intervals,
+    seed = 60427,
+    frac_train = 0.8,
+    max_motif_num = 30,
+    n_prego_motifs = 0 # increase this in order to infer de-novo motifs, e.g. 5
+)
+
+traj_model
+```
+
+## Plot results
+
+We can plot the performance of the model:
+
+```{r prediction_scatter, fig.width=7, fig.height=7}
+plot_prediction_scatter(traj_model)
+```
+
+And the model report:
+
+```{r plot_report, fig.width=20, fig.height=50}
+plot_traj_model_report(traj_model)
+```
+
+
+

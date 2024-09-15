@@ -3,7 +3,7 @@
 #' This class represents a multi-trajectory model, which is a collection of individual trajectory models.
 #'
 #' @slot models A list of individual trajectory models.
-#' @slot models A list of individual trajectory models with full features.
+#' @slot models_full A list of individual trajectory models with full features.
 #' @slot motif_models A list of motif models corresponding to the individual trajectory models.
 #' @slot cluster_map a data frame that maps original motif to its distilled cluster.
 #' @slot stats A data frame with r2 statistics for each trajectory model after distillation.
