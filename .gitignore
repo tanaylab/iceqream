@@ -4,8 +4,12 @@ work/
 README.html
 work
 example-data
-docs
 vignettes/articles/gastrulation_energies.rds
 vignettes/articles/gastrulation-example
 vignettes/articles/mm10
+docs/articles/gastrulation_energies.rds
+docs/articles/gastrulation-example
+docs/articles/mm10
+docs/articles/iceqream_cache/
 example_data
+vignettes/articles/iceqream_cache/
