@@ -24,7 +24,7 @@ compute_motif_energies <- function(peak_intervals, db, normalization_intervals =
     return(motif_energies)
 }
 
-validate_motif_energies <- function(motif_energies, peak_intervals, pssm_db = motif_db) {
+validate_motif_energies <- function(motif_energies, peak_intervals, pssm_db = iceqream::motif_db) {
     if (nrow(motif_energies) != nrow(peak_intervals)) {
         cli_abort("Motif energies must have the same number of rows as peak_intervals. peak_intervals number of rows {.val {nrow(peak_intervals)}} != motif_energies number of rows {.val {nrow(motif_energies)}}", call = parent.frame(1))
     }

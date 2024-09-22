@@ -26,11 +26,11 @@ iq_regression(
 \arguments{
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
 
-\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to \link{0, 1}.}
+\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
 
 \item{atac_diff}{Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.}
 
-\item{normalize_bins}{whether to normalize the ATAC scores to \link{0, 1}. Default: TRUE}
+\item{normalize_bins}{whether to normalize the ATAC scores to be between 0 and 1. Default: TRUE}
 
 \item{norm_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.}
 
@@ -94,21 +94,16 @@ and its often faster to fit a whole path than compute a single fit.}
 \value{
 An instance of \code{TrajectoryModel} containing model information and results:
 \itemize{
-\item{model}{The final General Linear Model (GLM) object.}
-\item{motif_models}{Named List, PSSM and spatial models for each motif cluster.}
-\item{normalized_energies}{Numeric vector, normalized energies of each motif in each peak.}
-\item{additional_features}{data frame of the additional features.}
-\item{diff_score}{Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.}
-\item{predicted_diff_score}{Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.}
-\item{initial_prego_models}{List, inferred prego models at the initial step of the algorithm.}
-\item{peak_intervals}{data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.}
+\item model: The final General Linear Model (GLM) object.
+\item motif_models: Named List, PSSM and spatial models for each motif cluster.
+\item normalized_energies: Numeric vector, normalized energies of each motif in each peak.
+\item additional_features: data frame of the additional features.
+\item diff_score: Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.
+\item predicted_diff_score: Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.
+\item initial_prego_models: List, inferred prego models at the initial step of the algorithm.
+\item peak_intervals: data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.
 }
 }
 \description{
 Perform IQ regression on peak intervals using the provided ATAC-seq scores, ATAC-seq score differences, normalized intervals, motif energies, and additional features, after dividing the intervals into training and testing sets.
-}
-\examples{
-\dontrun{
-
-}
 }

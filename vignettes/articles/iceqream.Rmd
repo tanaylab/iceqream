@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 library(iceqream)
 library(misha)
 library(misha.ext)
-options(timeout = 2 * 60 * 60) # 2 hours for loading large files
+options(timeout = 2 * 60 * 60) # allow 2 hours for loading large files
 ```
 
 # Running IceQream on a mouse gastrulation trajectory 
@@ -129,7 +129,11 @@ traj_model <- iq_regression(
     frac_train = 0.8,
     max_motif_num = 30
 )
+```
 
+The result is a `TrajectoryModel` object that contains the regression results and the model report:
+
+```{r traj_model}
 traj_model
 ```
 

@@ -10,7 +10,7 @@
 #' @slot quantile The quantile to use for normalization (numeric).
 #' @slot size The size of the sequences to use for feature computation (numeric).
 #'
-#' @export
+#' @exportClass IQSeqFeature
 IQSeqFeature <- setClass(
     "IQSeqFeature",
     slots = list(
@@ -36,7 +36,7 @@ IQSeqFeature <- setClass(
 #'
 #' @return An initialized IQSeqFeature object.
 #'
-#' @export
+#' @exportMethod initialize
 setMethod(
     "initialize", "IQSeqFeature",
     function(.Object, name, coefs, compute_func, min_value, max_value, quantile = 0.99, size) {
@@ -57,7 +57,8 @@ setMethod(
 #'
 #' @param object An IQSeqFeature object
 #'
-#' @export
+#' @rdname IQSeqFeature-class
+#' @exportMethod show
 setMethod("show", signature = "IQSeqFeature", definition = function(object) {
     cli::cli({
         cli::cli_text("An {.cls IQSeqFeature} object named {.val {object@name}}")

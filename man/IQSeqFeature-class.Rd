@@ -4,9 +4,18 @@
 \name{IQSeqFeature-class}
 \alias{IQSeqFeature-class}
 \alias{IQSeqFeature}
+\alias{show,IQSeqFeature-method}
 \title{IQSeqFeature class}
+\usage{
+\S4method{show}{IQSeqFeature}(object)
+}
+\arguments{
+\item{object}{An IQSeqFeature object}
+}
 \description{
 This class represents a sequence feature for IQ models, inheriting from IQFeature.
+
+This method defines how an IQSeqFeature object should be displayed.
 }
 \section{Slots}{
 

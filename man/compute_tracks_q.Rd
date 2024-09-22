@@ -29,6 +29,8 @@ compute_tracks_q(
 \item{tn5bias_track}{A numeric vector representing the TN5 bias track.}
 
 \item{normalize_tn5bias}{Logical, whether to normalize the TN5 bias track.}
+
+\item{sample_n}{A numeric value specifying the maximum number of data points to use for computing quantiles.}
 }
 \value{
 A data frame with columns "type" and "q", where "type" represents the name of the ATAC-seq track and "q" represents the computed quantiles.

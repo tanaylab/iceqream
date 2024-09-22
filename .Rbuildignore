@@ -16,5 +16,6 @@
 ^vignettes/articles/gastrulation_energies\.rds$
 ^vignettes/articles/gastrulation-example$
 ^vignettes/articles/mm10$
+^vignettes/articles$
 ^man/figures/pipeline\.png$
 ^example_data$

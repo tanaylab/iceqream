@@ -4,9 +4,18 @@
 \name{IQFeature-class}
 \alias{IQFeature-class}
 \alias{IQFeature}
+\alias{show,IQFeature-method}
 \title{IQFeature class}
+\usage{
+\S4method{show}{IQFeature}(object)
+}
+\arguments{
+\item{object}{An IQFeature object}
+}
 \description{
 This class represents an IQ feature
+
+This method defines how an IQFeature object should be displayed.
 }
 \section{Slots}{
 

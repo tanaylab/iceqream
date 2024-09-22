@@ -1,4 +1,4 @@
-#' Normalize Values to the \[0, 1\] Range
+#' Normalize Values to the 0-1 Range
 #'
 #' This function scales and translates the values in the input vector `x`
 #' such that the minimum value becomes 0 and the maximum value becomes 1.
@@ -6,15 +6,14 @@
 #' from each element (translation) and then dividing each element by
 #' the new maximum value (scaling).
 #'
-#' @param x A numeric vector that needs to be normalized to the \[0, 1\] range. IF `x` is a matrix, the normalization is applied column-wise.
+#' @param x A numeric vector that needs to be normalized to the 0-1 range. IF `x` is a matrix, the normalization is applied column-wise.
 #'
-#' @return A numeric vector with values normalized to the \[0, 1\] range. If `x` is a matrix, the function returns a matrix with columns normalized to the \[0, 1\] range.
+#' @return A numeric vector with values normalized to the 0-1 range. If `x` is a matrix, the function returns a matrix with columns normalized to the 0-1 range.
 #'
 #' @examples
 #' # Generate random values
 #' x <- rnorm(100)
 #' range(x)
-#' # Normalize the values to [0, 1] range
 #' normed_x <- norm01(x)
 #' range(normed_x) # This should show values between 0 and 1
 #'

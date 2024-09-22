@@ -20,6 +20,8 @@ pbm.normalize_energies(
 
 \item{max_energy}{The maximum energy value (default is pbm@max_energy)}
 
+\item{min_energy}{The minimum energy value (default is pbm@min_energy)}
+
 \item{energy_range}{The range of energy values (default is pbm@energy_range)}
 
 \item{norm_energy_max}{The maximum value for the normalized energy (default is 10)}

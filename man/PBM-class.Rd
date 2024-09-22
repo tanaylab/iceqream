@@ -4,7 +4,14 @@
 \name{PBM-class}
 \alias{PBM-class}
 \alias{PBM}
+\alias{show,PBM-method}
 \title{PBM Class}
+\usage{
+\S4method{show}{PBM}(object)
+}
+\arguments{
+\item{object}{An instance of \code{PBM}.}
+}
 \description{
 This class represents a PBM (Physical Binding Model) object.
 It inherits from the IQFeature class.

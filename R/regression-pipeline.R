@@ -5,10 +5,7 @@
 #' @param frac_train  A numeric value indicating the fraction of intervals to use for training (default is 0.8).
 #' @param filter_model A logical value indicating whether to filter the model (default is TRUE).
 #'
-#' @examples
-#' \dontrun{
 #'
-#' }
 #' @inheritParams regress_trajectory_motifs
 #' @inheritDotParams regress_trajectory_motifs
 #' @inherit regress_trajectory_motifs return

@@ -4,10 +4,19 @@
 \name{IQmodel-class}
 \alias{IQmodel-class}
 \alias{IQmodel}
+\alias{show,IQmodel-method}
 \title{IQmodel class}
+\usage{
+\S4method{show}{IQmodel}(object)
+}
+\arguments{
+\item{object}{An IQmodel object}
+}
 \description{
 This class represents an IQ model including IQ features and PBMs,
 along with necessary model parameters.
+
+This method defines how an IQmodel object should be displayed.
 }
 \section{Slots}{
 

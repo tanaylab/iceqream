@@ -407,10 +407,10 @@ plot_traj_model_multi_clust <- function(traj_models, clust_map, prego_distilled,
 
 #' Filter multi-trajectory model
 #'
-#'
+#' @param multi_traj A TrajectoryModelMulti model object.
 #' @param filter_full A logical value indicating whether to filter the full models (\code{@models_full}) or the reduced models (\code{@models}). Default is TRUE.
 #'
-#' @return The filtered multi-trajectory model.
+#' @return The filtered TrajectoryModelMulti object
 #'
 #' @inheritParams filter_traj_model
 #'

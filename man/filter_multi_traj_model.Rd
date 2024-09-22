@@ -13,6 +13,8 @@ filter_multi_traj_model(
 )
 }
 \arguments{
+\item{multi_traj}{A TrajectoryModelMulti model object.}
+
 \item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
 
 \item{bits_threshold}{minimal sum of bits for a feature to be included in the model.}
@@ -22,7 +24,7 @@ filter_multi_traj_model(
 \item{filter_full}{A logical value indicating whether to filter the full models (\code{@models_full}) or the reduced models (\code{@models}). Default is TRUE.}
 }
 \value{
-The filtered multi-trajectory model.
+The filtered TrajectoryModelMulti object
 }
 \description{
 Filter multi-trajectory model

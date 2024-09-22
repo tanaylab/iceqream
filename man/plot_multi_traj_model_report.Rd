@@ -18,7 +18,7 @@ plot_multi_traj_model_report(
 )
 }
 \arguments{
-\item{multi_traj}{The multi-trajectory model object.}
+\item{multi_traj}{A TrajectoryModelMulti object.}
 
 \item{filename}{Optional. The name of the output file. If not provided, the plot will be displayed on the screen.}
 
