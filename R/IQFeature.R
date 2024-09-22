@@ -5,7 +5,7 @@
 #' @slot name The name of the IQ feature (character).
 #' @slot coefs The coefficients of the IQ feature (numeric).
 #'
-#' @export
+#' @exportClass IQFeature
 IQFeature <- setClass(
     "IQFeature",
     slots = list(
@@ -20,7 +20,8 @@ IQFeature <- setClass(
 #'
 #' @param object An IQFeature object
 #'
-#' @export
+#' @rdname IQFeature-class
+#' @exportMethod show
 setMethod("show", signature = "IQFeature", definition = function(object) {
     cli::cli({
         cli::cli_text("An {.cls IQFeature} object named {.val {object@name}}")

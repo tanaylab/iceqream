@@ -12,7 +12,7 @@
 #' @slot spat_max A numeric value representing the spatial maximum (optional)
 #' @slot seq_length A numeric value representing the length of the sequence for spatial distribution (optional)
 #'
-#' @export
+#' @exportClass PBM
 PBM <- setClass(
     "PBM",
     slots = list(
@@ -28,6 +28,11 @@ PBM <- setClass(
     contains = "IQFeature"
 )
 
+#'
+#' @param object An instance of `PBM`.
+#'
+#' @rdname PBM-class
+#' @exportMethod show
 setMethod("show", signature = "PBM", definition = function(object) {
     cli::cli({
         cli::cli_text("a {.cls PBM} object named {.val {object@name}} with {.val {nrow(object@pssm)}} positions ({.code @pssm})")
@@ -173,6 +178,7 @@ traj_model_to_pbm_list <- function(
 #' @param max_energy The maximum energy value (default is pbm@max_energy)
 #' @param energy_range The range of energy values (default is pbm@energy_range)
 #' @param norm_energy_max The maximum value for the normalized energy (default is 10)
+#' @param min_energy The minimum energy value (default is pbm@min_energy)
 #'
 #' @return A vector of normalized energy values
 #'

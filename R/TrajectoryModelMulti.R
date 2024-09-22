@@ -9,7 +9,7 @@
 #' @slot stats A data frame with r2 statistics for each trajectory model after distillation.
 #' @slot params additional parameters for the multi-trajectory distillation.
 #'
-#' @export
+#' @exportClass TrajectoryModelMulti
 TrajectoryModelMulti <- setClass(
     "TrajectoryModelMulti",
     slots = list(
@@ -23,7 +23,7 @@ TrajectoryModelMulti <- setClass(
 )
 
 #' @param object An instance of `TrajectoryModelMulti`.
-#' @export
+#' @exportMethod show
 #' @rdname TrajectoryModelMulti-class
 setMethod(
     "show", "TrajectoryModelMulti",

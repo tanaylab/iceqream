@@ -111,9 +111,27 @@ plot_iq_locus(
 
 \item{normalize_tn5bias}{Logical, whether to normalize using the TN5 bias track. If a vector, should have the same length as atac_names.}
 
+\item{tss_intervals}{Character, name of the TSS intervals track.}
+
+\item{exon_intervals}{Character, name of the exon intervals track.}
+
+\item{annot_track}{Character, name of the annotation track.}
+
+\item{annot_track_name}{Character, display name for the annotation track.}
+
+\item{annot_colors}{Named vector, colors for annotation track.}
+
+\item{annot_track_iterator}{Numeric, iterator for annotation track extraction.}
+
+\item{annot_track_smooth}{Numeric, smoothing factor for annotation track.}
+
 \item{annot_intervals}{Genomic intervals for annotation (start positions would be used).}
 
 \item{annot_intervals_color}{Color for annotation intervals.}
+
+\item{mark_conservation}{Logical, whether to mark conservation in the DNA sequence.}
+
+\item{conservation_threshold}{Numeric, threshold for marking conservation.}
 
 \item{scale_cex}{Numeric, scaling factor for letter sizes.}
 
@@ -126,6 +144,14 @@ plot_iq_locus(
 \item{plot_width}{Numeric, width of the output plot.}
 
 \item{plot_height}{Numeric, height of the output plot.}
+
+\item{base_size}{Numeric, base font size for the plot.}
+
+\item{base_family}{Character, base font family for the plot.}
+
+\item{rasterize}{Logical, whether to rasterize certain plot elements for better performance.}
+
+\item{raster_device}{Character, device to use for rasterization.}
 
 \item{...}{additional arguments to pass to the plotting function.}
 }

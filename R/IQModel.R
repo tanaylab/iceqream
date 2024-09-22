@@ -13,7 +13,7 @@
 #' @slot max_pred Maximum value of training predictions before normalization.
 #' @slot norm_factors Normalization factors for scaling predictions.
 #'
-#' @export
+#' @exportClass IQmodel
 IQmodel <- setClass(
     "IQmodel",
     slots = list(
@@ -35,11 +35,12 @@ IQmodel <- setClass(
 #'
 #' @param object An IQmodel object
 #'
-#' @export
+#' @rdname IQmodel-class
+#' @exportMethod show
 setMethod("show", signature = "IQmodel", function(object) {
     cli::cli({
         cli::cli_text("An {.cls IQmodel} object")
-        n_groups <- sum(purrr::map_lgl(iq@iq_features, ~ inherits(.x, "IQFeatureGroup")))
+        n_groups <- sum(purrr::map_lgl(object@iq_features, ~ inherits(.x, "IQFeatureGroup")))
         if (n_groups > 0) {
             cli::cli_text("Contains {.val {length(object@pbms)}} PBMs ({.code @pbms}), and {.val {length(object@iq_features)}} IQ features ({.code @iq_features}), including {.val {n_groups}} feature groups")
         } else {
@@ -262,7 +263,7 @@ handle_missing_iq_responses <- function(iq_responses, all_feature_names) {
 #'
 #' @return A vector of normalized and rescaled predictions
 #'
-#' @export
+#' @exportMethod predict
 setMethod("predict", signature = "IQmodel", function(object, new_data = NULL, intervals = NULL, sequences = NULL, pbm_responses = NULL, iq_responses = NULL) {
     use_intervals <- validate_predict_input(intervals, sequences, pbm_responses)
 

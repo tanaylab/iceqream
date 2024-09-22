@@ -6,7 +6,7 @@
 #' @slot compute_func A function to compute all features in the group at once.
 #' @slot size The size of the sequences to use for feature computation (numeric).
 #'
-#' @export
+#' @exportClass IQFeatureGroup
 IQFeatureGroup <- setClass(
     "IQFeatureGroup",
     slots = list(
@@ -25,7 +25,8 @@ IQFeatureGroup <- setClass(
 #'
 #' @return An initialized IQFeatureGroup object.
 #'
-#' @export
+#' @rdname IQFeatureGroup-class
+#' @exportMethod initialize
 setMethod(
     "initialize", "IQFeatureGroup",
     function(.Object, features, compute_func, size) {
@@ -42,7 +43,8 @@ setMethod(
 #'
 #' @param object An IQFeatureGroup object
 #'
-#' @export
+#' @rdname IQFeatureGroup-class
+#' @exportMethod show
 setMethod("show", signature = "IQFeatureGroup", definition = function(object) {
     cli::cli({
         cli::cli_text("An {.cls IQFeatureGroup} object with {.val {length(object@features)}} features")

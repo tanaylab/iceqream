@@ -3,7 +3,7 @@
 #' This function plots a report for a multi-trajectory model. The report includes the motifs, spatial models, and partial responses for each trajectory model when \code{type} is "pr".
 #' If \code{type} is "boxp", the function will plot the boxplots of the energy vs response for each motif. If \code{type} is "spat", the function will plot the spatial distribution of the motifs.
 #'
-#' @param multi_traj The multi-trajectory model object.
+#' @param multi_traj A TrajectoryModelMulti object.
 #' @param filename Optional. The name of the output file. If not provided, the plot will be displayed on the screen.
 #' @param width Optional. The width of the output plot in inches.
 #' @param height Optional. The height of the output plot in inches.

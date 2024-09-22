@@ -37,6 +37,19 @@
 #' @param dev Function, device to use for plotting.
 #' @param plot_width Numeric, width of the output plot.
 #' @param plot_height Numeric, height of the output plot.
+#' @param base_size Numeric, base font size for the plot.
+#' @param base_family Character, base font family for the plot.
+#' @param rasterize Logical, whether to rasterize certain plot elements for better performance.
+#' @param raster_device Character, device to use for rasterization.
+#' @param tss_intervals Character, name of the TSS intervals track.
+#' @param exon_intervals Character, name of the exon intervals track.
+#' @param annot_track Character, name of the annotation track.
+#' @param annot_track_name Character, display name for the annotation track.
+#' @param annot_colors Named vector, colors for annotation track.
+#' @param annot_track_iterator Numeric, iterator for annotation track extraction.
+#' @param annot_track_smooth Numeric, smoothing factor for annotation track.
+#' @param mark_conservation Logical, whether to mark conservation in the DNA sequence.
+#' @param conservation_threshold Numeric, threshold for marking conservation.
 #' @param ... additional arguments to pass to the plotting function.
 #'
 #' @return A ggplot object containing the IQ locus plot.
@@ -378,7 +391,7 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
             # size = 3,
             size = base_size / (14 / 5),
             family = base_family,
-            label = paste("<->", glue::glue("{scales::scientific(l_ext)}bp"), collapse = "\n")
+            label = paste("<->", glue::glue("{bps}bp", bps = scales::scientific(l_ext)), collapse = "\n")
         )
 
 
@@ -619,6 +632,7 @@ order_motifs_data <- function(dna_df, r_mat) {
 #' @param norm_intervals A numeric vector specifying the intervals for computing quantiles.
 #' @param tn5bias_track A numeric vector representing the TN5 bias track.
 #' @param normalize_tn5bias Logical, whether to normalize the TN5 bias track.
+#' @param sample_n A numeric value specifying the maximum number of data points to use for computing quantiles.
 #'
 #' @return A data frame with columns "type" and "q", where "type" represents the name of the ATAC-seq track and "q" represents the computed quantiles.
 #'

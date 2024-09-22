@@ -2,15 +2,15 @@
 % Please edit documentation in R/energy-utils.R
 \name{norm01}
 \alias{norm01}
-\title{Normalize Values to the [0, 1] Range}
+\title{Normalize Values to the 0-1 Range}
 \usage{
 norm01(x)
 }
 \arguments{
-\item{x}{A numeric vector that needs to be normalized to the [0, 1] range. IF \code{x} is a matrix, the normalization is applied column-wise.}
+\item{x}{A numeric vector that needs to be normalized to the 0-1 range. IF \code{x} is a matrix, the normalization is applied column-wise.}
 }
 \value{
-A numeric vector with values normalized to the [0, 1] range. If \code{x} is a matrix, the function returns a matrix with columns normalized to the [0, 1] range.
+A numeric vector with values normalized to the 0-1 range. If \code{x} is a matrix, the function returns a matrix with columns normalized to the 0-1 range.
 }
 \description{
 This function scales and translates the values in the input vector \code{x}
@@ -23,7 +23,6 @@ the new maximum value (scaling).
 # Generate random values
 x <- rnorm(100)
 range(x)
-# Normalize the values to [0, 1] range
 normed_x <- norm01(x)
 range(normed_x) # This should show values between 0 and 1
 

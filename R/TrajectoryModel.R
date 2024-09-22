@@ -71,7 +71,7 @@ TrajectoryModel <- setClass(
 
 #' @param object An instance of `TrajectoryModel`.
 #' @rdname TrajectoryModel-class
-#' @export
+#' @exportMethod show
 setMethod("show", signature = "TrajectoryModel", definition = function(object) {
     cli::cli({
         cli::cli_text("{.cls TrajectoryModel} with {.val {length(object@motif_models)}} motifs and {.val {length(object@additional_features)}} additional features\n")
@@ -123,7 +123,7 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
 #' @return A numeric vector of predicted differential accessibility scores.
 #'
 #' @inheritParams regress_trajectory_motifs
-#' @export
+#' @exportMethod predict
 setMethod("predict", signature = "TrajectoryModel", definition = function(object, peak_intervals, additional_features = NULL) {
     train_model <- split_traj_model_to_train_test(object)$train
     traj_model <- infer_trajectory_motifs(train_model, peak_intervals, additional_features = additional_features)
