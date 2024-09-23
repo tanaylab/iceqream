@@ -29,3 +29,19 @@
 #' data(motif_db)
 #' head(motif_db)
 "motif_db"
+
+
+#' SCENIC Motif Clusters
+#'
+#' A data frame containing a representative motif from each SCENIC cluster.
+#'
+#' @format The same as `motif_db` but filtered to only include SCENIC motifs.
+#'
+#' @source \url{https://doi.org/10.1038/nmeth.4463}
+#'
+#' @seealso \code{\link{motif_db}}
+#'
+#' @examples
+#' data(motif_db_scenic_clusters)
+#' head(motif_db_scenic_clusters)
+"motif_db_scenic_clusters"

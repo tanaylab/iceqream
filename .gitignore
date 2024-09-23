@@ -13,3 +13,5 @@ docs/articles/mm10
 docs/articles/iceqream_cache/
 example_data
 vignettes/articles/iceqream_cache/
+data-raw/*.ipynb
+data-raw/*.png
