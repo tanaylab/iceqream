@@ -19,3 +19,4 @@
 ^vignettes/articles$
 ^man/figures/pipeline\.png$
 ^example_data$
+^data-raw$

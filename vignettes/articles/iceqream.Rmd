@@ -96,17 +96,23 @@ length(unique(motif_db$motif))
 Calculation is done by: 
 
 ```{r compute_motif_energies, eval=FALSE}
-# motif_energies <- compute_motif_energies(peak_intervals, db, normalization_intervals = normalization_intervals)
+# motif_energies <- compute_motif_energies(peak_intervals, motif_db, normalization_intervals = normalization_intervals)
 ```
 
-However, we will load the precomputed motif energies for this example.
+If you want to start with a less computationally intensive example, you can use the the scenic clusters (1615) instead of the full motif database. This will still take ~10-15 minutes, and the performance will be significantly lower.
+
+```{r compute_motif_energies_scenic, eval=FALSE}
+# motif_energies <- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)
+```
+
+In any case, we will load the precomputed motif energies for this example. Note that the full matrix requires ~23GB of RAM.
 
 ```{r download_motif_energies, eval=FALSE}
 download.file("https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation_energies.tar.gz", "gastrulation_energies.tar.gz")
 untar("gastrulation_energies.tar.gz")
 ```
 
-Note that the next step requires ~23GB of RAM.
+Load the motif energies:
 
 ```{r load_motif_energies}
 motif_energies <- readr::read_rds("gastrulation_energies.rds")
