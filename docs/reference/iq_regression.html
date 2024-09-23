@@ -72,7 +72,7 @@
 
 
 <dt>atac_scores</dt>
-<dd><p>Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide <code>atac_diff</code> instead. If <code>normalize_bins</code> is TRUE, the scores will be normalized to 0, 1.</p></dd>
+<dd><p>Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide <code>atac_diff</code> instead. If <code>normalize_bins</code> is TRUE, the scores will be normalized to be between 0 and 1.</p></dd>
 
 
 <dt>atac_diff</dt>
@@ -80,7 +80,7 @@
 
 
 <dt>normalize_bins</dt>
-<dd><p>whether to normalize the ATAC scores to 0, 1. Default: TRUE</p></dd>
+<dd><p>whether to normalize the ATAC scores to be between 0 and 1. Default: TRUE</p></dd>
 
 
 <dt>norm_intervals</dt>
@@ -210,23 +210,16 @@ and its often faster to fit a whole path than compute a single fit.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     
 
-<p>An instance of <code>TrajectoryModel</code> containing model information and results:</p><ul><li><p>modelThe final General Linear Model (GLM) object.</p></li>
-<li><p>motif_modelsNamed List, PSSM and spatial models for each motif cluster.</p></li>
-<li><p>normalized_energiesNumeric vector, normalized energies of each motif in each peak.</p></li>
-<li><p>additional_featuresdata frame of the additional features.</p></li>
-<li><p>diff_scoreNumeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.</p></li>
-<li><p>predicted_diff_scoreNumeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.</p></li>
-<li><p>initial_prego_modelsList, inferred prego models at the initial step of the algorithm.</p></li>
-<li><p>peak_intervalsdata frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.</p></li>
+<p>An instance of <code>TrajectoryModel</code> containing model information and results:</p><ul><li><p>model: The final General Linear Model (GLM) object.</p></li>
+<li><p>motif_models: Named List, PSSM and spatial models for each motif cluster.</p></li>
+<li><p>normalized_energies: Numeric vector, normalized energies of each motif in each peak.</p></li>
+<li><p>additional_features: data frame of the additional features.</p></li>
+<li><p>diff_score: Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.</p></li>
+<li><p>predicted_diff_score: Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.</p></li>
+<li><p>initial_prego_models: List, inferred prego models at the initial step of the algorithm.</p></li>
+<li><p>peak_intervals: data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.</p></li>
 </ul></div>
 
-    <div class="section level2">
-    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="op">}</span></span></span>
-</code></pre></div>
-    </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside></div>
 

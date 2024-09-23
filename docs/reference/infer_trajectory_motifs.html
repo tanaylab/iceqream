@@ -70,7 +70,7 @@
 
 
 <dt>atac_scores</dt>
-<dd><p>Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide <code>atac_diff</code> instead. If <code>normalize_bins</code> is TRUE, the scores will be normalized to 0, 1.</p></dd>
+<dd><p>Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide <code>atac_diff</code> instead. If <code>normalize_bins</code> is TRUE, the scores will be normalized to be between 0 and 1.</p></dd>
 
 
 <dt>bin_start</dt>
