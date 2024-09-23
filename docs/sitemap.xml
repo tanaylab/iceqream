@@ -10,6 +10,9 @@
     <loc>https://tanaylab.github.io/iceqream/LICENSE.html</loc>
   </url>
   <url>
+    <loc>https://tanaylab.github.io/iceqream/articles/articles/iceqream.html</loc>
+  </url>
+  <url>
     <loc>https://tanaylab.github.io/iceqream/articles/iceqream.html</loc>
   </url>
   <url>
@@ -47,6 +50,9 @@
   </url>
   <url>
     <loc>https://tanaylab.github.io/iceqream/reference/compute_motif_directional_hits.html</loc>
+  </url>
+  <url>
+    <loc>https://tanaylab.github.io/iceqream/reference/compute_motif_energies.html</loc>
   </url>
   <url>
     <loc>https://tanaylab.github.io/iceqream/reference/compute_tracks_q.html</loc>
@@ -134,6 +140,12 @@
   </url>
   <url>
     <loc>https://tanaylab.github.io/iceqream/reference/merge_trajectory_motifs.html</loc>
+  </url>
+  <url>
+    <loc>https://tanaylab.github.io/iceqream/reference/motif_db.html</loc>
+  </url>
+  <url>
+    <loc>https://tanaylab.github.io/iceqream/reference/motif_db_scenic_clusters.html</loc>
   </url>
   <url>
     <loc>https://tanaylab.github.io/iceqream/reference/norm01.html</loc>

@@ -81,7 +81,7 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     gtrack.create_dirs</span></span></code></pre></div>
 <div class="sourceCode"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>timeout <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="fl">60</span> <span class="op">*</span> <span class="fl">60</span><span class="op">)</span> <span class="co"># 2 hours for loading large files</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>timeout <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="fl">60</span> <span class="op">*</span> <span class="fl">60</span><span class="op">)</span> <span class="co"># allow 2 hours for loading large files</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="running-iceqream-on-a-mouse-gastrulation-trajectory">Running IceQream on a mouse gastrulation trajectory<a class="anchor" aria-label="anchor" href="#running-iceqream-on-a-mouse-gastrulation-trajectory"></a>
 </h2>
@@ -196,12 +196,15 @@
 <span><span class="co">#&gt; [1] 21862</span></span></code></pre></div>
 <p>Calculation is done by:</p>
 <div class="sourceCode"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># motif_energies &lt;- compute_motif_energies(peak_intervals, db, normalization_intervals = normalization_intervals)</span></span></code></pre></div>
-<p>However, we will load the precomputed motif energies for this example.</p>
+<code class="sourceCode R"><span><span class="co"># motif_energies &lt;- compute_motif_energies(peak_intervals, motif_db, normalization_intervals = normalization_intervals)</span></span></code></pre></div>
+<p>If you want to start with a less computationally intensive example, you can use the the scenic clusters (1615) instead of the full motif database. This will still take ~10-15 minutes, and the performance will be significantly lower.</p>
+<div class="sourceCode"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># motif_energies &lt;- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)</span></span></code></pre></div>
+<p>In any case, we will load the precomputed motif energies for this example. Note that the full matrix requires ~23GB of RAM.</p>
 <div class="sourceCode"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/download.file.html" class="external-link">download.file</a></span><span class="op">(</span><span class="st">"https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation_energies.tar.gz"</span>, <span class="st">"gastrulation_energies.tar.gz"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/untar.html" class="external-link">untar</a></span><span class="op">(</span><span class="st">"gastrulation_energies.tar.gz"</span><span class="op">)</span></span></code></pre></div>
-<p>Note that the next step requires ~23GB of RAM.</p>
+<p>Load the motif energies:</p>
 <div class="sourceCode"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">motif_energies</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_rds.html" class="external-link">read_rds</a></span><span class="op">(</span><span class="st">"gastrulation_energies.rds"</span><span class="op">)</span></span>
 <span><span class="va">motif_energies</span> <span class="op">&lt;-</span> <span class="va">motif_energies</span><span class="op">[</span><span class="va">peak_intervals</span><span class="op">$</span><span class="va">peak_name</span>, <span class="op">]</span></span>
@@ -383,9 +386,9 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Run `plot_traj_model_report(traj_model)` to visualize the model features</span></span>
 <span><span class="co">#&gt; Run `plot_prediction_scatter(traj_model)` to visualize the model predictions</span></span></code></pre></div>
+<p>The result is a <code>TrajectoryModel</code> object that contains the regression results and the model report:</p>
 <div class="sourceCode"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span></span>
-<span><span class="va">traj_model</span></span>
+<code class="sourceCode R"><span><span class="va">traj_model</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">&lt;TrajectoryModel&gt;</span> with <span style="color: #0000BB;">21</span> motifs and <span style="color: #0000BB;">22</span> additional features</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Slots include:</span></span>

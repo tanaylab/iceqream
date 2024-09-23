@@ -82,33 +82,33 @@ the transformation applied (i.e., "_early", "_linear", or "_late").</p>
 <span class="r-in"><span><span class="va">transformed_features</span> <span class="op">&lt;-</span> <span class="fu">create_logist_features</span><span class="op">(</span><span class="va">sample_features</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">transformed_features</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      V1_high-energy V1_higher-energy V1_low-energy   V1_sigmoid V2_high-energy</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]    0.006669470   0.000022389745  -0.336385193 0.0016587290    0.016886267</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]    0.015194518   0.000117204021   0.063742721 0.0086228195    0.016027914</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]    0.003976017   0.000007935848  -0.543645366 0.0005885478    0.006994522</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]    0.013348714   0.000090291318  -0.001392821 0.0066559143    0.019299783</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,]    0.018220130   0.000169038405   0.154149501 0.0123893993    0.034055131</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]    0.023646487   0.000286267360   0.279466150 0.0208039625    0.012753208</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]    0.006669470     2.238974e-05  -0.336385193 0.0016587290    0.016886267</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]    0.015194518     1.172040e-04   0.063742721 0.0086228195    0.016027914</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]    0.003976017     7.935848e-06  -0.543645366 0.0005885478    0.006994522</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]    0.013348714     9.029132e-05  -0.001392821 0.0066559143    0.019299783</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,]    0.018220130     1.690384e-04   0.154149501 0.0123893993    0.034055131</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]    0.023646487     2.862674e-04   0.279466150 0.0208039625    0.012753208</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      V2_higher-energy V2_low-energy  V2_sigmoid V3_high-energy V3_higher-energy</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]    0.00014500086    0.11650712 0.010646236    0.013859432    0.00009738224</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]    0.00013052225    0.09048961 0.009593319    0.009742111    0.00004791892</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]    0.00002463337   -0.31504444 0.001824645    0.013057593    0.00008637080</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]    0.00018986990    0.18238058 0.013895138    0.011813424    0.00007060768</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,]    0.00059995979    0.43991567 0.042635577    0.016691842    0.00014165351</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]    0.00008236589   -0.02435646 0.006075209    0.052051866    0.00142704555</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]     1.450009e-04    0.11650712 0.010646236    0.013859432     9.738224e-05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]     1.305223e-04    0.09048961 0.009593319    0.009742111     4.791892e-05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]     2.463337e-05   -0.31504444 0.001824645    0.013057593     8.637080e-05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]     1.898699e-04    0.18238058 0.013895138    0.011813424     7.060768e-05</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,]     5.999598e-04    0.43991567 0.042635577    0.016691842     1.416535e-04</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]     8.236589e-05   -0.02435646 0.006075209    0.052051866     1.427046e-03</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      V3_low-energy  V3_sigmoid V4_high-energy V4_higher-energy V4_low-energy</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]    0.01750692 0.007174904    0.022796605    0.00026583364    0.26230905</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]   -0.15843484 0.003543384    0.009617056    0.00004669075   -0.16475654</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]   -0.01249058 0.006368738    0.023247253    0.00027657219    0.27150521</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]   -0.06278815 0.005212428    0.011846275    0.00007100326   -0.06139678</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,]    0.11074320 0.010403007    0.007451298    0.00002796854   -0.28617110</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]    0.59724554 0.095817799    0.008238755    0.00003421931   -0.23923513</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]    0.01750692 0.007174904    0.022796605     2.658336e-04    0.26230905</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]   -0.15843484 0.003543384    0.009617056     4.669075e-05   -0.16475654</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]   -0.01249058 0.006368738    0.023247253     2.765722e-04    0.27150521</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]   -0.06278815 0.005212428    0.011846275     7.100326e-05   -0.06139678</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,]    0.11074320 0.010403007    0.007451298     2.796854e-05   -0.28617110</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]    0.59724554 0.095817799    0.008238755     3.421931e-05   -0.23923513</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       V4_sigmoid V5_high-energy V5_higher-energy V5_low-energy  V5_sigmoid</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.019347516     0.03466020    0.00062184453     0.4471128 0.044122637</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.003452878     0.02546449    0.00033258125     0.3136587 0.024089208</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.020113459     0.01940534    0.00019197267     0.1850414 0.014046877</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.005241478     0.01763976    0.00015834923     0.1381667 0.011614992</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.002071180     0.01019263    0.00005247696    -0.1362124 0.003879132</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.002532909     0.02320802    0.00027562874     0.2707136 0.020046214</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.019347516     0.03466020     6.218445e-04     0.4471128 0.044122637</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.003452878     0.02546449     3.325813e-04     0.3136587 0.024089208</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.020113459     0.01940534     1.919727e-04     0.1850414 0.014046877</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.005241478     0.01763976     1.583492e-04     0.1381667 0.011614992</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.002071180     0.01019263     5.247696e-05    -0.1362124 0.003879132</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.002532909     0.02320802     2.756287e-04     0.2707136 0.020046214</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
