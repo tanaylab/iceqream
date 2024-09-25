@@ -69,6 +69,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
     \item{\code{n_prego_motifs}}{number of prego motifs (de-novo motifs) to consider.}
     \item{\code{min_diff}}{minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).}
     \item{\code{distill_on_diff}}{whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.}
+    \item{\code{prego_sample_for_kmers}}{whether to use a sample of the peaks for kmer screening. Default: TRUE}
     \item{\code{prego_sample_fraction}}{Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1}
     \item{\code{feature_selection_beta}}{beta parameter used for feature selection.}
     \item{\code{filter_using_r2}}{whether to filter features using R^2.}

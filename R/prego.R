@@ -7,7 +7,8 @@
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param norm_energy_max maximum value of the normalized energy. Default: 10
 #' @param min_energy Minimum energy value after normalization (default: -7)
-#' @param sample_fraction Fraction of peaks to sample for training. Default: 0.1
+#' @param sample_for_kmers Whether to sample kmers for training. Default: TRUE
+#' @param sample_fraction Fraction of peaks to sample for training. Default: 0.1#'
 #' @param sequences A character vector of sequences to learn the motifs on. If NULL, the sequences of the peaks are used.
 #' @param seed Random seed
 #' @param peaks_size size of the peaks to extract sequences from. Default: 300bp
@@ -16,7 +17,7 @@
 #' @param ... Additional arguments to be passed to \code{prego::regress_pwm}
 #'
 #' @export
-learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, sample_fraction = 0.1, sequences = NULL, seed = NULL, peaks_size = 300, additional_features = NULL, norm_intervals = peak_intervals, ...) {
+learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, sample_for_kmers = FALSE, sample_fraction = 0.1, sequences = NULL, seed = NULL, peaks_size = 300, additional_features = NULL, norm_intervals = peak_intervals, ...) {
     withr::local_options(list(gmax.data.size = 1e9))
     if (length(atac_diff) != nrow(peak_intervals)) {
         cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows of {.field {peak_intervals}}. Current lengths: {.val {length(atac_diff)}} and {.val {nrow(peak_intervals)}}")
@@ -73,7 +74,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
     norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(norm_intervals, peaks_size)))
 
     cli_alert_info("Inferring {.val {n_motifs}} prego motifs...")
-    reg <- prego::regress_pwm(seqs, score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = TRUE, sample_frac = sample_fraction, ...)
+    reg <- prego::regress_pwm(seqs, score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = sample_for_kmers, sample_frac = sample_fraction, ...)
 
     prego_e <- reg$predict_multi(sequences)
     prego_norm_e <- reg$predict_multi(norm_seqs)

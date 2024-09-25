@@ -12,6 +12,7 @@ learn_traj_prego(
   energy_norm_quantile = 1,
   norm_energy_max = 10,
   min_energy = -7,
+  sample_for_kmers = FALSE,
   sample_fraction = 0.1,
   sequences = NULL,
   seed = NULL,
@@ -36,7 +37,9 @@ learn_traj_prego(
 
 \item{min_energy}{Minimum energy value after normalization (default: -7)}
 
-\item{sample_fraction}{Fraction of peaks to sample for training. Default: 0.1}
+\item{sample_for_kmers}{Whether to sample kmers for training. Default: TRUE}
+
+\item{sample_fraction}{Fraction of peaks to sample for training. Default: 0.1#'}
 
 \item{sequences}{A character vector of sequences to learn the motifs on. If NULL, the sequences of the peaks are used.}
 
