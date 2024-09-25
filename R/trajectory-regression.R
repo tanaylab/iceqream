@@ -145,6 +145,7 @@ regress_trajectory_motifs <- function(peak_intervals,
         peak_intervals_all <- peak_intervals
         peak_intervals <- peak_intervals[enhancers_filter, ]
         atac_scores <- atac_scores[enhancers_filter, ]
+        atac_diff <- atac_diff[enhancers_filter]
         motif_energies <- motif_energies[enhancers_filter, ]
 
         if (!is.null(additional_features)) {
