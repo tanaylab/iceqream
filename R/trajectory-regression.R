@@ -28,6 +28,7 @@
 #' @param traj_prego output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.
 #' @param min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).
 #' @param distill_on_diff whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.
+#' @param prego_sample_for_kmers whether to use a sample of the peaks for kmer screening. Default: TRUE
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
 #' @param seed random seed for reproducibility.
 #' @param feature_selection_beta beta parameter used for feature selection.
@@ -75,6 +76,7 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       traj_prego = NULL,
                                       min_diff = 0.1,
                                       distill_on_diff = FALSE,
+                                      prego_sample_for_kmers = TRUE,
                                       prego_sample_fraction = 0.1,
                                       seed = 60427,
                                       feature_selection_beta = 0.003,
@@ -167,7 +169,11 @@ regress_trajectory_motifs <- function(peak_intervals,
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
-        traj_prego <- learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_prego_motifs, min_diff = min_diff, sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_intervals = norm_intervals, seed = seed, spat_bin_size = spat_bin_size, spat_num_bins = spat_num_bins)
+        traj_prego <- learn_traj_prego(peak_intervals, atac_diff,
+            n_motifs = n_prego_motifs, min_diff = min_diff,
+            sample_for_kmers = prego_sample_for_kmers,
+            sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_intervals = norm_intervals, seed = seed, spat_bin_size = spat_bin_size, spat_num_bins = spat_num_bins
+        )
     }
 
     if (!is.null(traj_prego)) {
