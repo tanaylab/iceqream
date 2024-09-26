@@ -53,6 +53,7 @@
 <span>  energy_norm_quantile <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  norm_energy_max <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  min_energy <span class="op">=</span> <span class="op">-</span><span class="fl">7</span>,</span>
+<span>  sample_for_kmers <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  sample_fraction <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  sequences <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -93,8 +94,12 @@
 <dd><p>Minimum energy value after normalization (default: -7)</p></dd>
 
 
+<dt>sample_for_kmers</dt>
+<dd><p>Whether to sample kmers for training. Default: TRUE</p></dd>
+
+
 <dt>sample_fraction</dt>
-<dd><p>Fraction of peaks to sample for training. Default: 0.1</p></dd>
+<dd><p>Fraction of peaks to sample for training. Default: 0.1#'</p></dd>
 
 
 <dt>sequences</dt>

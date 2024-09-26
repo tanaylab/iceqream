@@ -1,11 +1,12 @@
 ---
-title: "iceqream"
+title: "IceQream"
 resource_files:
   - gastrulation-example/peak_intervals.tsv
   - gastrulation-example/atac_scores.rds
   - gastrulation-example/additional_features.rds
   - gastrulation-example/gastrulation_intervals.tsv  
   - gastrulation_energies.rds
+  - model_report.pdf
   - mm10
 ---
 
@@ -16,6 +17,17 @@ knitr::opts_chunk$set(
 )
 ```
 
+
+
+## Introduction
+IceQream (Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs) is a package for regressing accessibility from DNA sequences. It models TF effective concentrations as latent variables that activate or repress regulatory elements in a nonlinear fashion, with possible contribution from pairwise interactions and synergistic chromosomal domain effects.
+
+This vignette demonstrates how to use IceQream to analyze chromosome accessibility data, specifically focusing on a mouse gastrulation trajectory from Epiblast to Early nascent mesoderm. This analysis can help identify key regulatory elements and transcription factors involved in cellular differentiation processes, and understand quantitatively how they contribute to the observed changes in chromatin accessibility.
+
+## Setup and Data Preparation
+
+First, let's load the necessary packages and set up our environment:
+
 ```{r setup}
 library(iceqream)
 library(misha)
@@ -23,13 +35,7 @@ library(misha.ext)
 options(timeout = 2 * 60 * 60) # allow 2 hours for loading large files
 ```
 
-# Running IceQream on a mouse gastrulation trajectory 
-
-In this example we will run IceQream on a mouse gastrulation trajectory, Epiblast to Early nascent mesoderm. This is one of the datasets used in the original IceQream paper.
-
-## Download data 
-
-### Create a `misha` genome
+### Creating a `misha` genome
 
 We will start by creating a misha database for mm10 genome. If you already have an `mm10` misha database you can skip this part and load the genome using `gsetroot("path/to/mm10")`.
 
@@ -41,11 +47,11 @@ gdb.create_genome("mm10")
 gsetroot("mm10")
 ```
 
-### Download the example files
+### Downloading Example Data
 
-The basic inputs for an iceqream regression are genomic positions of peaks and two vectors of ATAC scores. Optionally, additional features such as epigenomic features can be provided. We will download these files for the Epiblast to Early nascent mesoderm trajectory during mouse gastrulation.
+See [below](#running-iceqream-on-your-own-data) for minimal instructions on how to use IceQream on your own data.
 
-<!-- https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation-example.tar.gz -->
+For this tutorial, we'll use pre-prepared data from a mouse gastrulation trajectory. Let's download and load this data:
 
 ```{r download_data, eval=FALSE}
 download.file("https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation-example.tar.gz", "gastrulation-example.tar.gz")
@@ -56,73 +62,60 @@ untar("gastrulation-example.tar.gz")
 peak_intervals <- readr::read_tsv("gastrulation-example/peak_intervals.tsv", show_col_types = FALSE)
 atac_scores <- readr::read_rds("gastrulation-example/atac_scores.rds")
 additional_features <- readr::read_rds("gastrulation-example/additional_features.rds")
-
 normalization_intervals <- readr::read_tsv("gastrulation-example/gastrulation_intervals.tsv", show_col_types = FALSE)
 ```
 
-We loaded the following objects:
+Let's examine the structure of our input data:
 
-- `peak_intervals`: A data frame with genomic positions of peaks.
-
-```{r peak_intervals}
+```{r examine_data}
+# Peak intervals
+print("Peak Intervals:")
 head(peak_intervals)
-nrow(peak_intervals)
-```
+print(paste("Number of peaks:", nrow(peak_intervals)))
 
-- `atac_scores`: A matrix with ATAC scores for each peak at the different bins of the trajectory. We will regress the last bin (bin4) vs the first bin (bin1).
-
-```{r atac_scores}
+# ATAC scores
+print("\nATAC Scores:")
 head(atac_scores)
-nrow(atac_scores)
-```
+print(paste("Number of peaks:", nrow(atac_scores)))
+print(paste("Number of bins:", ncol(atac_scores)))
 
-- `additional_features`: A data frame with additional features for each peak. This is optional.
-
-```{r additional_features}
+# Additional features
+print("\nAdditional Features:")
 head(additional_features)
-nrow(additional_features)
+print(paste("Number of peaks:", nrow(additional_features)))
+print(paste("Number of features:", ncol(additional_features)))
 ```
 
-In addition, we loaded a set of genomic intervals that will be used for motif energy normalization. These intervals are all the peaks including the ones that are close to TSSs.
+The `peak_intervals` dataframe contains the genomic positions of accessibility peaks. The `atac_scores` matrix contains ATAC-seq signal intensities for each peak across different stages of the trajectory. `additional_features` includes extra genomic features for each peak.
 
-## Compute motif energies 
+## Computing Motif Energies
 
-The first step in the IceQream pipeline is to compute motif energies for each motif model and each peak. This process is computationally intensive as we are computing the energy for 21862 motifs collected from HOMER, JASPAR, Jolma et al., HOCOMOCO and SCENIC databases.
-
-```{r number_of_motifs}
-length(unique(motif_db$motif))
-```
-
-Calculation is done by: 
+The first step in the IceQream pipeline is to compute motif energies for each transcription factor model and each peak. This process is computationally intensive, as it calculates energies for over 20,000 motifs from various databases.
 
 ```{r compute_motif_energies, eval=FALSE}
-# motif_energies <- compute_motif_energies(peak_intervals, motif_db, normalization_intervals = normalization_intervals)
+motif_energies <- compute_motif_energies(peak_intervals, motif_db, normalization_intervals = normalization_intervals)
 ```
 
-If you want to start with a less computationally intensive example, you can use the the scenic clusters (1615) instead of the full motif database. This will still take ~10-15 minutes, and the performance will be significantly lower.
+For this tutorial, we'll use pre-computed motif energies:
 
-```{r compute_motif_energies_scenic, eval=FALSE}
-# motif_energies <- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)
-```
-
-In any case, we will load the precomputed motif energies for this example. Note that the full matrix requires ~23GB of RAM.
-
-```{r download_motif_energies, eval=FALSE}
+```{r load_motif_energies, eval=FALSE}
 download.file("https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation_energies.tar.gz", "gastrulation_energies.tar.gz")
 untar("gastrulation_energies.tar.gz")
 ```
 
-Load the motif energies:
-
-```{r load_motif_energies}
+```{r load_precomputed_energies}
 motif_energies <- readr::read_rds("gastrulation_energies.rds")
 motif_energies <- motif_energies[peak_intervals$peak_name, ]
-dim(motif_energies)
+print(paste("Motif energy matrix dimensions:", paste(dim(motif_energies), collapse = " x ")))
 ```
 
-## Run IceQream
+For a less memory and computationally intensive analysis, you can use the SCENIC motif clusters instead of all motifs (See [Performance Considerations](#performance-considerations) section).
 
-We will now run IceQream on the gastrulation trajectory:
+## Running IceQream
+
+Now we're ready to run the IceQream regression:
+
+This takes ~25 minutes on a 40 core machine with 256GB of RAM.
 
 ```{r run_iceqream, cache=TRUE}
 traj_model <- iq_regression(
@@ -137,25 +130,102 @@ traj_model <- iq_regression(
 )
 ```
 
-The result is a `TrajectoryModel` object that contains the regression results and the model report:
+Let's examine the output:
 
-```{r traj_model}
-traj_model
+```{r examine_output}
+print(traj_model)
 ```
 
-## Plot results
+The `TrajectoryModel` object contains components such as the regression model, motif models, and predicted accessibility scores.
 
-We can plot the performance of the model:
+
+## Visualizing Results
+
+Let's start with a scatter plot of observed vs. predicted accessibility changes:
 
 ```{r prediction_scatter, fig.width=7, fig.height=7}
 plot_prediction_scatter(traj_model)
 ```
 
-And the model report:
+This plot shows how well our model predicts accessibility changes. Points closer to the diagonal line indicate better predictions. We measure the accuracy of the model using the coefficient of determination (R^2).
 
-```{r plot_report, fig.width=20, fig.height=50}
-plot_traj_model_report(traj_model)
+### Model report
+
+Next, let's look at the model report, which provides detailed information about the motifs and their contributions:
+
+```{r plot_report, eval = FALSE}
+plot_traj_model_report(traj_model, filename = "model_report.pdf")
 ```
 
+```{r show_report}
+knitr::include_graphics("model_report.pdf")
+```
 
+### Interpreting the trajectory model report
+
+The model report provides several key pieces of information (from left to right):
+
+1. Motif logos show the inferred sequence preferences for each transcription factor model.
+2. Response curves show how the accessibility changes as a function of binding energy for each TF.
+3. Barplots show the coefficient of each non-linear term of every motif in the model.
+4. Spatial model curves show the parameters of the spatial model for each TF. The R² values indicate the predictive power each TF adds to the model.
+5. Spatial curves show the frequencey of each TF binding site along the peaks from the bottom 10% (blue) and top 10% (red) of the differential accessibility (dAP) distribution.
+6. Boxplots show the distribution of ATAC differences (dAP, y-axis) for bins of binding energy (x-axis) for each TF.
+
+## Renaming the motif models 
+
+You can rename the motif models to more informative names, either manually using `rename_motif_models` or automatically using `match_traj_model_motif_names`:
+
+```{r rename_motif_models}
+names_map <- match_traj_model_motif_names(traj_model)
+names_map
+traj_model <- rename_motif_models(traj_model, names_map)
+```
+
+## Exporting the model
+
+You can export the minimal model representation to a list of PBM in order to use infer it on new data:
+
+```{r export_model}
+pbm_list <- traj_model_to_pbm_list(traj_model)
+pbm_list
+```
+
+You can now use `pbm_list.compute` or `pbm_list.gextract` to infer the model on new data:
+
+```{r infer_model}
+new_intervals <- data.frame(
+    chrom = rep("chr1", 3),
+    start = c(3671720, 4412460, 4493400),
+    end = c(3672020, 4412760, 4493700)
+)
+pbm_list.gextract(pbm_list, new_intervals)
+
+# directly compute on sequences
+seqs <- prego::intervals_to_seq(new_intervals)
+seqs
+pbm_list.compute(pbm_list, seqs)
+```
+
+## Performance Considerations
+
+The computational requirements for IceQream depend on the size of your dataset. For reference, the example dataset used here (with ~100,000 peaks and ~20,000 motifs) requires about 23GB of RAM for the motif energy matrix, and will take several hours to create, depending on your hardware.
+
+For a less memory and computationally intensive analysis, you can reduce the number of motifs used in the regression by taking a representative from the SCENIC clusters (1615) instead of all motifs (20,000+). This can be done by: 
+
+```{r reduce_motifs, eval=FALSE}
+# motif_energies <- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)
+```
+
+Note that the performance of the model will be lower with fewer motifs, but it can still provide valuable insights.
+
+## Running IceQream on your own data
+
+To run IceQream on your own data, you will need to provide the following inputs:
+
+1. Genomic positions of peaks (as a dataframe with columns `chrom`, `start`, `end`, `peak_name`), optionally it can have a `const` column indicating constitutive loci.
+2. ATAC scores (as a matrix with rows corresponding to peaks and columns corresponding to bins).
+3. (Optional) Additional features (as a data frame with rows corresponding to peaks and columns corresponding to features).
+
+You can then follow the steps outlined in this vignette to compute motif energies and run the regression.
 

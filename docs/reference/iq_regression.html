@@ -162,6 +162,9 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
     <dt><code>distill_on_diff</code></dt>
 <dd><p>whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility &gt;= min_diff will be used.</p></dd>
 
+    <dt><code>prego_sample_for_kmers</code></dt>
+<dd><p>whether to use a sample of the peaks for kmer screening. Default: TRUE</p></dd>
+
     <dt><code>prego_sample_fraction</code></dt>
 <dd><p>Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1</p></dd>
 
