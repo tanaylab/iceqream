@@ -74,6 +74,7 @@ Optionally, additional features such as epigenomic features can be provided.</p>
 <span>  traj_prego <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  min_diff <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  distill_on_diff <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  prego_sample_for_kmers <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  prego_sample_fraction <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">60427</span>,</span>
 <span>  feature_selection_beta <span class="op">=</span> <span class="fl">0.003</span>,</span>
@@ -178,6 +179,10 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
 
 <dt>distill_on_diff</dt>
 <dd><p>whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility &gt;= min_diff will be used.</p></dd>
+
+
+<dt>prego_sample_for_kmers</dt>
+<dd><p>whether to use a sample of the peaks for kmer screening. Default: TRUE</p></dd>
 
 
 <dt>prego_sample_fraction</dt>

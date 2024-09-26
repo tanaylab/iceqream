@@ -55,6 +55,8 @@
 <span>  T_rmax <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  motifs <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  plot_others <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  trim_pbms <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  trim_bits_thresh <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  bits_threshold <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  order_motifs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  atac_names <span class="op">=</span> <span class="va">atac_tracks</span>,</span>
@@ -134,6 +136,14 @@
 
 <dt>plot_others</dt>
 <dd><p>Logical, whether to plot other motifs that pass the threshold when specific motifs are provided.</p></dd>
+
+
+<dt>trim_pbms</dt>
+<dd><p>Logical, whether to trim PBM objects by removing positions with low information content from the beginning and end of the PSSM.</p></dd>
+
+
+<dt>trim_bits_thresh</dt>
+<dd><p>Numeric, threshold for trimming PBM objects.</p></dd>
 
 
 <dt>bits_threshold</dt>
