@@ -13,6 +13,8 @@
 #' @param T_rmax Numeric, threshold for maximum response.
 #' @param motifs A list of specific motifs to plot.
 #' @param plot_others Logical, whether to plot other motifs that pass the threshold when specific motifs are provided.
+#' @param trim_pbms Logical, whether to trim PBM objects by removing positions with low information content from the beginning and end of the PSSM.
+#' @param trim_bits_thresh Numeric, threshold for trimming PBM objects.
 #' @param bits_threshold Numeric, threshold for trimming PSSMs.
 #' @param order_motifs Logical, whether to order motifs by maximum response.
 #' @param atac_names Character vector, names for ATAC-seq tracks.
@@ -60,6 +62,8 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           T_rmax = NULL,
                           motifs = NULL,
                           plot_others = FALSE,
+                          trim_pbms = TRUE,
+                          trim_bits_thresh = 0.1,
                           bits_threshold = NULL, order_motifs = TRUE, atac_names = atac_tracks, atac_colors = NULL,
                           atac_sizes = NULL,
                           line_thresh = 0.9,
@@ -97,6 +101,10 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           rasterize = FALSE,
                           raster_device = "ragg",
                           ...) {
+    if (trim_pbms) {
+        pbm_list <- pbm_list.trim_pssm(pbm_list, trim_bits_thresh)
+    }
+
     pbm_list <- preprocess_pbm_list(pbm_list, bits_threshold)
     interval <- preprocess_interval(interval, width)
 

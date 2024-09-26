@@ -14,6 +14,8 @@ plot_iq_locus(
   T_rmax = NULL,
   motifs = NULL,
   plot_others = FALSE,
+  trim_pbms = TRUE,
+  trim_bits_thresh = 0.1,
   bits_threshold = NULL,
   order_motifs = TRUE,
   atac_names = atac_tracks,
@@ -74,6 +76,10 @@ plot_iq_locus(
 \item{motifs}{A list of specific motifs to plot.}
 
 \item{plot_others}{Logical, whether to plot other motifs that pass the threshold when specific motifs are provided.}
+
+\item{trim_pbms}{Logical, whether to trim PBM objects by removing positions with low information content from the beginning and end of the PSSM.}
+
+\item{trim_bits_thresh}{Numeric, threshold for trimming PBM objects.}
 
 \item{bits_threshold}{Numeric, threshold for trimming PSSMs.}
 
