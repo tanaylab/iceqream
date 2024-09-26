@@ -328,22 +328,22 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
     }
 
     pr <- compute_partial_response(traj_model)
-    e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x, pr, traj_model))
+    e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x, pr, traj_model, aspect.ratio = NULL))
 
     e_vs_r_boxp_p <- purrr::map(names(models), ~ plot_motif_energy_vs_response_boxplot(traj_model, .x, ylim = boxp_ylim, xlab = paste(names_map[.x], "energy"), outliers = FALSE))
 
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
     p <- patchwork::wrap_plots(
-        A = patchwork::wrap_plots(motifs_p, ncol = 1),
-        B = patchwork::wrap_plots(e_vs_pr_p, ncol = 1),
-        C = patchwork::wrap_plots(coefs_p, ncol = 1),
-        D = patchwork::wrap_plots(spatial_p, ncol = 1),
-        E = patchwork::wrap_plots(spat_freq_p, ncol = 1),
-        F = patchwork::wrap_plots(e_vs_r_boxp_p, ncol = 1),
-        G = patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
-        design = "ABCDEFG",
-        widths = c(0.5, 0.1, 0.1, 0.1, 0.3, 0.12, 0.3)
+        patchwork::wrap_plots(motifs_p, ncol = 1),
+        patchwork::wrap_plots(e_vs_pr_p, ncol = 1),
+        patchwork::wrap_plots(coefs_p, ncol = 1),
+        patchwork::wrap_plots(spatial_p, ncol = 1),
+        patchwork::wrap_plots(spat_freq_p, ncol = 1),
+        patchwork::wrap_plots(e_vs_r_boxp_p, ncol = 1),
+        patchwork::wrap_plots(atac_spat_freq_p, ncol = 1),
+        widths = c(0.5, 0.15, 0.1, 0.1, 0.3, 0.12, 0.3),
+        ncol = 7
     )
 
     if (!is.null(title)) {
@@ -368,7 +368,7 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
     }
 }
 
-plot_e_vs_pr <- function(motif, pr, traj_model, ylim = NULL) {
+plot_e_vs_pr <- function(motif, pr, traj_model, ylim = NULL, aspect.ratio = 1) {
     p <- tibble(
         e = traj_model@normalized_energies[, motif],
         pr = pr[, motif]
@@ -376,8 +376,11 @@ plot_e_vs_pr <- function(motif, pr, traj_model, ylim = NULL) {
         ggplot(aes(x = e, y = pr)) +
         scattermore::geom_scattermore(pointsize = 3) +
         labs(x = "Energy", y = "Partial response") +
-        theme_classic() +
-        theme(aspect.ratio = 1)
+        theme_classic()
+
+    if (!is.null(aspect.ratio)) {
+        p <- p + theme(aspect.ratio = aspect.ratio)
+    }
     if (!is.null(ylim)) {
         p <- p + ylim(ylim)
     }
