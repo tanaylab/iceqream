@@ -182,14 +182,14 @@ traj_model <- rename_motif_models(traj_model, names_map)
 
 ## Exporting the model
 
-You can export the minimal model representation to a list of PBM in order to use infer it on new data:
+You can export the minimal model representation to a list of PBM in order to use infer its parameters on new data:
 
 ```{r export_model}
 pbm_list <- traj_model_to_pbm_list(traj_model)
 pbm_list
 ```
 
-You can now use `pbm_list.compute` or `pbm_list.gextract` to infer the model on new data:
+You can now use `pbm_list.compute` or `pbm_list.gextract`:
 
 ```{r infer_model}
 new_intervals <- data.frame(
