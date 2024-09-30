@@ -167,7 +167,7 @@ The model report provides several key pieces of information (from left to right)
 2. Response curves show how the accessibility changes as a function of binding energy for each TF.
 3. Barplots show the coefficient of each non-linear term of every motif in the model.
 4. Spatial model curves show the parameters of the spatial model for each TF. The R² values indicate the predictive power each TF adds to the model.
-5. Spatial curves show the frequencey of each TF binding site along the peaks from the bottom 10% (blue) and top 10% (red) of the differential accessibility (dAP) distribution.
+5. Spatial curves show the frequency of each TF binding site along the peaks from the bottom 10% (blue) and top 10% (red) of the differential accessibility (dAP) distribution.
 6. Boxplots show the distribution of ATAC differences (dAP, y-axis) for bins of binding energy (x-axis) for each TF.
 
 ## Renaming the motif models 
