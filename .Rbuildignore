@@ -20,3 +20,4 @@
 ^man/figures/pipeline\.png$
 ^example_data$
 ^data-raw$
+^vignettes/articles/iceqream\.R$

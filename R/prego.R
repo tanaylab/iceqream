@@ -1,6 +1,6 @@
 #' Learn 'prego' models for ATAC difference of a trajectory
 #'
-#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
+#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive and therefiore shouldn't be used in the regression. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
 #' @param atac_diff A numeric vector, indicating the ATAC difference of each peak
 #' @param n_motifs Number of motifs to learn. Should be at least 2
 #' @param min_diff Minimum ATAC difference to include a peak in the training

@@ -46,6 +46,9 @@
 #' @slot normalization_intervals data.frame
 #'  A data frame containing the intervals used for energy normalization.
 #'
+#' @slot interactions matrix
+#' A matrix of the interaction features.
+#'
 #'
 #'
 #' @exportClass TrajectoryModel
@@ -65,6 +68,7 @@ TrajectoryModel <- setClass(
         normalization_intervals = "data.frame",
         additional_features = "data.frame",
         features_r2 = "numeric",
+        interactions = "matrix",
         params = "list"
     )
 )
@@ -74,7 +78,12 @@ TrajectoryModel <- setClass(
 #' @exportMethod show
 setMethod("show", signature = "TrajectoryModel", definition = function(object) {
     cli::cli({
-        cli::cli_text("{.cls TrajectoryModel} with {.val {length(object@motif_models)}} motifs and {.val {length(object@additional_features)}} additional features\n")
+        if (has_interactions(object)) {
+            cli::cli_text("{.cls TrajectoryModel} with {.val {length(object@motif_models)}} motifs, {.val {length(object@additional_features)}} additional features and {.val {n_interactions(object)}} interaction terms\n")
+        } else {
+            cli::cli_text("{.cls TrajectoryModel} with {.val {length(object@motif_models)}} motifs and {.val {length(object@additional_features)}} additional features\n")
+        }
+
         cli::cli_text("\n")
         cli::cli_text("Slots include:")
         cli_ul(c("{.field @model}: A GLM model object. Number of non-zero coefficients: {.val {sum(object@model$beta[, 1] != 0)}}"))
@@ -88,8 +97,9 @@ setMethod("show", signature = "TrajectoryModel", definition = function(object) {
         cli_ul(c("{.field @predicted_diff_score}: A numeric value representing the predicted difference score"))
         cli_ul(c("{.field @initial_prego_models}: A list of prego models used in the initial phase of the algorithm ({.val {length(object@initial_prego_models)}} models)"))
         cli_ul(c("{.field @peak_intervals}: A data frame containing the peak intervals ({.val {nrow(object@peak_intervals)}} elements)"))
-        if ("normalization_intervals" %in% slotNames(object)) { # here for backwards compatibility
-            cli_ul(c("{.field @normalization_intervals}: A data frame containing the intervals used for energy normalization ({.val {nrow(object@normalization_intervals)}} elements)"))
+        cli_ul(c("{.field @normalization_intervals}: A data frame containing the intervals used for energy normalization ({.val {nrow(object@normalization_intervals)}} elements)"))
+        if (has_interactions(object)) {
+            cli_ul(c("{.field @interactions}: A matrix of the interaction features ({.val {nrow(object@interactions)}}x{.val {ncol(object@interactions)}})"))
         }
         if (length(object@features_r2) > 0) {
             cli_ul(c("{.field @features_r2}: A numeric vector of the added R^2 values for each feature ({.val {length(object@features_r2)}} elements)"))
