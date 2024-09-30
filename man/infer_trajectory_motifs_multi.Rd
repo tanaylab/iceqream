@@ -16,7 +16,7 @@ infer_trajectory_motifs_multi(
 \arguments{
 \item{traj_multi}{A TrajectoryModelMulti object.}
 
-\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
+\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
 
 \item{atac_scores}{A list of data frames with ATAC-seq scores for each individual trajectory.}
 

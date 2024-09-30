@@ -39,13 +39,17 @@ regress_trajectory_motifs(
   peaks_size = 500,
   spat_num_bins = NULL,
   spat_bin_size = 2,
-  kmer_sequence_length = 300
+  kmer_sequence_length = 300,
+  include_interactions = FALSE,
+  interaction_threshold = 0.001,
+  max_motif_interaction_n = NULL,
+  max_add_interaction_n = NULL
 )
 }
 \arguments{
-\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
+\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
 
-\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
+\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
 
 \item{atac_diff}{Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.}
 
@@ -61,7 +65,7 @@ regress_trajectory_motifs(
 
 \item{norm_motif_energies}{A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
 
-\item{pssm_db}{a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.}
+\item{pssm_db}{a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.}
 
 \item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
 
@@ -123,6 +127,14 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{spat_bin_size}{size of each spatial bin.}
 
 \item{kmer_sequence_length}{length of the kmer sequence to use for kmer screening. By default the full sequence is used.}
+
+\item{include_interactions}{whether to include interactions between motifs / additional fetures as model features. IQ will create interactions between significant additional features and all motifs, and between significant motifs. Default: FALSE}
+
+\item{interaction_threshold}{threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001}
+
+\item{max_motif_interaction_n}{maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL}
+
+\item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
 }
 \value{
 An instance of \code{TrajectoryModel} containing model information and results:
@@ -136,6 +148,7 @@ An instance of \code{TrajectoryModel} containing model information and results:
 \item initial_prego_models: List, inferred prego models at the initial step of the algorithm.
 \item peak_intervals: data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.
 }
+Print the model to see more details.
 }
 \description{
 This function performs motif regression on ATAC trajectories. It can work with either ATAC scores on trajectory bins or directly with differential accessibility.

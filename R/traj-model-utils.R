@@ -95,12 +95,28 @@ remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TR
     }
     vars_f <- vars[!(vars %in% motif_models)]
 
-    X_f <- X[, grep(paste0("(", paste(motif_models, collapse = "|"), ")(_low-energy|_high-energy|_higher-energy|_sigmoid)"), colnames(X), invert = TRUE)]
+    ftv <- feat_to_variable(traj_model, add_types = TRUE)
+    interactions <- traj_model@interactions
+    if (has_interactions(traj_model)) {
+        ftv <- ftv %>% filter(
+            !(variable %in% motif_models), !(term1 %in% motif_models), !(term2 %in% motif_models)
+        )
+
+        feats <- ftv %>% pull(feature)
+        interactions <- interactions[, intersect(colnames(interactions), ftv$variable)]
+    } else {
+        feats <- ftv %>%
+            filter(!(variable %in% motif_models)) %>%
+            pull(feature)
+    }
+
+    X_f <- X[, feats]
 
     traj_model@model_features <- X_f
     traj_model@motif_models <- traj_model@motif_models[vars_f]
     traj_model@features_r2 <- traj_model@features_r2[vars_f[vars_f %in% names(traj_model@features_r2)]]
     traj_model@normalized_energies <- traj_model@normalized_energies[, vars_f, drop = FALSE]
+    traj_model@interactions <- interactions
 
     traj_model <- relearn_traj_model(traj_model, verbose = FALSE)
     r2_f <- cor(traj_model@predicted_diff_score, norm01(traj_model@diff_score))^2
@@ -118,11 +134,27 @@ remove_additional_feature_from_traj <- function(traj_model, feature_name, verbos
     if (!feature_name %in% vars) {
         cli_abort("Feature {.val {feature_name}} not found in the trajectory model.")
     }
+    ftv <- feat_to_variable(traj_model, add_types = TRUE)
 
-    X_f <- X[, grep(paste0("(", feature_name, ")"), colnames(X), invert = TRUE)]
+    interactions <- traj_model@interactions
+    if (has_interactions(traj_model)) {
+        ftv <- ftv %>% filter(
+            variable != feature_name, term1 != feature_name, term2 != feature_name
+        )
+
+        feats <- ftv %>% pull(feature)
+        interactions <- interactions[, intersect(colnames(interactions), ftv$variable)]
+    } else {
+        feats <- ftv %>%
+            filter(variable != feature_name) %>%
+            pull(feature)
+    }
+
+    X_f <- X[, feats]
 
     traj_model@model_features <- X_f
     traj_model@additional_features <- traj_model@additional_features[, vars[vars != feature_name], drop = FALSE]
+    traj_model@interactions <- interactions
 
     traj_model <- relearn_traj_model(traj_model, verbose = FALSE)
     r2_f <- cor(traj_model@predicted_diff_score, norm01(traj_model@diff_score))^2

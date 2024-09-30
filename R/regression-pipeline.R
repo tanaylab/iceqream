@@ -26,7 +26,12 @@ iq_regression <- function(
     seed = 60427,
     frac_train = 0.8,
     filter_model = TRUE,
+    include_interactions = FALSE,
+    interaction_threshold = 0.001,
+    max_motif_interaction_n = NULL,
+    max_add_interaction_n = NULL,
     ...) {
+    set.seed(seed)
     n_intervals <- nrow(peak_intervals)
     train_idxs <- sample(1:n_intervals, frac_train * n_intervals)
     test_idxs <- setdiff(1:n_intervals, train_idxs)
@@ -46,6 +51,11 @@ iq_regression <- function(
         bin_start = bin_start,
         bin_end = bin_end,
         max_motif_num = max_motif_num,
+        seed = seed,
+        include_interactions = include_interactions,
+        interaction_threshold = interaction_threshold,
+        max_motif_interaction_n = max_motif_interaction_n,
+        max_add_interaction_n = max_add_interaction_n,
         ...
     )
 
