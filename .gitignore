@@ -15,3 +15,4 @@ example_data
 vignettes/articles/iceqream_cache/
 data-raw/*.ipynb
 data-raw/*.png
+vignettes/articles/iceqream.R

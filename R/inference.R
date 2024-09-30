@@ -47,9 +47,20 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         e_test <- cbind(e_test, additional_features)
     }
 
+    if (has_interactions(traj_model)) {
+        ftv_inter <- feat_to_variable(traj_model, add_type = TRUE) %>%
+            filter(type == "interaction") %>%
+            distinct(variable, term1, term2)
+        cli::cli_alert_info("Computing {.val {nrow(ftv_inter)}} interaction terms")
+        interactions <- create_specifc_terms(e_test, ftv_inter)
+        interactions <- interactions[, colnames(traj_model@interactions), drop = FALSE]
+        e_test <- cbind(e_test, interactions)
+    }
+
     e_test_logist <- create_logist_features(e_test)
     e_test_logist <- e_test_logist[, colnames(traj_model@model_features), drop = FALSE]
 
+    cli::cli_alert_info("Inferring the model on {.val {nrow(e_test_logist)}} intervals")
     pred <- predict_traj_model(traj_model, e_test_logist)
     traj_model@predicted_diff_score <- c(traj_model@predicted_diff_score, pred)
 
@@ -70,6 +81,9 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         traj_model@additional_features <- bind_rows(traj_model@additional_features, as.data.frame(additional_features))
     }
 
+    if (has_interactions(traj_model)) {
+        traj_model@interactions <- rbind(traj_model@interactions, interactions)
+    }
 
     return(traj_model)
 }

@@ -171,7 +171,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
             optimize_pwm <- FALSE
             motif <- motif_models[[x$feat[1]]]$pssm
         } else {
-            cli_alert_info("Running {.field prego} on cluster {.val {clust_name}}, distilling {.val {n_feats}} features")
+            cli_alert_info("Running {.field prego} on cluster {.val {clust_name}}, fusing {.val {n_feats}} features")
         }
 
 
@@ -205,7 +205,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         ) %>%
             cli::cli_fmt()
 
-        cli::cli_alert_success("Finished distilling cluster {.val {clust_name}}")
+        cli::cli_alert_success("Finished fusing cluster {.val {clust_name}}")
 
         return(prego::export_regression_model(prego_model))
     }, .parallel = TRUE)
@@ -247,7 +247,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         compute_traj_list_stats(traj_models_full) %>% mutate(type = "full")
     )
 
-    cli_alert_success("Finished distilling trajectory models")
+    cli_alert_success("Finished fusing trajectory models")
     purrr::walk(names(traj_models), ~ {
         cli_alert_info("Model {.field {.x}}: R^2: {.val {traj_models_new[[.x]]@params$stats$r2_all}} ({.val {length(traj_models_new[[.x]]@motif_models)}} motifs), before distillation: {.val {traj_models[[.x]]@params$stats$r2_all}} ({.val {length(traj_models[[.x]]@motif_models)}} motifs)")
     })

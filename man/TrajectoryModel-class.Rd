@@ -59,5 +59,8 @@ A numeric vector of R^2 values for each feature.}
 
 \item{\code{normalization_intervals}}{data.frame
 A data frame containing the intervals used for energy normalization.}
+
+\item{\code{interactions}}{matrix
+A matrix of the interaction features.}
 }}
 
