@@ -5,8 +5,8 @@
 #' The basic inputs for regression are the genomic positions of the peaks, two vectors of ATAC scores (as an \code{atac_scores} matrix) or differential accessibility (\code{atac_diff}), and database energies computed for all the genomics positions.
 #' Optionally, additional features such as epigenomic features can be provided.
 #'
-#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
-#' @param atac_scores Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.
+#' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.
+#' @param atac_scores Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.
 #' @param atac_diff Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.
 #' @param normalize_bins whether to normalize the ATAC scores to be between 0 and 1. Default: TRUE
 #' @param norm_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.
@@ -14,7 +14,7 @@
 #' @param n_clust_factor factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1
 #' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param norm_motif_energies A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
-#' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.
+#' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
 #' @param min_tss_distance distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 #' Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.
@@ -39,6 +39,10 @@
 #' @param spat_num_bins number of spatial bins to use.
 #' @param spat_bin_size size of each spatial bin.
 #' @param kmer_sequence_length length of the kmer sequence to use for kmer screening. By default the full sequence is used.
+#' @param include_interactions whether to include interactions between motifs / additional fetures as model features. IQ will create interactions between significant additional features and all motifs, and between significant motifs. Default: FALSE
+#' @param interaction_threshold threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001
+#' @param max_motif_interaction_n maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL
+#' @param max_add_interaction_n maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL
 #'
 #' @return An instance of `TrajectoryModel` containing model information and results:
 #' \itemize{
@@ -51,6 +55,7 @@
 #'   \item initial_prego_models: List, inferred prego models at the initial step of the algorithm.
 #'   \item peak_intervals: data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.
 #' }
+#' Print the model to see more details.
 #'
 #' @inheritParams glmnet::glmnet
 #' @export
@@ -88,7 +93,11 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       peaks_size = 500,
                                       spat_num_bins = NULL,
                                       spat_bin_size = 2,
-                                      kmer_sequence_length = 300) {
+                                      kmer_sequence_length = 300,
+                                      include_interactions = FALSE,
+                                      interaction_threshold = 0.001,
+                                      max_motif_interaction_n = NULL,
+                                      max_add_interaction_n = NULL) {
     withr::local_options(list(gmax.data.size = 1e9))
 
     if (is.null(atac_scores) && is.null(atac_diff)) {
@@ -129,10 +138,20 @@ regress_trajectory_motifs <- function(peak_intervals,
 
     min_energy <- -7
 
+    # check if misha package is loaded
+    if (!requireNamespace("misha", quietly = TRUE)) {
+        cli_abort("Please install the misha package to use the 'min_tss_distance' parameter")
+    }
+    # check that an environment called .misha exists
+    if (!exists(".misha", envir = .GlobalEnv)) {
+        cli_abort("Please load the misha package {.code library(misha)} and set the genome using {.code misha::gsetroot()}")
+    }
+
     # filter peaks that are too close to TSS
     if (!is.null(min_tss_distance)) {
         if (!misha::gintervals.exists("intervs.global.tss")) {
-            cli_abort("Please make sure the current genome ({.field {GROOT}}) has an intervals set called {.val intervs.global.tss}")
+            misha_root <- .misha$GROOT
+            cli_abort("Please make sure the current genome ({.field {misha_root}}) has an intervals set called {.val intervs.global.tss}")
         }
 
         tss_dist <- abs(misha::gintervals.neighbors(as.data.frame(peak_intervals), "intervs.global.tss", na.if.notfound = TRUE)$dist)
@@ -236,22 +255,62 @@ regress_trajectory_motifs <- function(peak_intervals,
     } else {
         diff_filter <- rep(TRUE, nrow(peak_intervals))
     }
-    distilled <- distill_motifs(features, max_motif_num, glm_model2, y = atac_diff_n, seqs = all_seqs[enhancers_filter], norm_seqs = norm_seqs, diff_filter, additional_features = additional_features, pssm_db = pssm_db, lambda = lambda, alpha = alpha, energy_norm_quantile = energy_norm_quantile, norm_energy_max = norm_energy_max, min_energy = min_energy, seed = seed, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, n_clust_factor = n_clust_factor, distill_single = FALSE)
+
+    distilled <- distill_motifs(
+        features,
+        max_motif_num,
+        glm_model2,
+        y = atac_diff_n,
+        seqs = all_seqs[enhancers_filter],
+        norm_seqs = norm_seqs,
+        diff_filter,
+        additional_features = additional_features,
+        pssm_db = pssm_db,
+        lambda = lambda,
+        alpha = alpha,
+        energy_norm_quantile = energy_norm_quantile,
+        norm_energy_max = norm_energy_max,
+        min_energy = min_energy,
+        seed = seed,
+        spat_num_bins = spat_num_bins,
+        spat_bin_size = spat_bin_size,
+        kmer_sequence_length = kmer_sequence_length,
+        n_clust_factor = n_clust_factor,
+        distill_single = FALSE
+    )
     clust_energies <- distilled$energies
+
+    if (include_interactions) {
+        interactions <- get_significant_interactions(
+            energies = clust_energies,
+            y = atac_diff_n,
+            interaction_threshold = interaction_threshold, additional_features = additional_features,
+            max_motif_n = max_motif_interaction_n,
+            max_add_n = max_add_interaction_n,
+            lambda = lambda, alpha = alpha, seed = seed
+        )
+        clust_energies <- cbind(clust_energies, interactions)
+    } else {
+        interactions <- matrix(0, nrow = nrow(clust_energies), ncol = 0)
+    }
 
     clust_energies_logist <- create_logist_features(clust_energies)
 
+    cli_alert_info("Running final regression, number of features: {.val {ncol(clust_energies_logist)}}")
     model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
 
     predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = lambda))[, 1]
     predicted_diff_score <- norm01(predicted_diff_score)
     predicted_diff_score <- rescale(predicted_diff_score, atac_diff)
 
-
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
 
     # remove additional features from clust_energies
     normalized_energies <- clust_energies[, setdiff(colnames(clust_energies), colnames(additional_features))]
+
+    if (include_interactions) {
+        normalized_energies <- normalized_energies[, setdiff(colnames(normalized_energies), colnames(interactions))]
+    }
 
     traj_model <- TrajectoryModel(
         model = model,
@@ -266,6 +325,7 @@ regress_trajectory_motifs <- function(peak_intervals,
         initial_prego_models = prego_models,
         peak_intervals = peak_intervals,
         normalization_intervals = norm_intervals,
+        interactions = interactions,
         params = list(
             energy_norm_quantile = energy_norm_quantile,
             norm_energy_max = norm_energy_max,
@@ -277,6 +337,8 @@ regress_trajectory_motifs <- function(peak_intervals,
             spat_bin_size = spat_bin_size,
             distilled_features = distilled$features,
             n_clust_factor = n_clust_factor,
+            include_interactions = include_interactions,
+            interaction_threshold = interaction_threshold,
             seed = seed
         )
     )
@@ -303,8 +365,8 @@ validate_atac_scores <- function(atac_scores, bin_start, bin_end) {
     }
 }
 
-validate_peak_intervals <- function(peak_intervals, columns = c("chrom", "start", "end", "const")) {
-    # make sure that peak intervals have 'chrom' 'start' 'end' and 'const' columns
+validate_peak_intervals <- function(peak_intervals, columns = c("chrom", "start", "end")) {
+    # make sure that peak intervals have 'chrom' 'start' 'end' columns
     if (!all(columns %in% colnames(peak_intervals))) {
         cli_abort("{.field 'peak_intervals'} must have '{.val {columns}} columns", call = parent.frame(1))
     }

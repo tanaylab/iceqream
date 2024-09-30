@@ -8,6 +8,9 @@ Authors@R: c(
   )
 Description: iceqream is a package for regressing accessibility from sequences using physical models of TF binding, It models TF effective concentrations as latent variables that activate or repress regulatory elements in a nonlinear fashion, with possible contribution from pairwise interactions and synergistic chromosomal domain effects. iceqream allows inference and synthesis of models explaining accessibility dynamics over an entire single cell manifold. 
 License: MIT + file LICENSE
+Depends:
+    R (>= 2.10),
+    misha (>= 4.2.0)
 Imports: 
     cli,
     dplyr,
@@ -50,11 +53,9 @@ Remotes:
     tanaylab/prego
 Config/testthat/edition: 3
 Encoding: UTF-8
-Language: es
+Language: en-US
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Config/Needs/website: rmarkdown
-Depends: 
-    R (>= 2.10)
 LazyData: true
 URL: https://tanaylab.github.io/iceqream/

@@ -20,13 +20,17 @@ iq_regression(
   seed = 60427,
   frac_train = 0.8,
   filter_model = TRUE,
+  include_interactions = FALSE,
+  interaction_threshold = 0.001,
+  max_motif_interaction_n = NULL,
+  max_add_interaction_n = NULL,
   ...
 )
 }
 \arguments{
-\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
+\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
 
-\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either set bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
+\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
 
 \item{atac_diff}{Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.}
 
@@ -54,12 +58,20 @@ iq_regression(
 
 \item{filter_model}{A logical value indicating whether to filter the model (default is TRUE).}
 
+\item{include_interactions}{whether to include interactions between motifs / additional fetures as model features. IQ will create interactions between significant additional features and all motifs, and between significant motifs. Default: FALSE}
+
+\item{interaction_threshold}{threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001}
+
+\item{max_motif_interaction_n}{maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL}
+
+\item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
+
 \item{...}{
   Arguments passed on to \code{\link[=regress_trajectory_motifs]{regress_trajectory_motifs}}
   \describe{
     \item{\code{n_clust_factor}}{factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1}
     \item{\code{norm_motif_energies}}{A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
-    \item{\code{pssm_db}}{a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs in the prego package.}
+    \item{\code{pssm_db}}{a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.}
     \item{\code{min_tss_distance}}{distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.}
     \item{\code{normalize_energies}}{whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.}
@@ -104,6 +116,7 @@ An instance of \code{TrajectoryModel} containing model information and results:
 \item initial_prego_models: List, inferred prego models at the initial step of the algorithm.
 \item peak_intervals: data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.
 }
+Print the model to see more details.
 }
 \description{
 Perform IQ regression on peak intervals using the provided ATAC-seq scores, ATAC-seq score differences, normalized intervals, motif energies, and additional features, after dividing the intervals into training and testing sets.
