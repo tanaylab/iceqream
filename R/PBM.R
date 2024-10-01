@@ -134,7 +134,7 @@ traj_model_to_pbm_list <- function(
 
     norm_energies <- plyr::llply(traj_model@motif_models, function(x) {
         prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
     names(norm_energies) <- names(traj_model@motif_models)
     norm_energies <- do.call(cbind, norm_energies)
 
@@ -260,7 +260,7 @@ pbm_list.compute <- function(pbm_list, sequences, response = FALSE, func = "logS
     cli::cli_alert_info("Computing energies for {.val {length(pbm_list)}} PBMs on {.val {length(sequences)}} sequences")
     energies <- plyr::llply(pbm_list, function(pbm) {
         pbm.compute(pbm, sequences, response, func = func, normalize_energies = normalize_energies)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
     energies <- do.call(cbind, energies)
 
     return(energies)
@@ -394,7 +394,7 @@ pbm.gextract_local <- function(pbm, intervals, response = FALSE, scaling_q = 0.9
 pbm_list.compute_local <- function(pbm_list, sequences, response = FALSE, scaling_q = NULL) {
     energies <- plyr::llply(pbm_list, function(pbm) {
         pbm.compute_local(pbm, sequences, response, scaling_q)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
 
     return(energies)
 }

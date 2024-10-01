@@ -124,13 +124,13 @@ infer_energies <- function(sequences, norm_sequences, motif_list, min_energy, en
 
     energies <- plyr::llply(ml, function(x) {
         prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
     names(energies) <- names(ml)
     energies <- do.call(cbind, energies)
 
     norm_energies <- plyr::llply(ml, function(x) {
         prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
     names(norm_energies) <- names(ml)
     norm_energies <- do.call(cbind, norm_energies)
 

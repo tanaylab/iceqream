@@ -23,7 +23,7 @@ learn_traj_prego(
 )
 }
 \arguments{
-\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive and therefiore shouldn't be used in the regression. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
+\item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive and therefore shouldn't be used in the regression. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
 
 \item{atac_diff}{A numeric vector, indicating the ATAC difference of each peak}
 
