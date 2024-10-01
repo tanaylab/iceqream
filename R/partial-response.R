@@ -18,9 +18,16 @@ feat_to_variable <- function(traj_model, add_types = FALSE) {
         if (has_interactions(traj_model)) {
             ftv_nointer <- ftv %>%
                 filter(type != "interaction")
+            valid_variables <- unique(ftv_nointer$variable)
+            valid_variables_regex <- paste0("(", paste(valid_variables, collapse = "|"), ")")
             ftv_inter <- ftv %>%
                 filter(type == "interaction") %>%
-                separate(variable, c("term1", "term2"), sep = ":", remove = FALSE) %>%
+                mutate(
+                    term1 = stringr::str_extract(variable, paste0(valid_variables_regex, ":")),
+                    term2 = stringr::str_extract(variable, paste0(":", valid_variables_regex)),
+                    term1 = gsub(":$", "", term1),
+                    term2 = gsub("^:", "", term2)
+                ) %>%
                 mutate(
                     term1_type = classify_var(term1, traj_model),
                     term2_type = classify_var(term2, traj_model)

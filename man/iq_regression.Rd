@@ -20,10 +20,14 @@ iq_regression(
   seed = 60427,
   frac_train = 0.8,
   filter_model = TRUE,
+  r2_threshold = 0.0005,
+  bits_threshold = 1.75,
+  filter_sample_frac = 0.1,
   include_interactions = FALSE,
   interaction_threshold = 0.001,
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
+  n_cores = NULL,
   ...
 )
 }
@@ -58,6 +62,12 @@ iq_regression(
 
 \item{filter_model}{A logical value indicating whether to filter the model (default is TRUE).}
 
+\item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
+
+\item{bits_threshold}{minimal sum of bits for a feature to be included in the model.}
+
+\item{filter_sample_frac}{The fraction of samples to use for computing the r2 without each model at the filtering step. When NULL, all samples are used.}
+
 \item{include_interactions}{whether to include interactions between motifs / additional fetures as model features. IQ will create interactions between significant additional features and all motifs, and between significant motifs. Default: FALSE}
 
 \item{interaction_threshold}{threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001}
@@ -65,6 +75,8 @@ iq_regression(
 \item{max_motif_interaction_n}{maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL}
 
 \item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
+
+\item{n_cores}{The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80\% of the available cores. See \code{\link{prego::set_parallel}} for more details.}
 
 \item{...}{
   Arguments passed on to \code{\link[=regress_trajectory_motifs]{regress_trajectory_motifs}}
@@ -85,7 +97,6 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
     \item{\code{prego_sample_fraction}}{Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1}
     \item{\code{feature_selection_beta}}{beta parameter used for feature selection.}
     \item{\code{filter_using_r2}}{whether to filter features using R^2.}
-    \item{\code{r2_threshold}}{minimal R^2 for a feature to be included in the model.}
     \item{\code{parallel}}{whether to use parallel processing on glmnet.}
     \item{\code{spat_num_bins}}{number of spatial bins to use.}
     \item{\code{spat_bin_size}}{size of each spatial bin.}
