@@ -150,7 +150,7 @@ Next, let's look at the model report, which provides detailed information about 
 plot_traj_model_report(traj_model, filename = "model_report.pdf")
 ```
 
-```{r show_report}
+```{r show_report, out.width='100%', out.height='800px', fig.align='center'}
 knitr::include_graphics("model_report.pdf")
 ```
 
