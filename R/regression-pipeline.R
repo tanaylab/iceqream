@@ -47,7 +47,7 @@ iq_regression <- function(
         prego::set_parallel(n_cores)
     }
 
-    cli::alert("Seed: {.val {seed}}")
+    cli::cli_alert_info("Seed: {.val {seed}}")
     set.seed(seed)
     n_intervals <- nrow(peak_intervals)
     train_idxs <- sample(1:n_intervals, frac_train * n_intervals)
