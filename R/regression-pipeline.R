@@ -4,9 +4,12 @@
 #'
 #' @param frac_train  A numeric value indicating the fraction of intervals to use for training (default is 0.8).
 #' @param filter_model A logical value indicating whether to filter the model (default is TRUE).
+#' @param filter_sample_frac The fraction of samples to use for computing the r2 without each model at the filtering step. When NULL, all samples are used.
+#' @param n_cores The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80% of the available cores. See \code{\link{prego::set_parallel}} for more details.
 #'
 #'
 #' @inheritParams regress_trajectory_motifs
+#' @inheritParams filter_traj_model
 #' @inheritDotParams regress_trajectory_motifs
 #' @inherit regress_trajectory_motifs return
 #' @export
@@ -26,11 +29,25 @@ iq_regression <- function(
     seed = 60427,
     frac_train = 0.8,
     filter_model = TRUE,
+    r2_threshold = 0.0005,
+    bits_threshold = 1.75,
+    filter_sample_frac = 0.1,
     include_interactions = FALSE,
     interaction_threshold = 0.001,
     max_motif_interaction_n = NULL,
     max_add_interaction_n = NULL,
+    n_cores = NULL,
     ...) {
+    if (!is.null(n_cores)) {
+        cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
+        if (!is.null(getOption("prego.parallel.nc"))) {
+            cli::cli_alert("(Previous number of cores was {.val {getOption('prego.parallel.nc')}})")
+            withr::defer(prego::set_parallel(getOption("prego.parallel.nc")))
+        }
+        prego::set_parallel(n_cores)
+    }
+
+    cli::alert("Seed: {.val {seed}}")
     set.seed(seed)
     n_intervals <- nrow(peak_intervals)
     train_idxs <- sample(1:n_intervals, frac_train * n_intervals)
@@ -61,7 +78,7 @@ iq_regression <- function(
 
     if (filter_model) {
         cli::cli_alert("Filtering the model")
-        traj_model <- filter_traj_model(traj_model, ...)
+        traj_model <- filter_traj_model(traj_model, r2_threshold = r2_threshold, bits_threshold = bits_threshold, sample_frac = filter_sample_frac, seed = seed)
     }
 
     cli::cli_alert("Infering trajectory motifs on the test set")
