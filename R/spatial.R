@@ -64,11 +64,11 @@ direct_traj_model <- function(traj_model, size = 500) {
 
     l_e <- plyr::llply(traj_model@motif_models, function(x) {
         prego::compute_pwm(s_l, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
     l_e <- do.call(cbind, l_e)
     r_e <- plyr::llply(traj_model@motif_models, function(x) {
         prego::compute_pwm(s_r, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
     r_e <- do.call(cbind, r_e)
     r_ge_l <- r_e > l_e
 

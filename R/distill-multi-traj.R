@@ -208,7 +208,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         cli::cli_alert_success("Finished fusing cluster {.val {clust_name}}")
 
         return(prego::export_regression_model(prego_model))
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
 
     names(prego_distilled) <- clust_to_name[names(prego_distilled)]
 

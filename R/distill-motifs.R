@@ -200,7 +200,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
         )
         cli::cli_alert_success("Finished running {.field prego} on cluster {.val {x$feat}}")
         return(res)
-    }, .parallel = TRUE)
+    }, .parallel = getOption("prego.parallel", TRUE))
     names(best_motifs_prego) <- best_clust_map$feat
 
     cli_alert_info("Infering energies...")
