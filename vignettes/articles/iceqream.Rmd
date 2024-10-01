@@ -1,11 +1,11 @@
 ---
 title: "IceQream"
 resource_files:
-  - gastrulation-example/peak_intervals.tsv
+  - gastrulation-example/peak_intervals.rds
   - gastrulation-example/atac_scores.rds
   - gastrulation-example/additional_features.rds
   - gastrulation-example/gastrulation_intervals.tsv  
-  - gastrulation_energies.rds
+  - gastrulation-example/motif_energies.rds
   - model_report.pdf
   - mm10
 ---
@@ -17,12 +17,10 @@ knitr::opts_chunk$set(
 )
 ```
 
-
-
 ## Introduction
 IceQream (Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs) is a package for regressing accessibility from DNA sequences. It models TF effective concentrations as latent variables that activate or repress regulatory elements in a nonlinear fashion, with possible contribution from pairwise interactions and synergistic chromosomal domain effects.
 
-This vignette demonstrates how to use IceQream to analyze chromosome accessibility data, specifically focusing on a mouse gastrulation trajectory from Epiblast to Early nascent mesoderm. This analysis can help identify key regulatory elements and transcription factors involved in cellular differentiation processes, and understand quantitatively how they contribute to the observed changes in chromatin accessibility.
+This vignette demonstrates how to use IceQream to analyze chromosome accessibility data, focusing on a sample of 5000 loci from a mouse gastrulation trajectory from Epiblast to Early nascent mesoderm. This analysis can help identify key regulatory elements and transcription factors involved in cellular differentiation processes, and understand quantitatively how they contribute to the observed changes in chromatin accessibility.
 
 ## Setup and Data Preparation
 
@@ -32,7 +30,6 @@ First, let's load the necessary packages and set up our environment:
 library(iceqream)
 library(misha)
 library(misha.ext)
-options(timeout = 2 * 60 * 60) # allow 2 hours for loading large files
 ```
 
 ### Creating a `misha` genome
@@ -51,7 +48,7 @@ gsetroot("mm10")
 
 See [below](#running-iceqream-on-your-own-data) for minimal instructions on how to use IceQream on your own data.
 
-For this tutorial, we'll use pre-prepared data from a mouse gastrulation trajectory. Let's download and load this data:
+For this tutorial, we'll use pre-prepared data from a sample of the mouse gastrulation trajectory. Let's download and load this data:
 
 ```{r download_data, eval=FALSE}
 download.file("https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation-example.tar.gz", "gastrulation-example.tar.gz")
@@ -59,7 +56,7 @@ untar("gastrulation-example.tar.gz")
 ```
 
 ```{r load_data}
-peak_intervals <- readr::read_tsv("gastrulation-example/peak_intervals.tsv", show_col_types = FALSE)
+peak_intervals <- readr::read_rds("gastrulation-example/peak_intervals.rds")
 atac_scores <- readr::read_rds("gastrulation-example/atac_scores.rds")
 additional_features <- readr::read_rds("gastrulation-example/additional_features.rds")
 normalization_intervals <- readr::read_tsv("gastrulation-example/gastrulation_intervals.tsv", show_col_types = FALSE)
@@ -87,38 +84,37 @@ The `peak_intervals` dataframe contains the genomic positions of accessibility p
 
 ## Computing Motif Energies
 
-The first step in the IceQream pipeline is to compute motif energies for each transcription factor model and each peak. This process is computationally intensive, as it calculates energies for over 20,000 motifs from various databases.
+The first step in the IceQream pipeline is to compute motif energies for each transcription factor model and each peak. This process can be computationally intensive, as it calculates energies for over 20,000 motifs from various databases.
 
 ```{r compute_motif_energies, eval=FALSE}
 motif_energies <- compute_motif_energies(peak_intervals, motif_db, normalization_intervals = normalization_intervals)
 ```
 
-For this tutorial, we'll use pre-computed motif energies:
-
-```{r load_motif_energies, eval=FALSE}
-download.file("https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation_energies.tar.gz", "gastrulation_energies.tar.gz")
-untar("gastrulation_energies.tar.gz")
-```
+However, for this tutorial, we're using pre-computed motif energies for a sample of 5000 loci, which are included in the example data:
 
 ```{r load_precomputed_energies}
-motif_energies <- readr::read_rds("gastrulation_energies.rds")
-motif_energies <- motif_energies[peak_intervals$peak_name, ]
+motif_energies <- readr::read_rds("gastrulation-example/motif_energies.rds")
 print(paste("Motif energy matrix dimensions:", paste(dim(motif_energies), collapse = " x ")))
 ```
 
-For a less memory and computationally intensive analysis, you can use the SCENIC motif clusters instead of all motifs (See [Performance Considerations](#performance-considerations) section).
+This pre-computed matrix contains motif energies for our sample of peaks, allowing us to proceed with the analysis more quickly.
+
+For a less memory and computationally intensive analysis on your own data, you can reduce the number of motifs used in the regression by taking a representative from the SCENIC clusters (1615) instead of all motifs (20,000+). This can be done by:
+
+```{r reduce_motifs, eval=FALSE}
+motif_energies <- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)
+```
 
 ## Running IceQream
 
 Now we're ready to run the IceQream regression:
 
-This takes ~25 minutes on a 40 core machine with 256GB of RAM.
-
-```{r run_iceqream, cache=TRUE}
+```{r run_iceqream}
 traj_model <- iq_regression(
     peak_intervals = peak_intervals,
     atac_scores = atac_scores,
     motif_energies = motif_energies,
+    normalize_energies = FALSE,
     additional_features = additional_features,
     norm_intervals = normalization_intervals,
     seed = 60427,
@@ -135,7 +131,6 @@ print(traj_model)
 ```
 
 The `TrajectoryModel` object contains components such as the regression model, motif models, and predicted accessibility scores.
-
 
 ## Visualizing Results
 
@@ -205,18 +200,6 @@ seqs
 pbm_list.compute(pbm_list, seqs)
 ```
 
-## Performance Considerations
-
-The computational requirements for IceQream depend on the size of your dataset. For reference, the example dataset used here (with ~100,000 peaks and ~20,000 motifs) requires about 23GB of RAM for the motif energy matrix, and will take several hours to create, depending on your hardware.
-
-For a less memory and computationally intensive analysis, you can reduce the number of motifs used in the regression by taking a representative from the SCENIC clusters (1615) instead of all motifs (20,000+). This can be done by: 
-
-```{r reduce_motifs, eval=FALSE}
-# motif_energies <- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)
-```
-
-Note that the performance of the model will be lower with fewer motifs, but it can still provide valuable insights.
-
 ## Running IceQream on your own data
 
 To run IceQream on your own data, you will need to provide the following inputs:
@@ -225,5 +208,4 @@ To run IceQream on your own data, you will need to provide the following inputs:
 2. ATAC scores (as a matrix with rows corresponding to peaks and columns corresponding to bins).
 3. (Optional) Additional features (as a data frame with rows corresponding to peaks and columns corresponding to features).
 
-You can then follow the steps outlined in this vignette to compute motif energies and run the regression.
-
+You can then follow the steps outlined in this vignette to compute motif energies, run the regression and analyze the results.

@@ -73,11 +73,12 @@ as latent variables that activate or repress regulatory elements in a
 nonlinear fashion, with possible contribution from pairwise interactions
 and synergistic chromosomal domain effects.</p>
 <p>This vignette demonstrates how to use IceQream to analyze chromosome
-accessibility data, specifically focusing on a mouse gastrulation
-trajectory from Epiblast to Early nascent mesoderm. This analysis can
-help identify key regulatory elements and transcription factors involved
-in cellular differentiation processes, and understand quantitatively how
-they contribute to the observed changes in chromatin accessibility.</p>
+accessibility data, focusing on a sample of 5000 loci from a mouse
+gastrulation trajectory from Epiblast to Early nascent mesoderm. This
+analysis can help identify key regulatory elements and transcription
+factors involved in cellular differentiation processes, and understand
+quantitatively how they contribute to the observed changes in chromatin
+accessibility.</p>
 </div>
 <div class="section level2">
 <h2 id="setup-and-data-preparation">Setup and Data Preparation<a class="anchor" aria-label="anchor" href="#setup-and-data-preparation"></a>
@@ -89,23 +90,16 @@ environment:</p>
 <span><span class="co">#&gt; Loading required package: misha</span></span></code></pre></div>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tanaylab.github.io/misha/" class="external-link">misha</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">misha.ext</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'misha.ext'</span></span>
-<span><span class="co">#&gt; The following object is masked from 'package:misha':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     gtrack.create_dirs</span></span></code></pre></div>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>timeout <span class="op">=</span> <span class="fl">2</span> <span class="op">*</span> <span class="fl">60</span> <span class="op">*</span> <span class="fl">60</span><span class="op">)</span> <span class="co"># allow 2 hours for loading large files</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">misha.ext</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="creating-a-misha-genome">Creating a <code>misha</code> genome<a class="anchor" aria-label="anchor" href="#creating-a-misha-genome"></a>
 </h3>
 <p>We will start by creating a misha database for mm10 genome. If you
 already have an <code>mm10</code> misha database you can skip this part
 and load the genome using <code>gsetroot("path/to/mm10")</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://tanaylab.github.io/misha/reference/gdb.create_genome.html" class="external-link">gdb.create_genome</a></span><span class="op">(</span><span class="st">"mm10"</span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/misha.ext/man/gdb.create_genome.html" class="external-link">gdb.create_genome</a></span><span class="op">(</span><span class="st">"mm10"</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://tanaylab.github.io/misha/reference/gdb.init.html" class="external-link">gsetroot</a></span><span class="op">(</span><span class="st">"mm10"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -113,85 +107,85 @@ and load the genome using <code>gsetroot("path/to/mm10")</code>.</p>
 </h3>
 <p>See <a href="#running-iceqream-on-your-own-data">below</a> for
 minimal instructions on how to use IceQream on your own data.</p>
-<p>For this tutorial, we’ll use pre-prepared data from a mouse
-gastrulation trajectory. Let’s download and load this data:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<p>For this tutorial, we’ll use pre-prepared data from a sample of the
+mouse gastrulation trajectory. Let’s download and load this data:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/download.file.html" class="external-link">download.file</a></span><span class="op">(</span><span class="st">"https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation-example.tar.gz"</span>, <span class="st">"gastrulation-example.tar.gz"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/untar.html" class="external-link">untar</a></span><span class="op">(</span><span class="st">"gastrulation-example.tar.gz"</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">peak_intervals</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="st">"gastrulation-example/peak_intervals.tsv"</span>, show_col_types <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">peak_intervals</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_rds.html" class="external-link">read_rds</a></span><span class="op">(</span><span class="st">"gastrulation-example/peak_intervals.rds"</span><span class="op">)</span></span>
 <span><span class="va">atac_scores</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_rds.html" class="external-link">read_rds</a></span><span class="op">(</span><span class="st">"gastrulation-example/atac_scores.rds"</span><span class="op">)</span></span>
 <span><span class="va">additional_features</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_rds.html" class="external-link">read_rds</a></span><span class="op">(</span><span class="st">"gastrulation-example/additional_features.rds"</span><span class="op">)</span></span>
 <span><span class="va">normalization_intervals</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_tsv</a></span><span class="op">(</span><span class="st">"gastrulation-example/gastrulation_intervals.tsv"</span>, show_col_types <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p>Let’s examine the structure of our input data:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Peak intervals</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">peak_intervals</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 6</span></span></span>
-<span><span class="co">#&gt;   chrom   start     end peak_name   const tss_dist</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> chr1  3<span style="text-decoration: underline;">003</span>620 3<span style="text-decoration: underline;">003</span>920 1_Xkr4_3004 FALSE   <span style="text-decoration: underline;">211</span>711</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> chr1  3<span style="text-decoration: underline;">008</span>880 3<span style="text-decoration: underline;">009</span>180 1_Xkr4_3009 FALSE   <span style="text-decoration: underline;">206</span>451</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> chr1  3<span style="text-decoration: underline;">035</span>780 3<span style="text-decoration: underline;">036</span>080 1_Xkr4_3036 FALSE   <span style="text-decoration: underline;">179</span>551</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> chr1  3<span style="text-decoration: underline;">062</span>880 3<span style="text-decoration: underline;">063</span>180 1_Xkr4_3063 FALSE   <span style="text-decoration: underline;">152</span>451</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> chr1  3<span style="text-decoration: underline;">191</span>760 3<span style="text-decoration: underline;">192</span>060 1_Xkr4_3192 FALSE    <span style="text-decoration: underline;">23</span>571</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> chr1  3<span style="text-decoration: underline;">264</span>000 3<span style="text-decoration: underline;">264</span>300 1_Xkr4_3264 FALSE   -<span style="color: #BB0000; text-decoration: underline;">48</span><span style="color: #BB0000;">368</span></span></span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt;   chrom     start       end peak_name       const tss_dist</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> chrX  162<span style="text-decoration: underline;">915</span>760 162<span style="text-decoration: underline;">916</span>060 5289_Ctps2_58   FALSE    <span style="text-decoration: underline;">13</span>589</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> chr14 102<span style="text-decoration: underline;">806</span>560 102<span style="text-decoration: underline;">806</span>860 1627_Lmo7_1306  FALSE     <span style="text-decoration: underline;">8</span>155</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> chr18  74<span style="text-decoration: underline;">739</span>880  74<span style="text-decoration: underline;">740</span>180 2390_Myo5b_32   FALSE     <span style="text-decoration: underline;">6</span>115</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> chr5   98<span style="text-decoration: underline;">166</span>060  98<span style="text-decoration: underline;">166</span>360 3695_Fgf5_4     FALSE   -<span style="color: #BB0000; text-decoration: underline;">14</span><span style="color: #BB0000;">508</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> chr7   26<span style="text-decoration: underline;">775</span>960  26<span style="text-decoration: underline;">776</span>260 4228_Nlrp9c_413 FALSE    <span style="text-decoration: underline;">18</span>818</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> chr10  28<span style="text-decoration: underline;">636</span>080  28<span style="text-decoration: underline;">636</span>380 432_Ptprk_786   FALSE   -<span style="color: #BB0000; text-decoration: underline;">31</span><span style="color: #BB0000;">979</span></span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Number of peaks:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">peak_intervals</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Number of peaks: 99291"</span></span></code></pre></div>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; [1] "Number of peaks: 5000"</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># ATAC scores</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">atac_scores</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                    bin1        bin2       bin3       bin4</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3004 0.004287514 0.005028976 0.04591491 0.02115745</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3009 0.016835629 0.020535310 0.01645209 0.05152993</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3036 0.314234571 0.351552061 0.24488575 0.21536988</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3063 0.302141442 0.368683558 0.14807723 0.09834478</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3192 0.234917748 0.159842916 0.24823286 0.40749248</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3264 0.057764122 0.079473969 0.05351386 0.05018866</span></span></code></pre></div>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt;                       bin1       bin2       bin3       bin4</span></span>
+<span><span class="co">#&gt; 5289_Ctps2_58   0.28664573 0.21607409 0.15598945 0.18531872</span></span>
+<span><span class="co">#&gt; 1627_Lmo7_1306  0.06559805 0.10535270 0.14138811 0.18453988</span></span>
+<span><span class="co">#&gt; 2390_Myo5b_32   0.01259770 0.01340993 0.02850534 0.03999234</span></span>
+<span><span class="co">#&gt; 3695_Fgf5_4     0.35906208 0.37084859 0.49515351 0.83097388</span></span>
+<span><span class="co">#&gt; 4228_Nlrp9c_413 0.75004775 0.64881577 0.41868309 0.32506901</span></span>
+<span><span class="co">#&gt; 432_Ptprk_786   0.36038245 0.22897889 0.18171044 0.02891232</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Number of peaks:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">atac_scores</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Number of peaks: 99291"</span></span></code></pre></div>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; [1] "Number of peaks: 5000"</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Number of bins:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">atac_scores</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Number of bins: 4"</span></span></code></pre></div>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># Additional features</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">additional_features</span><span class="op">)</span></span>
-<span><span class="co">#&gt;               cg_cont k4me3 k27me3 k27ac prox_bin1_punc_all spatial_ratio</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3004 0.6949901     0      0     0          0.2781718      4.764228</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3009 0.4440685     0      0     0          0.3025915      7.041941</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3036 1.0952665     0      0     0          0.2357028      8.936077</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3063 0.2247980     0      0     0          0.3126778      7.760096</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3192 0.9602237     0      0     0          0.6481828      5.660977</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3264 0.9239115     0      0     0          0.3089618      3.679446</span></span>
-<span><span class="co">#&gt;                 TT       CT       GT       AT       TC       CC       GC</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3004 2.1875 8.181818 4.482759 2.500000 7.567568 4.615385 4.897959</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3009 5.0000 8.181818 3.103448 4.642857 6.216216 6.923077 4.285714</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3036 9.3750 4.090909 6.206897 4.642857 4.594595 2.820513 3.265306</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3063 4.3750 6.136364 5.517241 6.071429 7.297297 2.820513 2.653061</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3192 6.8750 6.363636 5.172414 8.571429 5.405405 4.358974 2.653061</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3264 7.5000 7.500000 4.827586 4.285714 7.297297 4.871795 3.877551</span></span>
-<span><span class="co">#&gt;                   AC       TG        CG       GG       AG       TA       CA</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3004 3.103448 6.842105 0.9756098 7.435897 5.555556 1.111111 5.526316</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3009 7.241379 6.052632 0.4878049 2.051282 4.888889 4.444444 7.105263</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3036 4.482759 4.736842 1.2195122 6.153846 6.222222 4.814815 6.052632</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3063 5.172414 6.052632 0.0000000 4.102564 5.555556 4.074074 7.368421</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3192 4.827586 6.315789 0.9756098 2.820513 3.555556 8.518519 3.947368</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3264 5.517241 5.789474 1.4634146 2.564103 4.444444 3.703704 6.052632</span></span>
-<span><span class="co">#&gt;                   GA     AA</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3004 4.594595 2.8125</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3009 4.594595 2.8125</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3036 4.594595 4.6875</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3063 5.135135 7.1875</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3192 4.054054 6.2500</span></span>
-<span><span class="co">#&gt; 1_Xkr4_3264 3.783784 3.4375</span></span></code></pre></div>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt;                    cg_cont     k4me3    k27me3    k27ac prox_bin1_punc_all</span></span>
+<span><span class="co">#&gt; 5289_Ctps2_58   0.73947831 0.9540617  5.733111 2.062427          0.5903188</span></span>
+<span><span class="co">#&gt; 1627_Lmo7_1306  1.88216323 0.9540617  3.094265 2.976209          0.6168619</span></span>
+<span><span class="co">#&gt; 2390_Myo5b_32   0.61229329 0.9540617  2.149111 1.387341          0.5680226</span></span>
+<span><span class="co">#&gt; 3695_Fgf5_4     2.68143918 6.3160307 10.000000 1.387341          7.2356519</span></span>
+<span><span class="co">#&gt; 4228_Nlrp9c_413 0.84718098 0.9540617  2.370734 5.132278          3.4941350</span></span>
+<span><span class="co">#&gt; 432_Ptprk_786   0.07383385 1.0416816  2.422208 2.062427          0.8716757</span></span>
+<span><span class="co">#&gt;                 spatial_ratio     TT       CT        GT       AT       TC</span></span>
+<span><span class="co">#&gt; 5289_Ctps2_58        8.701846 3.7500 3.863636  4.827586 5.714286 3.783784</span></span>
+<span><span class="co">#&gt; 1627_Lmo7_1306       6.416438 3.1250 5.000000  5.172414 4.285714 4.594595</span></span>
+<span><span class="co">#&gt; 2390_Myo5b_32        5.030319 4.6875 5.681818  5.862069 4.285714 3.513514</span></span>
+<span><span class="co">#&gt; 3695_Fgf5_4          6.429673 3.7500 6.136364  3.793103 7.500000 6.216216</span></span>
+<span><span class="co">#&gt; 4228_Nlrp9c_413      8.757560 3.1250 4.318182 10.000000 3.928571 3.783784</span></span>
+<span><span class="co">#&gt; 432_Ptprk_786        7.862827 3.4375 3.181818  3.448276 3.571429 2.162162</span></span>
+<span><span class="co">#&gt;                       CC       GC       AC        TG        CG       GG</span></span>
+<span><span class="co">#&gt; 5289_Ctps2_58   4.358974 2.448980 6.551724  4.210526 0.7317073 4.615385</span></span>
+<span><span class="co">#&gt; 1627_Lmo7_1306  3.076923 3.877551 4.827586  5.789474 2.4390244 4.871795</span></span>
+<span><span class="co">#&gt; 2390_Myo5b_32   4.102564 4.489796 5.172414  7.631579 0.4878049 4.871795</span></span>
+<span><span class="co">#&gt; 3695_Fgf5_4     5.641026 5.918367 3.448276  7.368421 3.1707317 4.102564</span></span>
+<span><span class="co">#&gt; 4228_Nlrp9c_413 4.358974 3.469388 3.448276 10.000000 0.9756098 4.102564</span></span>
+<span><span class="co">#&gt; 432_Ptprk_786   2.307692 6.326531 5.517241  4.210526 0.0000000 2.051282</span></span>
+<span><span class="co">#&gt;                       AG       TA        CA       GA      AA</span></span>
+<span><span class="co">#&gt; 5289_Ctps2_58   6.888889 6.666667  6.578947 6.216216  7.1875</span></span>
+<span><span class="co">#&gt; 1627_Lmo7_1306  7.333333 3.703704  5.000000 8.378378  5.9375</span></span>
+<span><span class="co">#&gt; 2390_Myo5b_32   6.444444 4.444444  6.315789 5.405405  4.3750</span></span>
+<span><span class="co">#&gt; 3695_Fgf5_4     3.111111 2.962963  6.052632 3.783784  2.1875</span></span>
+<span><span class="co">#&gt; 4228_Nlrp9c_413 4.888889 3.703704  4.736842 4.324324  1.8750</span></span>
+<span><span class="co">#&gt; 432_Ptprk_786   8.444444 3.703704 10.000000 3.513514 10.0000</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Number of peaks:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">additional_features</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Number of peaks: 99291"</span></span></code></pre></div>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; [1] "Number of peaks: 5000"</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Number of features:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">additional_features</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Number of features: 22"</span></span></code></pre></div>
 <p>The <code>peak_intervals</code> dataframe contains the genomic
@@ -205,34 +199,36 @@ extra genomic features for each peak.</p>
 <h2 id="computing-motif-energies">Computing Motif Energies<a class="anchor" aria-label="anchor" href="#computing-motif-energies"></a>
 </h2>
 <p>The first step in the IceQream pipeline is to compute motif energies
-for each transcription factor model and each peak. This process is
+for each transcription factor model and each peak. This process can be
 computationally intensive, as it calculates energies for over 20,000
 motifs from various databases.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">motif_energies</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_motif_energies.html">compute_motif_energies</a></span><span class="op">(</span><span class="va">peak_intervals</span>, <span class="va">motif_db</span>, normalization_intervals <span class="op">=</span> <span class="va">normalization_intervals</span><span class="op">)</span></span></code></pre></div>
-<p>For this tutorial, we’ll use pre-computed motif energies:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/download.file.html" class="external-link">download.file</a></span><span class="op">(</span><span class="st">"https://iceqream.s3.eu-west-1.amazonaws.com/gastrulation_energies.tar.gz"</span>, <span class="st">"gastrulation_energies.tar.gz"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/untar.html" class="external-link">untar</a></span><span class="op">(</span><span class="st">"gastrulation_energies.tar.gz"</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">motif_energies</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_rds.html" class="external-link">read_rds</a></span><span class="op">(</span><span class="st">"gastrulation_energies.rds"</span><span class="op">)</span></span>
-<span><span class="va">motif_energies</span> <span class="op">&lt;-</span> <span class="va">motif_energies</span><span class="op">[</span><span class="va">peak_intervals</span><span class="op">$</span><span class="va">peak_name</span>, <span class="op">]</span></span>
+<p>However, for this tutorial, we’re using pre-computed motif energies
+for a sample of 5000 loci, which are included in the example data:</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">motif_energies</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_rds.html" class="external-link">read_rds</a></span><span class="op">(</span><span class="st">"gastrulation-example/motif_energies.rds"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Motif energy matrix dimensions:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">motif_energies</span><span class="op">)</span>, collapse <span class="op">=</span> <span class="st">" x "</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Motif energy matrix dimensions: 99291 x 21862"</span></span></code></pre></div>
-<p>For a less memory and computationally intensive analysis, you can use
-the SCENIC motif clusters instead of all motifs (See <a href="#performance-considerations">Performance Considerations</a>
-section).</p>
+<span><span class="co">#&gt; [1] "Motif energy matrix dimensions: 5000 x 21862"</span></span></code></pre></div>
+<p>This pre-computed matrix contains motif energies for our sample of
+peaks, allowing us to proceed with the analysis more quickly.</p>
+<p>For a less memory and computationally intensive analysis on your own
+data, you can reduce the number of motifs used in the regression by
+taking a representative from the SCENIC clusters (1615) instead of all
+motifs (20,000+). This can be done by:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">motif_energies</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_motif_energies.html">compute_motif_energies</a></span><span class="op">(</span><span class="va">peak_intervals</span>, <span class="va">motif_db_scenic_clusters</span>, normalization_intervals <span class="op">=</span> <span class="va">normalization_intervals</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="running-iceqream">Running IceQream<a class="anchor" aria-label="anchor" href="#running-iceqream"></a>
 </h2>
 <p>Now we’re ready to run the IceQream regression:</p>
-<p>This takes ~25 minutes on a 40 core machine with 256GB of RAM.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">traj_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iq_regression.html">iq_regression</a></span><span class="op">(</span></span>
 <span>    peak_intervals <span class="op">=</span> <span class="va">peak_intervals</span>,</span>
 <span>    atac_scores <span class="op">=</span> <span class="va">atac_scores</span>,</span>
 <span>    motif_energies <span class="op">=</span> <span class="va">motif_energies</span>,</span>
+<span>    normalize_energies <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>    additional_features <span class="op">=</span> <span class="va">additional_features</span>,</span>
 <span>    norm_intervals <span class="op">=</span> <span class="va">normalization_intervals</span>,</span>
 <span>    seed <span class="op">=</span> <span class="fl">60427</span>,</span>
@@ -240,199 +236,215 @@ section).</p>
 <span>    max_motif_num <span class="op">=</span> <span class="fl">30</span></span>
 <span>    <span class="co"># include_interactions = TRUE # uncomment to include pairwise interactions</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Training on <span style="color: #0000BB;">79432</span> intervals (80%) and testing on <span style="color: #0000BB;">19859</span> intervals (20%)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Number of peaks: <span style="color: #0000BB;">79432</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Seed: <span style="color: #0000BB;">60427</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Training on <span style="color: #0000BB;">4000</span> intervals (80%) and testing on <span style="color: #0000BB;">1000</span> intervals (20%)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Number of peaks: <span style="color: #0000BB;">4000</span></span></span>
 <span><span class="co">#&gt; → Extracting sequences...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Calculating correlations between <span style="color: #0000BB;">21862</span> motif energies and ATAC difference...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Selected <span style="color: #0000BB;">1635</span> (out of <span style="color: #0000BB;">21862</span>) features with absolute correlation &gt;= <span style="color: #0000BB;">0.05</span></span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Running first round of regression, # of features: <span style="color: #0000BB;">1635</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Selected <span style="color: #0000BB;">3953</span> (out of <span style="color: #0000BB;">21862</span>) features with absolute correlation &gt;= <span style="color: #0000BB;">0.05</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Running first round of regression, # of features: <span style="color: #0000BB;">3953</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning: glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Taking <span style="color: #0000BB;">730</span> features with beta &gt;= <span style="color: #0000BB;">0.003</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Taking <span style="color: #0000BB;">3507</span> features with beta &gt;= <span style="color: #0000BB;">0.003</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Running second round of regression...</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Clustering <span style="color: #0000BB;">722</span> features into <span style="color: #0000BB;">30</span> clusters...</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Clustering <span style="color: #0000BB;">3483</span> features into <span style="color: #0000BB;">30</span> clusters...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Choosing top <span style="color: #0000BB;">30</span> features clusters</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Features left: <span style="color: #0000BB;">722</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Features left: <span style="color: #0000BB;">3483</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Learning a model for each motif cluster...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Infering energies...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Running final regression, number of features: <span style="color: #0000BB;">208</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Finished running model. Number of non-zero coefficients: <span style="color: #0000BB;">195</span> (out of <span style="color: #0000BB;">208</span>). R^2: <span style="color: #0000BB;">0.320936492374457</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Finished running model. Number of non-zero coefficients: <span style="color: #0000BB;">206</span> (out of <span style="color: #0000BB;">208</span>). R^2: <span style="color: #0000BB;">0.504102930107174</span></span></span>
 <span><span class="co">#&gt; → Filtering the model</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Using <span style="color: #0000BB;">7940</span> samples for filtering</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> R^2 of the full model: <span style="color: #0000BB;">0.304870381068192</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Using <span style="color: #0000BB;">400</span> samples for filtering</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> R^2 of the full model: <span style="color: #0000BB;">0.238370175596476</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Filtering features with R^2 &lt; <span style="color: #0000BB;">5e-04</span> and bits &lt; <span style="color: #0000BB;">1.75</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOCOMOCO.SOX2_MOUSE.H11MO.0.A</span> (<span style="font-weight: bold;">TTTGCAT-ACAATG-</span>): <span style="color: #0000BB;">0.010214876242461</span>. Bits: <span style="color: #0000BB;">8.29320883331651</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.neph__UW.Motif.0639</span> (<span style="font-weight: bold;">---CCATCTGG----</span>): <span style="color: #0000BB;">0.00378604882167424</span>. Bits: <span style="color: #0000BB;">9.28904682564132</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JASPAR.AHL12</span> (<span style="font-weight: bold;">----------AT---</span>): <span style="color: #0000BB;">0.00213687369507692</span>. Bits: <span style="color: #0000BB;">1.65174223006707</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.kznf__ZNF18_Imbeault2017_OM_RCADE</span> (<span style="font-weight: bold;">-----TTCACA----</span>): <span style="color: #0000BB;">-0.0144763134940129</span>. Bits: <span style="color: #0000BB;">4.25094412603532</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.kznf__ZNF649_Imbeault2017_OM_RCADE</span> (<span style="font-weight: bold;">--A-CAAATGG----</span>): <span style="color: #0000BB;">0.0217678436535326</span>. Bits: <span style="color: #0000BB;">7.60377176500628</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.homer__CYHATAAAAN_Hoxa13</span> (<span style="font-weight: bold;">---AT-AAA------</span>): <span style="color: #0000BB;">0.0110871180973321</span>. Bits: <span style="color: #0000BB;">5.54560688574184</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JASPAR.TBX15</span> (<span style="font-weight: bold;">----GTGTGA-----</span>): <span style="color: #0000BB;">0.00865464382093167</span>. Bits: <span style="color: #0000BB;">5.72327601603422</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JASPAR.GATA2</span> (<span style="font-weight: bold;">------GATA-----</span>): <span style="color: #0000BB;">0.065265031677198</span>. Bits: <span style="color: #0000BB;">5.44891078500744</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.nitta__CG13424_TTATAC20NATA_KH_NYAATTAN_m1_c3</span> (<span style="font-weight: bold;">------TAAT-G---</span>): <span style="color: #0000BB;">0.0114682575029625</span>. Bits: <span style="color: #0000BB;">3.48545850992682</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__POU2F2_NTMATTATGCAN_eDBD</span> (<span style="font-weight: bold;">-----TTTCAAA---</span>): <span style="color: #0000BB;">0.00392631874607063</span>. Bits: <span style="color: #0000BB;">4.57062911859363</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__NEUROG2_RNCATATGNY_eDBD</span> (<span style="font-weight: bold;">---ACCAGATGGT--</span>): <span style="color: #0000BB;">-8.86711021823028e-05</span>. Bits: <span style="color: #0000BB;">10.3372845363353</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JASPAR.TBX2</span> (<span style="font-weight: bold;">----A-GTGT-----</span>): <span style="color: #0000BB;">0.0175968075454803</span>. Bits: <span style="color: #0000BB;">6.40605792077357</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M01796</span> (<span style="font-weight: bold;">------TGACG----</span>): <span style="color: #0000BB;">0.000685827693068741</span>. Bits: <span style="color: #0000BB;">2.94936162689235</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__POU2F3_NTATGCWAATN_eDBD_repr</span> (<span style="font-weight: bold;">----ATTAGCAT---</span>): <span style="color: #0000BB;">0.012103849800238</span>. Bits: <span style="color: #0000BB;">5.13448870786773</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.jaspar__MA1825.1</span> (<span style="font-weight: bold;">----AGATAAC----</span>): <span style="color: #0000BB;">0.00441933148903156</span>. Bits: <span style="color: #0000BB;">7.1287997711869</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M01365</span> (<span style="font-weight: bold;">-------G-TTA---</span>): <span style="color: #0000BB;">0.00327954830871935</span>. Bits: <span style="color: #0000BB;">2.44740355762059</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.stark__RRCAGGTGB</span> (<span style="font-weight: bold;">-----CACCTGC---</span>): <span style="color: #0000BB;">0.00191332964747049</span>. Bits: <span style="color: #0000BB;">6.88647896962898</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.predrem__nrMotif1859</span> (<span style="font-weight: bold;">---ATGAATATT---</span>): <span style="color: #0000BB;">-0.00866571098183802</span>. Bits: <span style="color: #0000BB;">9.2955897671087</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.jaspar__MA0197.2</span> (<span style="font-weight: bold;">----ATGCTAAT---</span>): <span style="color: #0000BB;">0.00611996026844036</span>. Bits: <span style="color: #0000BB;">7.91230055326789</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.neph__UW.Motif.0048</span> (<span style="font-weight: bold;">---GCAGCTGA----</span>): <span style="color: #0000BB;">0.00240690546121999</span>. Bits: <span style="color: #0000BB;">10.9642663810546</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__SNAI2_NRCAGGTGCA_FL</span> (<span style="font-weight: bold;">----CAGGTGC----</span>): <span style="color: #0000BB;">0.00376007023011937</span>. Bits: <span style="color: #0000BB;">10.3791828004863</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JOLMA.NEUROG2_di_full</span> (<span style="font-weight: bold;">-----CAG-TG----</span>): <span style="color: #0000BB;">-0.000894724798327695</span>. Bits: <span style="color: #0000BB;">3.34642492170536</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_tf_pairs__TBX3_AGGTGTNR_HT</span> (<span style="font-weight: bold;">----T-ACACCT---</span>): <span style="color: #0000BB;">0.00318193986501908</span>. Bits: <span style="color: #0000BB;">4.64639097119406</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOMER.Tcf3</span> (<span style="font-weight: bold;">---TGATAAGT----</span>): <span style="color: #0000BB;">-0.00278059970737599</span>. Bits: <span style="color: #0000BB;">12.4501112150689</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M05898</span> (<span style="font-weight: bold;">----ACAATG-----</span>): <span style="color: #0000BB;">0.0132135939251053</span>. Bits: <span style="color: #0000BB;">4.75857930852264</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M01881</span> (<span style="font-weight: bold;">------A--------</span>): <span style="color: #0000BB;">-0.00162207144600635</span>. Bits: <span style="color: #0000BB;">0.926364215932642</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JASPAR.elt-6</span> (<span style="font-weight: bold;">----GATA-------</span>): <span style="color: #0000BB;">0.00271971760390771</span>. Bits: <span style="color: #0000BB;">2.91669704301021</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.swissregulon__hs__ESR2</span> (<span style="font-weight: bold;">-------ACGTC---</span>): <span style="color: #0000BB;">0.000157166828402638</span>. Bits: <span style="color: #0000BB;">2.57384121825968</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JASPAR.Sox11</span> (<span style="font-weight: bold;">---ACAAAAGA----</span>): <span style="color: #0000BB;">0.000197461414324529</span>. Bits: <span style="color: #0000BB;">3.75346406381194</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M00066</span> (<span style="font-weight: bold;">---AGGAGCT-----</span>): <span style="color: #0000BB;">-0.000748142001259389</span>. Bits: <span style="color: #0000BB;">9.34292342747554</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.yetfasco__YKL043W_2153</span> (<span style="font-weight: bold;">-----ATGCA-----</span>): <span style="color: #0000BB;">0.000342816332406459</span>. Bits: <span style="color: #0000BB;">3.08108415526995</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.kznf__CTCF_ENCODE.57_ChIP-seq</span> (<span style="font-weight: bold;">----ATATAAAT---</span>): <span style="color: #0000BB;">0.00141914385261038</span>. Bits: <span style="color: #0000BB;">7.2184217790462</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M00741</span> (<span style="font-weight: bold;">-----TGGGA-----</span>): <span style="color: #0000BB;">0.000278706539520557</span>. Bits: <span style="color: #0000BB;">2.42111262680616</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__LHX4_NTAATTAN_FL_repr</span> (<span style="font-weight: bold;">------G-TAATT--</span>): <span style="color: #0000BB;">0.0132007022932578</span>. Bits: <span style="color: #0000BB;">4.17979807011643</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_tf_pairs__HOXB2_TBX3_AGGTGTTAATKN_CAP</span> (<span style="font-weight: bold;">---ATTA-CAC----</span>): <span style="color: #0000BB;">0.0034659389489981</span>. Bits: <span style="color: #0000BB;">6.8097838250276</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.transfac_public__M00410</span> (<span style="font-weight: bold;">----ACAATA-----</span>): <span style="color: #0000BB;">0.0132143085261674</span>. Bits: <span style="color: #0000BB;">6.62394103135846</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOCOMOCO.ZEB1_HUMAN.H11MO.0.A</span> (<span style="font-weight: bold;">---CAGGTG------</span>): <span style="color: #0000BB;">0.00290352228834018</span>. Bits: <span style="color: #0000BB;">8.64245813782708</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.neph__UW.Motif.0112</span> (<span style="font-weight: bold;">---CAAATGG-----</span>): <span style="color: #0000BB;">0.0149631410069025</span>. Bits: <span style="color: #0000BB;">3.39227790277731</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M02329</span> (<span style="font-weight: bold;">AAT-A-GGATTA---</span>): <span style="color: #0000BB;">0.000648908199207543</span>. Bits: <span style="color: #0000BB;">8.68016535917853</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M00002</span> (<span style="font-weight: bold;">---CCA---------</span>): <span style="color: #0000BB;">-0.00679782539395204</span>. Bits: <span style="color: #0000BB;">1.30852444291824</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.flyfactorsurvey__amos_da_SANGER_10_FBgn0000413</span> (<span style="font-weight: bold;">-----CA-ATG----</span>): <span style="color: #0000BB;">0.000799308932036946</span>. Bits: <span style="color: #0000BB;">3.7805708379125</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.flyfactorsurvey__crp_SANGER_10_FBgn0001994</span> (<span style="font-weight: bold;">---GCAGCTGGG---</span>): <span style="color: #0000BB;">0.00489064756990595</span>. Bits: <span style="color: #0000BB;">11.8803107626121</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOCOMOCO.SMAD4_MOUSE.H11MO.0.A</span> (<span style="font-weight: bold;">---GTG-CAGAC---</span>): <span style="color: #0000BB;">0.00206047103146323</span>. Bits: <span style="color: #0000BB;">7.98461506697098</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOCOMOCO.ZIC1_MOUSE.H11MO.0.B</span> (<span style="font-weight: bold;">------CACCC----</span>): <span style="color: #0000BB;">-0.0118398894597708</span>. Bits: <span style="color: #0000BB;">2.99369702960344</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.jaspar__MA1991.1</span> (<span style="font-weight: bold;">----CATCAAAG---</span>): <span style="color: #0000BB;">0.00977140637292201</span>. Bits: <span style="color: #0000BB;">6.24664802711105</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOCOMOCO.NF2L1_MOUSE.H11MO.0.C</span> (<span style="font-weight: bold;">---GTGA-G------</span>): <span style="color: #0000BB;">-0.00187417158258363</span>. Bits: <span style="color: #0000BB;">3.22183764332727</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.predrem__nrMotif1082</span> (<span style="font-weight: bold;">-----TGATAAG---</span>): <span style="color: #0000BB;">0.000481398524669385</span>. Bits: <span style="color: #0000BB;">10.5792425555248</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.jaspar__MA0774.1</span> (<span style="font-weight: bold;">------ACGTCA---</span>): <span style="color: #0000BB;">-0.0032125885938345</span>. Bits: <span style="color: #0000BB;">3.11211653328523</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M01847</span> (<span style="font-weight: bold;">----A----------</span>): <span style="color: #0000BB;">0.000505676334101202</span>. Bits: <span style="color: #0000BB;">1.32203583373643</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M00006</span> (<span style="font-weight: bold;">-----CAGGTA----</span>): <span style="color: #0000BB;">0.003081847893081</span>. Bits: <span style="color: #0000BB;">8.15781784873317</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOMER.TATA_box_1</span> (<span style="font-weight: bold;">---GTATAAAA----</span>): <span style="color: #0000BB;">0.000518688475492746</span>. Bits: <span style="color: #0000BB;">6.35444448999282</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__TCF12_NCACSTGN_eDBD_meth</span> (<span style="font-weight: bold;">-----A-CAGGTG--</span>): <span style="color: #0000BB;">0.00226608175082568</span>. Bits: <span style="color: #0000BB;">5.83757943988829</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">JASPAR.Ptf1A.MA1619.1</span> (<span style="font-weight: bold;">----ACAGCTG----</span>): <span style="color: #0000BB;">0.00116857773654516</span>. Bits: <span style="color: #0000BB;">7.2900798906257</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.predrem__nrMotif1099</span> (<span style="font-weight: bold;">----TG-GAAC----</span>): <span style="color: #0000BB;">-0.00366638650371454</span>. Bits: <span style="color: #0000BB;">2.97982954882866</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">HOCOMOCO.ZIC2_MOUSE.H11MO.0.C</span> (<span style="font-weight: bold;">----GCAGGTA----</span>): <span style="color: #0000BB;">0.00258262728552744</span>. Bits: <span style="color: #0000BB;">7.40518992758025</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.flyfactorsurvey__dl_NBT_FBgn0000462</span> (<span style="font-weight: bold;">----AAGAATCC---</span>): <span style="color: #0000BB;">-0.0076247552951807</span>. Bits: <span style="color: #0000BB;">9.76604266575039</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.predrem__nrMotif1713</span> (<span style="font-weight: bold;">----GTCACA-----</span>): <span style="color: #0000BB;">0.000148518950646881</span>. Bits: <span style="color: #0000BB;">5.49211048247603</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.cisbp__M02099</span> (<span style="font-weight: bold;">----TAATCAG----</span>): <span style="color: #0000BB;">0.00562343995343306</span>. Bits: <span style="color: #0000BB;">9.05193244282973</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__NKX2-3_NCCACTTRAN_eDBD</span> (<span style="font-weight: bold;">------AAGTGG---</span>): <span style="color: #0000BB;">-0.000323268253571873</span>. Bits: <span style="color: #0000BB;">7.05616415918813</span></span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removing the following features with bits &lt; <span style="color: #0000BB;">1.75</span>: <span style="color: #0000BB;">"JASPAR.AHL12"</span> and <span style="color: #0000BB;">"SCENIC.cisbp__M01847"</span></span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying to remove the following features with R^2 &lt; <span style="color: #0000BB;">5e-04</span>: <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__NEUROG2_RNCATATGNY_eDBD"</span>, <span style="color: #0000BB;">"JASPAR.Sox11"</span>, <span style="color: #0000BB;">"SCENIC.yetfasco__YKL043W_2153"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M00741"</span>, <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1082"</span>, <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1713"</span>, and <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__NKX2-3_NCCACTTRAN_eDBD"</span></span></span>
+<span><span class="co">#&gt; → R^2 added by <span style="color: #00BB00;">SCENIC.scertf__morozov.MGA1</span> (<span style="font-weight: bold;">----GAAACCTG---</span>): <span style="color: #0000BB;">-0.00813532036403214</span>. Bits: <span style="color: #0000BB;">12.1616605716912</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removing the following features with bits &lt; <span style="color: #0000BB;">1.75</span>: <span style="color: #0000BB;">"SCENIC.cisbp__M01881"</span> and <span style="color: #0000BB;">"SCENIC.cisbp__M00002"</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying to remove the following features with R^2 &lt; <span style="color: #0000BB;">5e-04</span>: <span style="color: #0000BB;">"SCENIC.kznf__ZNF18_Imbeault2017_OM_RCADE"</span>, <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1859"</span>, <span style="color: #0000BB;">"JOLMA.NEUROG2_di_full"</span>, <span style="color: #0000BB;">"HOMER.Tcf3"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M01881"</span>, <span style="color: #0000BB;">"SCENIC.swissregulon__hs__ESR2"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M00066"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M00002"</span>, <span style="color: #0000BB;">"HOCOMOCO.ZIC1_MOUSE.H11MO.0.B"</span>, <span style="color: #0000BB;">"HOCOMOCO.NF2L1_MOUSE.H11MO.0.C"</span>, <span style="color: #0000BB;">"SCENIC.jaspar__MA0774.1"</span>, <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1099"</span>, <span style="color: #0000BB;">"SCENIC.flyfactorsurvey__dl_NBT_FBgn0000462"</span>, and <span style="color: #0000BB;">"SCENIC.scertf__morozov.MGA1"</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning: glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__NEUROG2_RNCATATGNY_eDBD"</span> changed the R^2 by <span style="color: #0000BB;">0.000100842874240836</span></span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"HOCOMOCO.ZIC1_MOUSE.H11MO.0.B"</span> changed the R^2 by <span style="color: #0000BB;">-0.00996969852365565</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1713"</span> changed the R^2 by <span style="color: #0000BB;">0.000198278688010645</span></span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1859"</span> changed the R^2 by <span style="color: #0000BB;">-0.00956839684433264</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"JASPAR.Sox11"</span> changed the R^2 by <span style="color: #0000BB;">4.73828409717769e-05</span></span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.scertf__morozov.MGA1"</span> changed the R^2 by <span style="color: #0000BB;">-0.000957497556137998</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.cisbp__M00741"</span> changed the R^2 by <span style="color: #0000BB;">0.000454026022275456</span></span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.flyfactorsurvey__dl_NBT_FBgn0000462"</span> changed the R^2 by <span style="color: #0000BB;">-0.00260161555519067</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.yetfasco__YKL043W_2153"</span> changed the R^2 by <span style="color: #0000BB;">7.82083435941217e-05</span></span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1099"</span> changed the R^2 by <span style="color: #0000BB;">-0.00428513266709052</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; → <span style="color: #00BB00;">Not removing</span> <span style="color: #0000BB;">"SCENIC.predrem__nrMotif1082"</span> (changed the R^2 by only <span style="color: #0000BB;">0.000592865292567024</span>).</span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.jaspar__MA0774.1"</span> changed the R^2 by <span style="color: #0000BB;">-0.00079131624543366</span></span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"HOMER.Tcf3"</span> changed the R^2 by <span style="color: #0000BB;">-0.00514013425762633</span></span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"HOCOMOCO.NF2L1_MOUSE.H11MO.0.C"</span> changed the R^2 by <span style="color: #0000BB;">-0.00164186548034773</span></span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"JOLMA.NEUROG2_di_full"</span> changed the R^2 by <span style="color: #0000BB;">-0.000847169508890577</span></span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
+<span><span class="co">#&gt; → Removing <span style="color: #0000BB;">"SCENIC.cisbp__M00066"</span> changed the R^2 by <span style="color: #0000BB;">-0.000605448346684911</span></span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
+<span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
+<span><span class="co">#&gt; → <span style="color: #00BB00;">Not removing</span> <span style="color: #0000BB;">"SCENIC.swissregulon__hs__ESR2"</span> (changed the R^2 by only <span style="color: #0000BB;">0.000958425632749671</span>).</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed <span style="color: #0000BB;">2</span> features with bits &lt; <span style="color: #0000BB;">1.75</span></span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed <span style="color: #0000BB;">6</span> features with R^2 &lt; <span style="color: #0000BB;">5e-04</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed <span style="color: #0000BB;">11</span> features with R^2 &lt; <span style="color: #0000BB;">5e-04</span></span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): glmnet.fit: algorithm did not converge</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> After filtering: Number of non-zero coefficients: <span style="color: #0000BB;">166</span> (out of <span style="color: #0000BB;">176</span>). R^2: <span style="color: #0000BB;">0.314486787088214</span>. Number of models: <span style="color: #0000BB;">22</span></span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> After filtering: Number of non-zero coefficients: <span style="color: #0000BB;">153</span> (out of <span style="color: #0000BB;">156</span>). R^2: <span style="color: #0000BB;">0.485425129884941</span>. Number of models: <span style="color: #0000BB;">17</span></span></span>
 <span><span class="co">#&gt; → Infering trajectory motifs on the test set</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Extracting sequences...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing motif energies for <span style="color: #0000BB;">19859</span> intervals</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Inferring the model on <span style="color: #0000BB;">19859</span> intervals</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing motif energies for <span style="color: #0000BB;">1000</span> intervals</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Inferring the model on <span style="color: #0000BB;">1000</span> intervals</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Finished IQ regression.</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Number of motifs: <span style="color: #0000BB;">22</span></span></span>
-<span><span class="co">#&gt; R^2 train: <span style="color: #0000BB;">0.314</span></span></span>
-<span><span class="co">#&gt; R^2 test: <span style="color: #0000BB;">0.311</span></span></span>
+<span><span class="co">#&gt; Number of motifs: <span style="color: #0000BB;">17</span></span></span>
+<span><span class="co">#&gt; R^2 train: <span style="color: #0000BB;">0.485</span></span></span>
+<span><span class="co">#&gt; R^2 test: <span style="color: #0000BB;">0.425</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Run `plot_traj_model_report(traj_model)` to visualize the model features</span></span>
 <span><span class="co">#&gt; Run `plot_prediction_scatter(traj_model)` to visualize the model predictions</span></span></code></pre></div>
 <p>Let’s examine the output:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">traj_model</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">&lt;TrajectoryModel&gt;</span> with <span style="color: #0000BB;">22</span> motifs and <span style="color: #0000BB;">22</span> additional features</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">&lt;TrajectoryModel&gt;</span> with <span style="color: #0000BB;">17</span> motifs and <span style="color: #0000BB;">22</span> additional features</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Slots include:</span></span>
-<span><span class="co">#&gt; • <span style="color: #00BB00;">@model</span>: A GLM model object. Number of non-zero coefficients: <span style="color: #0000BB;">166</span></span></span>
+<span><span class="co">#&gt; • <span style="color: #00BB00;">@model</span>: A GLM model object. Number of non-zero coefficients: <span style="color: #0000BB;">153</span></span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@motif_models</span>: A named list of motif models. Each element contains PSSM and</span></span>
-<span><span class="co">#&gt; spatial model (<span style="color: #0000BB;">22</span> models: <span style="color: #0000BB;">"HOCOMOCO.SOX2_MOUSE.H11MO.0.A"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.kznf__ZNF649_Imbeault2017_OM_RCADE"</span>, <span style="color: #0000BB;">"JASPAR.TBX15"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.nitta__CG13424_TTATAC20NATA_KH_NYAATTAN_m1_c3"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M01796"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.jaspar__MA1825.1"</span>, <span style="color: #0000BB;">"SCENIC.stark__RRCAGGTGB"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.jaspar__MA0197.2"</span>, <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__SNAI2_NRCAGGTGCA_FL"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.taipale_tf_pairs__TBX3_AGGTGTNR_HT"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M05898"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"JASPAR.elt-6"</span>, <span style="color: #0000BB;">"SCENIC.taipale_tf_pairs__HOXB2_TBX3_AGGTGTTAATKN_CAP"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"HOCOMOCO.ZEB1_HUMAN.H11MO.0.A"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M02329"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.flyfactorsurvey__amos_da_SANGER_10_FBgn0000413"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"HOCOMOCO.SMAD4_MOUSE.H11MO.0.A"</span>, <span style="color: #0000BB;">"SCENIC.jaspar__MA1991.1"</span>, …,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"JASPAR.Ptf1A.MA1619.1"</span>, and <span style="color: #0000BB;">"HOCOMOCO.ZIC2_MOUSE.H11MO.0.C"</span>)</span></span>
+<span><span class="co">#&gt; spatial model (<span style="color: #0000BB;">17</span> models: <span style="color: #0000BB;">"SCENIC.neph__UW.Motif.0639"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.homer__CYHATAAAAN_Hoxa13"</span>, <span style="color: #0000BB;">"JASPAR.GATA2"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__POU2F2_NTMATTATGCAN_eDBD"</span>, <span style="color: #0000BB;">"JASPAR.TBX2"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__POU2F3_NTATGCWAATN_eDBD_repr"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.cisbp__M01365"</span>, <span style="color: #0000BB;">"SCENIC.neph__UW.Motif.0048"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.swissregulon__hs__ESR2"</span>, <span style="color: #0000BB;">"SCENIC.kznf__CTCF_ENCODE.57_ChIP-seq"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__LHX4_NTAATTAN_FL_repr"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.transfac_public__M00410"</span>, <span style="color: #0000BB;">"SCENIC.neph__UW.Motif.0112"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.flyfactorsurvey__crp_SANGER_10_FBgn0001994"</span>, <span style="color: #0000BB;">"SCENIC.cisbp__M00006"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.taipale_cyt_meth__TCF12_NCACSTGN_eDBD_meth"</span>, and</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"SCENIC.cisbp__M02099"</span>)</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@additional_features</span>: A data frame of additional features (<span style="color: #0000BB;">22</span> features)</span></span>
-<span><span class="co">#&gt; • <span style="color: #00BB00;">@coefs</span>: A data frame of coefficients (<span style="color: #0000BB;">44</span> elements)</span></span>
+<span><span class="co">#&gt; • <span style="color: #00BB00;">@coefs</span>: A data frame of coefficients (<span style="color: #0000BB;">39</span> elements)</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@model_features</span>: A matrix of the model features (logistic functions of the</span></span>
-<span><span class="co">#&gt; motif models energies, dimensions: <span style="color: #0000BB;">99291</span>x<span style="color: #0000BB;">176</span>)</span></span>
+<span><span class="co">#&gt; motif models energies, dimensions: <span style="color: #0000BB;">5000</span>x<span style="color: #0000BB;">156</span>)</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@normalized_energies</span>: A matrix of normalized energies of the model features</span></span>
-<span><span class="co">#&gt; (dimensions: <span style="color: #0000BB;">99291</span>x<span style="color: #0000BB;">22</span>)</span></span>
+<span><span class="co">#&gt; (dimensions: <span style="color: #0000BB;">5000</span>x<span style="color: #0000BB;">17</span>)</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@type</span>: A vector the length of the number of peaks, indicating whether each</span></span>
 <span><span class="co">#&gt; peak is a training ('train') or a prediction peak ('test')</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@diff_score</span>: A numeric value representing the difference score the model was</span></span>
-<span><span class="co">#&gt; trained on (<span style="color: #0000BB;">99291</span> elements)</span></span>
+<span><span class="co">#&gt; trained on (<span style="color: #0000BB;">5000</span> elements)</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@predicted_diff_score</span>: A numeric value representing the predicted difference</span></span>
 <span><span class="co">#&gt; score</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@initial_prego_models</span>: A list of prego models used in the initial phase of</span></span>
 <span><span class="co">#&gt; the algorithm (<span style="color: #0000BB;">0</span> models)</span></span>
-<span><span class="co">#&gt; • <span style="color: #00BB00;">@peak_intervals</span>: A data frame containing the peak intervals (<span style="color: #0000BB;">99291</span> elements)</span></span>
+<span><span class="co">#&gt; • <span style="color: #00BB00;">@peak_intervals</span>: A data frame containing the peak intervals (<span style="color: #0000BB;">5000</span> elements)</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@normalization_intervals</span>: A data frame containing the intervals used for</span></span>
 <span><span class="co">#&gt; energy normalization (<span style="color: #0000BB;">129963</span> elements)</span></span>
-<span><span class="co">#&gt; • <span style="color: #00BB00;">@features_r2</span>: A numeric vector of the added R^2 values for each feature (<span style="color: #0000BB;">22</span></span></span>
+<span><span class="co">#&gt; • <span style="color: #00BB00;">@features_r2</span>: A numeric vector of the added R^2 values for each feature (<span style="color: #0000BB;">17</span></span></span>
 <span><span class="co">#&gt; elements)</span></span>
 <span><span class="co">#&gt; • <span style="color: #00BB00;">@params</span>: A list of parameters used for training (including:</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"energy_norm_quantile"</span>, <span style="color: #0000BB;">"norm_energy_max"</span>, <span style="color: #0000BB;">"min_energy"</span>, <span style="color: #0000BB;">"alpha"</span>, <span style="color: #0000BB;">"lambda"</span>,</span></span>
@@ -440,8 +452,8 @@ section).</p>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"n_clust_factor"</span>, <span style="color: #0000BB;">"include_interactions"</span>, <span style="color: #0000BB;">"interaction_threshold"</span>, <span style="color: #0000BB;">"seed"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"features_bits"</span>, <span style="color: #0000BB;">"r2_threshold"</span>, <span style="color: #0000BB;">"bits_threshold"</span>, and <span style="color: #0000BB;">"stats"</span>)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; R^2 train: <span style="color: #0000BB;">0.314</span></span></span>
-<span><span class="co">#&gt; R^2 test: <span style="color: #0000BB;">0.311</span></span></span></code></pre></div>
+<span><span class="co">#&gt; R^2 train: <span style="color: #0000BB;">0.485</span></span></span>
+<span><span class="co">#&gt; R^2 test: <span style="color: #0000BB;">0.425</span></span></span></code></pre></div>
 <p>The <code>TrajectoryModel</code> object contains components such as
 the regression model, motif models, and predicted accessibility
 scores.</p>
@@ -451,7 +463,7 @@ scores.</p>
 </h2>
 <p>Let’s start with a scatter plot of observed vs. predicted
 accessibility changes:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_prediction_scatter.html">plot_prediction_scatter</a></span><span class="op">(</span><span class="va">traj_model</span><span class="op">)</span></span></code></pre></div>
 <p><img src="iceqream_files/figure-html/prediction_scatter-1.png" width="672"></p>
 <p>This plot shows how well our model predicts accessibility changes.
@@ -463,9 +475,9 @@ measure the accuracy of the model using the coefficient of determination
 </h3>
 <p>Next, let’s look at the model report, which provides detailed
 information about the motifs and their contributions:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_traj_model_report.html">plot_traj_model_report</a></span><span class="op">(</span><span class="va">traj_model</span>, filename <span class="op">=</span> <span class="st">"model_report.pdf"</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/include_graphics.html" class="external-link">include_graphics</a></span><span class="op">(</span><span class="st">"model_report.pdf"</span><span class="op">)</span></span></code></pre></div>
 <p><embed src="model_report.pdf"></embed><!-- --></p>
 </div>
@@ -498,100 +510,80 @@ bins of binding energy (x-axis) for each TF.</li>
 <p>You can rename the motif models to more informative names, either
 manually using <code>rename_motif_models</code> or automatically using
 <code>match_traj_model_motif_names</code>:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">names_map</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/match_traj_model_motif_names.html">match_traj_model_motif_names</a></span><span class="op">(</span><span class="va">traj_model</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Matching motif names, note that this might take a while.</span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">HOCOMOCO.SOX2_MOUSE.H11MO.0.A</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Tcf3"</span>, PSSM correlation = <span style="color: #0000BB;">0.603673594228002</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.kznf__ZNF649_Imbeault2017_OM_RCADE</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Atoh1"</span>, PSSM correlation = <span style="color: #0000BB;">0.744367794318428</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">JASPAR.TBX15</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Tbet"</span>, PSSM correlation = <span style="color: #0000BB;">0.834407709627726</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.nitta__CG13424_TTATAC20NATA_KH_NYAATTAN_m1_c3</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Nkx6_1"</span>, PSSM correlation = <span style="color: #0000BB;">0.851796927916711</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.cisbp__M01796</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Meis1"</span>, PSSM correlation = <span style="color: #0000BB;">0.735028462004868</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.jaspar__MA1825.1</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.GATA3_2"</span>, PSSM correlation = <span style="color: #0000BB;">0.962871303313537</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.stark__RRCAGGTGB</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.E2A_1"</span>, PSSM correlation = <span style="color: #0000BB;">0.822580786005703</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.jaspar__MA0197.2</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Oct2"</span>, PSSM correlation = <span style="color: #0000BB;">0.773872109199579</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__SNAI2_NRCAGGTGCA_FL</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Myf5"</span>, PSSM correlation = <span style="color: #0000BB;">0.882764956377704</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.taipale_tf_pairs__TBX3_AGGTGTNR_HT</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Eomes"</span>, PSSM correlation = <span style="color: #0000BB;">0.830454466253179</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.cisbp__M05898</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Tcf3"</span>, PSSM correlation = <span style="color: #0000BB;">0.674102265306274</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">JASPAR.elt-6</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.PQM_1"</span>, PSSM correlation = <span style="color: #0000BB;">0.884778469513962</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.taipale_tf_pairs__HOXB2_TBX3_AGGTGTTAATKN_CAP</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Eomes"</span>, PSSM correlation = <span style="color: #0000BB;">0.799117746197437</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">HOCOMOCO.ZEB1_HUMAN.H11MO.0.A</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.NPAS2"</span>, PSSM correlation = <span style="color: #0000BB;">0.703588481032799</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.cisbp__M02329</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.GSC"</span>, PSSM correlation = <span style="color: #0000BB;">0.74749709362038</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.flyfactorsurvey__amos_da_SANGER_10_FBgn0000413</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Ap4"</span>, PSSM correlation = <span style="color: #0000BB;">0.75948195144923</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">HOCOMOCO.SMAD4_MOUSE.H11MO.0.A</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.TboxSmad"</span>, PSSM correlation = <span style="color: #0000BB;">0.972892483096686</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.jaspar__MA1991.1</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Tcf4"</span>, PSSM correlation = <span style="color: #0000BB;">0.950952629060289</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.predrem__nrMotif1082</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Gata1"</span>, PSSM correlation = <span style="color: #0000BB;">0.935768990334864</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">HOMER.TATA_box_1</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.TATA_box"</span>, PSSM correlation = <span style="color: #0000BB;">0.864848503642247</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">JASPAR.Ptf1A.MA1619.1</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Atoh1"</span>, PSSM correlation = <span style="color: #0000BB;">0.910376349472546</span></span></span>
-<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">HOCOMOCO.ZIC2_MOUSE.H11MO.0.C</span></span></span>
-<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.HIF2a"</span>, PSSM correlation = <span style="color: #0000BB;">0.69885878827257</span></span></span></code></pre></div>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.neph__UW.Motif.0639</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Atoh1"</span>, PSSM correlation = <span style="color: #0000BB;">0.736720073685962</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.homer__CYHATAAAAN_Hoxa13</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Oct2"</span>, PSSM correlation = <span style="color: #0000BB;">0.619595157729485</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">JASPAR.GATA2</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.GATA3_2"</span>, PSSM correlation = <span style="color: #0000BB;">0.907315746824153</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__POU2F2_NTMATTATGCAN_eDBD</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.CHR"</span>, PSSM correlation = <span style="color: #0000BB;">0.692150573451878</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">JASPAR.TBX2</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Tbet"</span>, PSSM correlation = <span style="color: #0000BB;">0.800471338953668</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__POU2F3_NTATGCWAATN_eDBD_repr</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Oct4"</span>, PSSM correlation = <span style="color: #0000BB;">0.843190694181618</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.cisbp__M01365</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.GSC"</span>, PSSM correlation = <span style="color: #0000BB;">0.766281738617661</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.neph__UW.Motif.0048</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.E2A"</span>, PSSM correlation = <span style="color: #0000BB;">0.789294147619328</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.swissregulon__hs__ESR2</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.CRE"</span>, PSSM correlation = <span style="color: #0000BB;">0.776391188112696</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.kznf__CTCF_ENCODE.57_ChIP-seq</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.SeqBias_A"</span>, PSSM correlation = <span style="color: #0000BB;">0.686668552652006</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__LHX4_NTAATTAN_FL_repr</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Isl1"</span>, PSSM correlation = <span style="color: #0000BB;">0.805941998465617</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.transfac_public__M00410</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Isl1"</span>, PSSM correlation = <span style="color: #0000BB;">0.617418690618359</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.neph__UW.Motif.0112</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.YY1"</span>, PSSM correlation = <span style="color: #0000BB;">0.674753584275048</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.flyfactorsurvey__crp_SANGER_10_FBgn0001994</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.E2A"</span>, PSSM correlation = <span style="color: #0000BB;">0.889343607975713</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.cisbp__M00006</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.HIF2a"</span>, PSSM correlation = <span style="color: #0000BB;">0.663536428345927</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.taipale_cyt_meth__TCF12_NCACSTGN_eDBD_meth</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.MyoG"</span>, PSSM correlation = <span style="color: #0000BB;">0.717153800501938</span></span></span>
+<span><span class="co">#&gt; → Matching <span style="color: #00BB00;">SCENIC.cisbp__M02099</span></span></span>
+<span><span class="co">#&gt; → Matched with <span style="color: #0000BB;">"HOMER.Lhx3"</span>, PSSM correlation = <span style="color: #0000BB;">0.784285359744131</span></span></span></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">names_map</span></span>
-<span><span class="co">#&gt;                        HOCOMOCO.SMAD4_MOUSE.H11MO.0.A </span></span>
-<span><span class="co">#&gt;                                            "TboxSmad" </span></span>
-<span><span class="co">#&gt;                         HOCOMOCO.SOX2_MOUSE.H11MO.0.A </span></span>
-<span><span class="co">#&gt;                                                "Tcf3" </span></span>
-<span><span class="co">#&gt;                         HOCOMOCO.ZEB1_HUMAN.H11MO.0.A </span></span>
-<span><span class="co">#&gt;                                               "NPAS2" </span></span>
-<span><span class="co">#&gt;                         HOCOMOCO.ZIC2_MOUSE.H11MO.0.C </span></span>
-<span><span class="co">#&gt;                                               "HIF2a" </span></span>
-<span><span class="co">#&gt;                                      HOMER.TATA_box_1 </span></span>
-<span><span class="co">#&gt;                                            "TATA_box" </span></span>
-<span><span class="co">#&gt;                                 JASPAR.Ptf1A.MA1619.1 </span></span>
-<span><span class="co">#&gt;                                               "Atoh1" </span></span>
-<span><span class="co">#&gt;                                          JASPAR.TBX15 </span></span>
-<span><span class="co">#&gt;                                                "Tbet" </span></span>
-<span><span class="co">#&gt;                                          JASPAR.elt-6 </span></span>
-<span><span class="co">#&gt;                                               "PQM_1" </span></span>
-<span><span class="co">#&gt;                                  SCENIC.cisbp__M01796 </span></span>
-<span><span class="co">#&gt;                                               "Meis1" </span></span>
-<span><span class="co">#&gt;                                  SCENIC.cisbp__M02329 </span></span>
-<span><span class="co">#&gt;                                                 "GSC" </span></span>
-<span><span class="co">#&gt;                                  SCENIC.cisbp__M05898 </span></span>
-<span><span class="co">#&gt;                                              "Tcf3.2" </span></span>
-<span><span class="co">#&gt; SCENIC.flyfactorsurvey__amos_da_SANGER_10_FBgn0000413 </span></span>
-<span><span class="co">#&gt;                                                 "Ap4" </span></span>
-<span><span class="co">#&gt;                               SCENIC.jaspar__MA0197.2 </span></span>
-<span><span class="co">#&gt;                                                "Oct2" </span></span>
-<span><span class="co">#&gt;                               SCENIC.jaspar__MA1825.1 </span></span>
+<span><span class="co">#&gt;                                          JASPAR.GATA2 </span></span>
 <span><span class="co">#&gt;                                             "GATA3_2" </span></span>
-<span><span class="co">#&gt;                               SCENIC.jaspar__MA1991.1 </span></span>
-<span><span class="co">#&gt;                                                "Tcf4" </span></span>
-<span><span class="co">#&gt;             SCENIC.kznf__ZNF649_Imbeault2017_OM_RCADE </span></span>
-<span><span class="co">#&gt;                                             "Atoh1.2" </span></span>
-<span><span class="co">#&gt;  SCENIC.nitta__CG13424_TTATAC20NATA_KH_NYAATTAN_m1_c3 </span></span>
-<span><span class="co">#&gt;                                              "Nkx6_1" </span></span>
-<span><span class="co">#&gt;                           SCENIC.predrem__nrMotif1082 </span></span>
-<span><span class="co">#&gt;                                               "Gata1" </span></span>
-<span><span class="co">#&gt;                               SCENIC.stark__RRCAGGTGB </span></span>
-<span><span class="co">#&gt;                                               "E2A_1" </span></span>
-<span><span class="co">#&gt;          SCENIC.taipale_cyt_meth__SNAI2_NRCAGGTGCA_FL </span></span>
-<span><span class="co">#&gt;                                                "Myf5" </span></span>
-<span><span class="co">#&gt;  SCENIC.taipale_tf_pairs__HOXB2_TBX3_AGGTGTTAATKN_CAP </span></span>
-<span><span class="co">#&gt;                                               "Eomes" </span></span>
-<span><span class="co">#&gt;             SCENIC.taipale_tf_pairs__TBX3_AGGTGTNR_HT </span></span>
-<span><span class="co">#&gt;                                             "Eomes.2"</span></span></code></pre></div>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt;                                           JASPAR.TBX2 </span></span>
+<span><span class="co">#&gt;                                                "Tbet" </span></span>
+<span><span class="co">#&gt;                                  SCENIC.cisbp__M00006 </span></span>
+<span><span class="co">#&gt;                                               "HIF2a" </span></span>
+<span><span class="co">#&gt;                                  SCENIC.cisbp__M01365 </span></span>
+<span><span class="co">#&gt;                                                 "GSC" </span></span>
+<span><span class="co">#&gt;                                  SCENIC.cisbp__M02099 </span></span>
+<span><span class="co">#&gt;                                                "Lhx3" </span></span>
+<span><span class="co">#&gt;     SCENIC.flyfactorsurvey__crp_SANGER_10_FBgn0001994 </span></span>
+<span><span class="co">#&gt;                                                 "E2A" </span></span>
+<span><span class="co">#&gt;                       SCENIC.homer__CYHATAAAAN_Hoxa13 </span></span>
+<span><span class="co">#&gt;                                                "Oct2" </span></span>
+<span><span class="co">#&gt;                  SCENIC.kznf__CTCF_ENCODE.57_ChIP-seq </span></span>
+<span><span class="co">#&gt;                                           "SeqBias_A" </span></span>
+<span><span class="co">#&gt;                            SCENIC.neph__UW.Motif.0048 </span></span>
+<span><span class="co">#&gt;                                               "E2A.2" </span></span>
+<span><span class="co">#&gt;                            SCENIC.neph__UW.Motif.0112 </span></span>
+<span><span class="co">#&gt;                                                 "YY1" </span></span>
+<span><span class="co">#&gt;                            SCENIC.neph__UW.Motif.0639 </span></span>
+<span><span class="co">#&gt;                                               "Atoh1" </span></span>
+<span><span class="co">#&gt;                         SCENIC.swissregulon__hs__ESR2 </span></span>
+<span><span class="co">#&gt;                                                 "CRE" </span></span>
+<span><span class="co">#&gt;        SCENIC.taipale_cyt_meth__LHX4_NTAATTAN_FL_repr </span></span>
+<span><span class="co">#&gt;                                                "Isl1" </span></span>
+<span><span class="co">#&gt;     SCENIC.taipale_cyt_meth__POU2F2_NTMATTATGCAN_eDBD </span></span>
+<span><span class="co">#&gt;                                                 "CHR" </span></span>
+<span><span class="co">#&gt; SCENIC.taipale_cyt_meth__POU2F3_NTATGCWAATN_eDBD_repr </span></span>
+<span><span class="co">#&gt;                                                "Oct4" </span></span>
+<span><span class="co">#&gt;     SCENIC.taipale_cyt_meth__TCF12_NCACSTGN_eDBD_meth </span></span>
+<span><span class="co">#&gt;                                                "MyoG" </span></span>
+<span><span class="co">#&gt;                        SCENIC.transfac_public__M00410 </span></span>
+<span><span class="co">#&gt;                                              "Isl1.2"</span></span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">traj_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rename_motif_models.html">rename_motif_models</a></span><span class="op">(</span><span class="va">traj_model</span>, <span class="va">names_map</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning in eval(family$initialize): non-integer #successes in a binomial glm!</span></span>
 <span><span class="co">#&gt; Warning: glmnet.fit: algorithm did not converge</span></span></code></pre></div>
@@ -601,62 +593,14 @@ manually using <code>rename_motif_models</code> or automatically using
 </h2>
 <p>You can export the minimal model representation to a list of PBM in
 order to use infer its parameters on new data:</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pbm_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/traj_model_to_pbm_list.html">traj_model_to_pbm_list</a></span><span class="op">(</span><span class="va">traj_model</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing motif energies for <span style="color: #0000BB;">22</span> motifs on <span style="color: #0000BB;">129963</span> normalization intervals</span></span></code></pre></div>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing motif energies for <span style="color: #0000BB;">17</span> motifs on <span style="color: #0000BB;">129963</span> normalization intervals</span></span></code></pre></div>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pbm_list</span></span>
-<span><span class="co">#&gt; $Tcf3</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Tcf3"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-20.6596181864923</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Atoh1.2</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Atoh1.2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-22.9475694322582</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Tbet</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Tbet"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.2156133367257</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Nkx6_1</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Nkx6_1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-25.8576300813371</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Meis1</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Meis1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-26.4708569246983</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $GATA3_2</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"GATA3_2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.612887756774</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $E2A_1</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"E2A_1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.7626942767039</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $Atoh1</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Atoh1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-18.8351519296345</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
@@ -664,55 +608,39 @@ order to use infer its parameters on new data:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $Oct2</span></span>
 <span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Oct2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-21.9576524283651</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.0517014877026</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Myf5</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Myf5"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-21.2734614156743</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $GATA3_2</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"GATA3_2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-24.9224599707279</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Eomes.2</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Eomes.2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-24.4694108890742</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $CHR</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"CHR"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.0280119094421</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Tcf3.2</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Tcf3.2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-24.2025571045506</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $Tbet</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Tbet"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-21.4985798263476</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $PQM_1</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"PQM_1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-26.3286589172425</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Eomes</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Eomes"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.3757910984333</span> (`@max_energy`)</span></span>
-<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
-<span><span class="co">#&gt; (`@spat`)</span></span>
-<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
-<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $NPAS2</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"NPAS2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-22.3049638245459</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $Oct4</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Oct4"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-22.5973687275429</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
@@ -720,55 +648,63 @@ order to use infer its parameters on new data:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $GSC</span></span>
 <span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"GSC"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-21.2602696584225</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-26.7370915716788</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Ap4</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Ap4"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-25.4779584295699</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $E2A.2</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"E2A.2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-20.1042449310201</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $TboxSmad</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"TboxSmad"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-22.2274175352025</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $CRE</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"CRE"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-26.3160780423666</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Tcf4</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Tcf4"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.2648278920966</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $SeqBias_A</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"SeqBias_A"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-20.4634795404199</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Gata1</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Gata1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-21.796845898086</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $Isl1</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Isl1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-24.9870979302282</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $TATA_box</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"TATA_box"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.4868203461079</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $Isl1.2</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Isl1.2"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.2487220608086</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $Atoh1</span></span>
-<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Atoh1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-21.9391333365202</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; $YY1</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"YY1"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-25.3763318173833</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
+<span><span class="co">#&gt; (`@spat`)</span></span>
+<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $E2A</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"E2A"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-19.1837456284601</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
@@ -776,34 +712,50 @@ order to use infer its parameters on new data:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $HIF2a</span></span>
 <span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"HIF2a"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
-<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-22.8815239667432</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-22.9550169689711</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
+<span><span class="co">#&gt; (`@spat`)</span></span>
+<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $MyoG</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"MyoG"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-23.457575040294</span> (`@max_energy`)</span></span>
+<span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
+<span><span class="co">#&gt; (`@spat`)</span></span>
+<span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
+<span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $Lhx3</span></span>
+<span><span class="co">#&gt; a <span style="color: #0000BB;">&lt;PBM&gt;</span> object named <span style="color: #0000BB;">"Lhx3"</span> with <span style="color: #0000BB;">15</span> positions (`@pssm`)</span></span>
+<span><span class="co">#&gt; Energy normalization max = <span style="color: #0000BB;">-22.3053889656589</span> (`@max_energy`)</span></span>
 <span><span class="co">#&gt; Spatial distribution with <span style="color: #0000BB;">149</span> spatial factors, from position <span style="color: #0000BB;">1</span> to <span style="color: #0000BB;">299</span> (<span style="color: #0000BB;">298</span> bp)</span></span>
 <span><span class="co">#&gt; (`@spat`)</span></span>
 <span><span class="co">#&gt; Includes a model with <span style="color: #0000BB;">4</span> coefficients (<span style="color: #0000BB;">"high-energy"</span>, <span style="color: #0000BB;">"higher-energy"</span>,</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">"low-energy"</span>, and <span style="color: #0000BB;">"sigmoid"</span>) (`@coefs`)</span></span></code></pre></div>
 <p>You can now use <code>pbm_list.compute</code> or
 <code>pbm_list.gextract</code>:</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">new_intervals</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>    chrom <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"chr1"</span>, <span class="fl">3</span><span class="op">)</span>,</span>
 <span>    start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3671720</span>, <span class="fl">4412460</span>, <span class="fl">4493400</span><span class="op">)</span>,</span>
 <span>    end <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3672020</span>, <span class="fl">4412760</span>, <span class="fl">4493700</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/pbm_list.gextract.html">pbm_list.gextract</a></span><span class="op">(</span><span class="va">pbm_list</span>, <span class="va">new_intervals</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing energies for <span style="color: #0000BB;">22</span> PBMs on <span style="color: #0000BB;">3</span> sequences</span></span>
-<span><span class="co">#&gt;   chrom   start     end      Tcf3  Atoh1.2     Tbet   Nkx6_1    Meis1   GATA3_2</span></span>
-<span><span class="co">#&gt; 1  chr1 3671720 3672020 0.0000000 0.000000 2.959451 3.563342 5.059834 1.4397139</span></span>
-<span><span class="co">#&gt; 2  chr1 4412460 4412760 0.8123369 2.576971 2.274201 4.794199 5.748313 3.2463180</span></span>
-<span><span class="co">#&gt; 3  chr1 4493400 4493700 0.0000000 0.000000 1.648011 4.081707 4.758062 0.8726075</span></span>
-<span><span class="co">#&gt;       E2A_1      Oct2       Myf5  Eomes.2    Tcf3.2    PQM_1     Eomes    NPAS2</span></span>
-<span><span class="co">#&gt; 1 0.3002728 0.0000000 0.08640897 3.081040 0.7153426 3.356748 2.3351991 0.117358</span></span>
-<span><span class="co">#&gt; 2 1.6324170 0.7309488 0.00000000 3.650641 2.7716773 5.785005 2.8391810 0.000000</span></span>
-<span><span class="co">#&gt; 3 0.0000000 0.0000000 0.00000000 2.635236 2.7015752 4.467654 0.3658385 1.161475</span></span>
-<span><span class="co">#&gt;        GSC      Ap4   TboxSmad      Tcf4 Gata1  TATA_box    Atoh1     HIF2a</span></span>
-<span><span class="co">#&gt; 1 0.000000 3.074812 0.02526963 0.5128709     0 0.0000000 3.674427 0.9382322</span></span>
-<span><span class="co">#&gt; 2 0.000000 4.334416 4.33808348 6.7926238     0 0.3781309 0.000000 3.6959573</span></span>
-<span><span class="co">#&gt; 3 1.080716 3.700965 0.00000000 0.0000000     0 2.0193564 0.000000 0.5780081</span></span></code></pre></div>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing energies for <span style="color: #0000BB;">17</span> PBMs on <span style="color: #0000BB;">3</span> sequences</span></span>
+<span><span class="co">#&gt;   chrom   start     end     Atoh1      Oct2  GATA3_2      CHR      Tbet</span></span>
+<span><span class="co">#&gt; 1  chr1 3671720 3672020 0.1301103 0.0000000 3.379666 0.000000 0.0000000</span></span>
+<span><span class="co">#&gt; 2  chr1 4412460 4412760 0.0000000 4.4105521 5.355364 4.687533 0.4307005</span></span>
+<span><span class="co">#&gt; 3  chr1 4493400 4493700 0.0000000 0.8856153 4.203697 2.538823 0.0000000</span></span>
+<span><span class="co">#&gt;       Oct4      GSC    E2A.2      CRE SeqBias_A     Isl1 Isl1.2      YY1</span></span>
+<span><span class="co">#&gt; 1 0.000000 3.685317 1.863914 3.709008         0 2.816785      0 3.076055</span></span>
+<span><span class="co">#&gt; 2 2.187434 4.736536 0.000000 3.068705         0 4.533499      0 4.900780</span></span>
+<span><span class="co">#&gt; 3 0.000000 5.104523 0.000000 2.157962         0 4.548500      0 4.049271</span></span>
+<span><span class="co">#&gt;        E2A     HIF2a      MyoG Lhx3</span></span>
+<span><span class="co">#&gt; 1 4.505734 0.0000000 2.2515349    0</span></span>
+<span><span class="co">#&gt; 2 0.000000 0.3025292 1.9239777    0</span></span>
+<span><span class="co">#&gt; 3 0.000000 0.0000000 0.9961284    0</span></span></code></pre></div>
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># directly compute on sequences</span></span>
 <span><span class="va">seqs</span> <span class="op">&lt;-</span> <span class="fu">prego</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/prego/man/intervals_to_seq.html" class="external-link">intervals_to_seq</a></span><span class="op">(</span><span class="va">new_intervals</span><span class="op">)</span></span>
@@ -811,38 +763,21 @@ order to use infer its parameters on new data:</p>
 <span><span class="co">#&gt; [1] "TTCCTCTCCTCCCCTCGCGCGCGCTCCCTCCTCCCGCAGCCTCTCCTCCACCAGCTGACTCCGAGGGAGAGGATGACCTCATCCCTTCCCTTCCAGCTGCCGCCGCTCCCACCCCGGCTGGGGAGGGGCGAGAAGGAGGGCCCGGAGGAGGGGCTGGGATTGAGGGGAGCGGCGGGTGGGGGTGCCTGGCTGGCCAGTGCTGGACGCGGAGGGCAACAGCACGGCAATCGGAGGCCCAGTCCAGGCTCGTGGGATAGCGAAGAGCGTTGAGTGGATTTCCTCGAAGCTGGGGGGATGGGA"</span></span>
 <span><span class="co">#&gt; [2] "ATCTCTGGAAAGACTTGTGCTGATCTCTCTCTGCCCCTTCCTTGATTCACATCTCAAGGGACCGAGAAGGGAGGGAAAACACCAGTCCAGTATTTCCTATCAGTTCAGCGGGGCAGGAACCGGGAGCTTTTCCACAGGGCTGAGCCTGGCCCTCCACTGAGCAGTGTCTGCATTCCAAGGCTCCAGCCTGTCACCACCCTTCCAATCCCTTTGAAGCTGGGCAAAAGGCCTGCCAACAAGCACCAAACTTGAGAGCTCCTCTGCCAGCCCTGGGAGGGGCTGTTTCCTGCCTGCTTTTCG"</span></span>
 <span><span class="co">#&gt; [3] "GCTCATGGCTCTCCAGACCGACCCCGAGCTCTGCTATGGCCACGGGACACGCCGCTTCCCCCGACCCTGAGGCAGGGATCGGAAGCTAGCCTGGAGATGCCCAGAGGAACTCGTAAAGCTGAGCGGGTGCTACCCTCCCGCTGCTCTCCTGGTAGACCTAACCCTTCGCCTAATCCGCGCTGGAGATCTACCCAGTGACACTGCGGGTGTCCCCCCGGGCCGCGGGGCCCTTTTCTTTATGGACGCGGCCAATGGCGAGGCGGGGGCGGACCGGACCCTAGTCCTTAGGCCCCCGCCCAG"</span></span></code></pre></div>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/pbm_list.compute.html">pbm_list.compute</a></span><span class="op">(</span><span class="va">pbm_list</span>, <span class="va">seqs</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing energies for <span style="color: #0000BB;">22</span> PBMs on <span style="color: #0000BB;">3</span> sequences</span></span>
-<span><span class="co">#&gt;           Tcf3  Atoh1.2     Tbet   Nkx6_1    Meis1   GATA3_2     E2A_1</span></span>
-<span><span class="co">#&gt; [1,] 0.0000000 0.000000 2.959451 3.563342 5.059834 1.4397139 0.3002728</span></span>
-<span><span class="co">#&gt; [2,] 0.8123369 2.576971 2.274201 4.794199 5.748313 3.2463180 1.6324170</span></span>
-<span><span class="co">#&gt; [3,] 0.0000000 0.000000 1.648011 4.081707 4.758062 0.8726075 0.0000000</span></span>
-<span><span class="co">#&gt;           Oct2       Myf5  Eomes.2    Tcf3.2    PQM_1     Eomes    NPAS2</span></span>
-<span><span class="co">#&gt; [1,] 0.0000000 0.08640897 3.081040 0.7153426 3.356748 2.3351991 0.117358</span></span>
-<span><span class="co">#&gt; [2,] 0.7309488 0.00000000 3.650641 2.7716773 5.785005 2.8391810 0.000000</span></span>
-<span><span class="co">#&gt; [3,] 0.0000000 0.00000000 2.635236 2.7015752 4.467654 0.3658385 1.161475</span></span>
-<span><span class="co">#&gt;           GSC      Ap4   TboxSmad      Tcf4 Gata1  TATA_box    Atoh1     HIF2a</span></span>
-<span><span class="co">#&gt; [1,] 0.000000 3.074812 0.02526963 0.5128709     0 0.0000000 3.674427 0.9382322</span></span>
-<span><span class="co">#&gt; [2,] 0.000000 4.334416 4.33808348 6.7926238     0 0.3781309 0.000000 3.6959573</span></span>
-<span><span class="co">#&gt; [3,] 1.080716 3.700965 0.00000000 0.0000000     0 2.0193564 0.000000 0.5780081</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="performance-considerations">Performance Considerations<a class="anchor" aria-label="anchor" href="#performance-considerations"></a>
-</h2>
-<p>The computational requirements for IceQream depend on the size of
-your dataset. For reference, the example dataset used here (with
-~100,000 peaks and ~20,000 motifs) requires about 23GB of RAM for the
-motif energy matrix, and will take several hours to create, depending on
-your hardware.</p>
-<p>For a less memory and computationally intensive analysis, you can
-reduce the number of motifs used in the regression by taking a
-representative from the SCENIC clusters (1615) instead of all motifs
-(20,000+). This can be done by:</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># motif_energies &lt;- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)</span></span></code></pre></div>
-<p>Note that the performance of the model will be lower with fewer
-motifs, but it can still provide valuable insights.</p>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Computing energies for <span style="color: #0000BB;">17</span> PBMs on <span style="color: #0000BB;">3</span> sequences</span></span>
+<span><span class="co">#&gt;          Atoh1      Oct2  GATA3_2      CHR      Tbet     Oct4      GSC    E2A.2</span></span>
+<span><span class="co">#&gt; [1,] 0.1301103 0.0000000 3.379666 0.000000 0.0000000 0.000000 3.685317 1.863914</span></span>
+<span><span class="co">#&gt; [2,] 0.0000000 4.4105521 5.355364 4.687533 0.4307005 2.187434 4.736536 0.000000</span></span>
+<span><span class="co">#&gt; [3,] 0.0000000 0.8856153 4.203697 2.538823 0.0000000 0.000000 5.104523 0.000000</span></span>
+<span><span class="co">#&gt;           CRE SeqBias_A     Isl1 Isl1.2      YY1      E2A     HIF2a      MyoG</span></span>
+<span><span class="co">#&gt; [1,] 3.709008         0 2.816785      0 3.076055 4.505734 0.0000000 2.2515349</span></span>
+<span><span class="co">#&gt; [2,] 3.068705         0 4.533499      0 4.900780 0.000000 0.3025292 1.9239777</span></span>
+<span><span class="co">#&gt; [3,] 2.157962         0 4.548500      0 4.049271 0.000000 0.0000000 0.9961284</span></span>
+<span><span class="co">#&gt;      Lhx3</span></span>
+<span><span class="co">#&gt; [1,]    0</span></span>
+<span><span class="co">#&gt; [2,]    0</span></span>
+<span><span class="co">#&gt; [3,]    0</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="running-iceqream-on-your-own-data">Running IceQream on your own data<a class="anchor" aria-label="anchor" href="#running-iceqream-on-your-own-data"></a>
@@ -860,7 +795,7 @@ columns corresponding to bins).</li>
 corresponding to peaks and columns corresponding to features).</li>
 </ol>
 <p>You can then follow the steps outlined in this vignette to compute
-motif energies and run the regression.</p>
+motif energies, run the regression and analyze the results.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

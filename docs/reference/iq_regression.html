@@ -53,10 +53,14 @@
 <span>  seed <span class="op">=</span> <span class="fl">60427</span>,</span>
 <span>  frac_train <span class="op">=</span> <span class="fl">0.8</span>,</span>
 <span>  filter_model <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  r2_threshold <span class="op">=</span> <span class="fl">0.0005</span>,</span>
+<span>  bits_threshold <span class="op">=</span> <span class="fl">1.75</span>,</span>
+<span>  filter_sample_frac <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  include_interactions <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  interaction_threshold <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  max_motif_interaction_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  max_add_interaction_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  n_cores <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -125,6 +129,18 @@
 <dd><p>A logical value indicating whether to filter the model (default is TRUE).</p></dd>
 
 
+<dt id="arg-r-threshold">r2_threshold<a class="anchor" aria-label="anchor" href="#arg-r-threshold"></a></dt>
+<dd><p>minimal R^2 for a feature to be included in the model.</p></dd>
+
+
+<dt id="arg-bits-threshold">bits_threshold<a class="anchor" aria-label="anchor" href="#arg-bits-threshold"></a></dt>
+<dd><p>minimal sum of bits for a feature to be included in the model.</p></dd>
+
+
+<dt id="arg-filter-sample-frac">filter_sample_frac<a class="anchor" aria-label="anchor" href="#arg-filter-sample-frac"></a></dt>
+<dd><p>The fraction of samples to use for computing the r2 without each model at the filtering step. When NULL, all samples are used.</p></dd>
+
+
 <dt id="arg-include-interactions">include_interactions<a class="anchor" aria-label="anchor" href="#arg-include-interactions"></a></dt>
 <dd><p>whether to include interactions between motifs / additional fetures as model features. IQ will create interactions between significant additional features and all motifs, and between significant motifs. Default: FALSE</p></dd>
 
@@ -139,6 +155,10 @@
 
 <dt id="arg-max-add-interaction-n">max_add_interaction_n<a class="anchor" aria-label="anchor" href="#arg-max-add-interaction-n"></a></dt>
 <dd><p>maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL</p></dd>
+
+
+<dt id="arg-n-cores">n_cores<a class="anchor" aria-label="anchor" href="#arg-n-cores"></a></dt>
+<dd><p>The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80% of the available cores. See <code><a href="https://rdrr.io/pkg/prego/man/set_parallel.html" class="external-link">prego::set_parallel</a></code> for more details.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -187,9 +207,6 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
 
     <dt><code>filter_using_r2</code></dt>
 <dd><p>whether to filter features using R^2.</p></dd>
-
-    <dt><code>r2_threshold</code></dt>
-<dd><p>minimal R^2 for a feature to be included in the model.</p></dd>
 
     <dt><code>parallel</code></dt>
 <dd><p>whether to use parallel processing on glmnet.</p></dd>
