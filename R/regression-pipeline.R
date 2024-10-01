@@ -55,6 +55,8 @@ iq_regression <- function(
 
     cli::cli_alert_info("Training on {.val {length(train_idxs)}} intervals ({scales::percent(frac_train)}) and testing on {.val {length(test_idxs)}} intervals ({scales::percent(1 - frac_train)})")
 
+    cli::cli_alert("Regressing on train set")
+
     traj_model <- regress_trajectory_motifs(
         peak_intervals = peak_intervals[train_idxs, ],
         atac_scores = atac_scores[train_idxs, ],
