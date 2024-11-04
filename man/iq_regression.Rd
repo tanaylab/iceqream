@@ -12,13 +12,16 @@ iq_regression(
   norm_intervals = NULL,
   motif_energies = NULL,
   additional_features = NULL,
+  add_sequences_features = TRUE,
   max_motif_num = 30,
   traj_prego = NULL,
-  peaks_size = 300,
+  peaks_size = 500,
   bin_start = 1,
   bin_end = NULL,
   seed = 60427,
   frac_train = 0.8,
+  train_idxs = NULL,
+  test_idxs = NULL,
   filter_model = TRUE,
   r2_threshold = 0.0005,
   bits_threshold = 1.75,
@@ -46,11 +49,13 @@ iq_regression(
 
 \item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
 
+\item{add_sequences_features}{Add CG content and dinuceotide content to the additional features.}
+
 \item{max_motif_num}{maximum number of motifs to consider. Default: 50}
 
 \item{traj_prego}{output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.}
 
-\item{peaks_size}{size of the peaks to extract sequences from. Default: 300bp}
+\item{peaks_size}{size of the peaks to extract sequences from. Default: 500bp}
 
 \item{bin_start}{the start of the trajectory. Default: 1}
 
@@ -59,6 +64,10 @@ iq_regression(
 \item{seed}{random seed for reproducibility.}
 
 \item{frac_train}{A numeric value indicating the fraction of intervals to use for training (default is 0.8).}
+
+\item{train_idxs}{A vector of indices to use for training. If NULL, the training set is randomly selected.}
+
+\item{test_idxs}{A vector of indices to use for testing. If NULL, the testing set is the complement of the training set.}
 
 \item{filter_model}{A logical value indicating whether to filter the model (default is TRUE).}
 

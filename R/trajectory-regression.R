@@ -35,7 +35,7 @@
 #' @param filter_using_r2 whether to filter features using R^2.
 #' @param r2_threshold minimal R^2 for a feature to be included in the model.
 #' @param parallel whether to use parallel processing on glmnet.
-#' @param peaks_size size of the peaks to extract sequences from. Default: 300bp
+#' @param peaks_size size of the peaks to extract sequences from. Default: 500bp
 #' @param spat_num_bins number of spatial bins to use.
 #' @param spat_bin_size size of each spatial bin.
 #' @param kmer_sequence_length length of the kmer sequence to use for kmer screening. By default the full sequence is used.

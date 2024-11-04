@@ -254,6 +254,48 @@ norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy
     return(y)
 }
 
+#' Normalize motif energies using pre-computed quantiles
+#'
+#' @param motif_energies Matrix of motif energies to normalize
+#' @param db_quantiles Matrix of pre-computed quantiles for normalization
+#' @param energy_norm_quantile Quantile to use for normalization
+#' @param min_energy Minimum energy value
+#' @param norm_energy_max Maximum normalized energy value
+#'
+#' @return Normalized motif energies matrix
+normalize_with_db_quantiles <- function(motif_energies, db_quantiles, energy_norm_quantile, min_energy, norm_energy_max) {
+    # Check if energy_norm_quantile exists in db_quantiles columns
+    if (!as.character(energy_norm_quantile) %in% colnames(db_quantiles)) {
+        cli_abort("The specified energy_norm_quantile {.val {energy_norm_quantile}} is not present in db_quantiles.")
+    }
+
+    # Check if all motifs in motif_energies exist in db_quantiles
+    missing_motifs <- setdiff(colnames(motif_energies), rownames(db_quantiles))
+    if (length(missing_motifs) > 0) {
+        cli_abort("The following motifs are missing from db_quantiles: {.val {missing_motifs}}")
+    }
+
+    # Ensure db_quantiles has the same motifs as motif_energies
+    db_quantiles <- db_quantiles[colnames(motif_energies), , drop = FALSE]
+
+    # Convert motif_energies to log2 space (as db_quantiles are in natural log)
+    x_log2 <- motif_energies / log(2)
+
+    # Get the reference values (quantiles) in log2 space
+    log2_max_x <- db_quantiles[, as.character(energy_norm_quantile)] / log(2)
+
+    # Process motif_energies in log2 space
+    y <- pmax(pmin(sweep(x_log2, 2, log2_max_x, `-`), 0), min_energy)
+
+    normalized_energies <- (y - min_energy) / (-min_energy) * norm_energy_max
+
+    # Preserve dimension names
+    colnames(normalized_energies) <- colnames(motif_energies)
+    rownames(normalized_energies) <- rownames(motif_energies)
+
+    return(normalized_energies)
+}
+
 
 #' Logistic Function
 #'
