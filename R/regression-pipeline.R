@@ -6,6 +6,9 @@
 #' @param filter_model A logical value indicating whether to filter the model (default is TRUE).
 #' @param filter_sample_frac The fraction of samples to use for computing the r2 without each model at the filtering step. When NULL, all samples are used.
 #' @param n_cores The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80% of the available cores. See \code{\link{prego::set_parallel}} for more details.
+#' @param add_sequences_features Add CG content and dinuceotide content to the additional features.
+#' @param train_idxs A vector of indices to use for training. If NULL, the training set is randomly selected.
+#' @param test_idxs A vector of indices to use for testing. If NULL, the testing set is the complement of the training set.
 #'
 #'
 #' @inheritParams regress_trajectory_motifs
@@ -21,13 +24,16 @@ iq_regression <- function(
     norm_intervals = NULL,
     motif_energies = NULL,
     additional_features = NULL,
+    add_sequences_features = TRUE,
     max_motif_num = 30,
     traj_prego = NULL,
-    peaks_size = 300,
+    peaks_size = 500,
     bin_start = 1,
     bin_end = NULL,
     seed = 60427,
     frac_train = 0.8,
+    train_idxs = NULL,
+    test_idxs = NULL,
     filter_model = TRUE,
     r2_threshold = 0.0005,
     bits_threshold = 1.75,
@@ -47,11 +53,30 @@ iq_regression <- function(
         prego::set_parallel(n_cores)
     }
 
+    if (add_sequences_features) {
+        cli::cli_alert("Computing sequence features")
+        seq_feats <- create_sequence_features(peak_intervals, peaks_size)
+        if (is.null(additional_features)) {
+            additional_features <- seq_feats
+        } else {
+            seq_feats <- seq_feats[, setdiff(colnames(seq_feats), colnames(additional_features)), drop = FALSE]
+            if (ncol(seq_feats) > 0) {
+                cli::cli_alert("Added the following sequence features: {.val {colnames(seq_feats)}}")
+                additional_features <- cbind(additional_features, seq_feats)
+            }
+        }
+    }
+
     cli::cli_alert_info("Seed: {.val {seed}}")
     set.seed(seed)
     n_intervals <- nrow(peak_intervals)
-    train_idxs <- sample(1:n_intervals, frac_train * n_intervals)
-    test_idxs <- setdiff(1:n_intervals, train_idxs)
+    train_idxs <- train_idxs %||% sample(1:n_intervals, frac_train * n_intervals)
+    test_idxs <- test_idxs %||% setdiff(1:n_intervals, train_idxs)
+
+    # make sure that train and test indices are disjoint
+    if (length(intersect(train_idxs, test_idxs)) > 0) {
+        cli::cli_abort("Train and test indices must be disjoint")
+    }
 
     cli::cli_alert_info("Training on {.val {length(train_idxs)}} intervals ({scales::percent(frac_train)}) and testing on {.val {length(test_idxs)}} intervals ({scales::percent(1 - frac_train)})")
 

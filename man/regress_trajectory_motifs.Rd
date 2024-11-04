@@ -120,7 +120,7 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 
 \item{parallel}{whether to use parallel processing on glmnet.}
 
-\item{peaks_size}{size of the peaks to extract sequences from. Default: 300bp}
+\item{peaks_size}{size of the peaks to extract sequences from. Default: 500bp}
 
 \item{spat_num_bins}{number of spatial bins to use.}
 

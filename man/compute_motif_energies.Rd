@@ -12,7 +12,8 @@ compute_motif_energies(
   normalize = TRUE,
   energy_norm_quantile = 1,
   norm_energy_max = 10,
-  min_energy = -7
+  min_energy = -7,
+  db_quantiles = NULL
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ compute_motif_energies(
 \item{norm_energy_max}{The maximum value to which the normalized energy values are scaled. Default is 10.}
 
 \item{min_energy}{The minimum energy value to be assigned after normalization. Default is -7.}
+
+\item{db_quantiles}{A matrix of motif energies quantiles to use for normalization. Rows are motifs and columns are quantiles. If not NULL, this would be used instead of computing the quantiles from the normalization intervals. A precomputed matrix for mouse gastrulation can be found in \code{iceqream::mouse_db_quantiles}.}
 }
 \value{
 A matrix of motif energies.
