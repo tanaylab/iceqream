@@ -78,6 +78,8 @@ iq_regression <- function(
         cli::cli_abort("Train and test indices must be disjoint")
     }
 
+    frac_train <- length(train_idxs) / n_intervals
+
     cli::cli_alert_info("Training on {.val {length(train_idxs)}} intervals ({scales::percent(frac_train)}) and testing on {.val {length(test_idxs)}} intervals ({scales::percent(1 - frac_train)})")
 
     cli::cli_alert("Regressing on train set")
