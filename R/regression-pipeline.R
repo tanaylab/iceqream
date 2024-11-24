@@ -9,6 +9,9 @@
 #' @param add_sequences_features Add CG content and dinuceotide content to the additional features.
 #' @param train_idxs A vector of indices to use for training. If NULL, the training set is randomly selected.
 #' @param test_idxs A vector of indices to use for testing. If NULL, the testing set is the complement of the training set.
+#' @param output_dir A directory to save intermediate results. If not NULL, the train and test indices are saved to a CSV file, together with the models at each step (before filtering, after filtering, and after adding interactions). The models are saved as RDS files. If the directory exists, the files are overwritten.
+#'
+#' @return An instance of \code{TrajectoryModel} with the final model.
 #'
 #'
 #' @inheritParams regress_trajectory_motifs
@@ -43,6 +46,7 @@ iq_regression <- function(
     max_motif_interaction_n = NULL,
     max_add_interaction_n = NULL,
     n_cores = NULL,
+    output_dir = NULL,
     ...) {
     if (!is.null(n_cores)) {
         cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
@@ -82,6 +86,31 @@ iq_regression <- function(
 
     cli::cli_alert_info("Training on {.val {length(train_idxs)}} intervals ({scales::percent(frac_train)}) and testing on {.val {length(test_idxs)}} intervals ({scales::percent(1 - frac_train)})")
 
+    if (!is.null(output_dir)) {
+        dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+        cli::cli_alert_info("Saving the train and test indices to {.val {output_dir}}")
+        train_test <- ifelse(1:n_intervals %in% train_idxs, "train", "test")
+        readr::write_csv(peak_intervals %>% mutate(type = train_test), file.path(output_dir, "train_test_indices.csv"))
+    }
+
+    infer_and_save <- function(traj_model, file = NULL) {
+        traj_model_all <- infer_trajectory_motifs(traj_model, peak_intervals[test_idxs, ],
+            additional_features = additional_features[test_idxs, ],
+            atac_scores = atac_scores[test_idxs, ]
+        )
+        cli::cli_text("\n")
+        cli::cli_text("Number of motifs: {.val {length(traj_model_all@motif_models)}}")
+        cli::cli_text("R^2 train: {.val {round(cor(traj_model_all@diff_score[traj_model_all@type == 'train'], traj_model_all@predicted_diff_score[traj_model_all@type == 'train'], use = 'pairwise.complete.obs')^2, digits = 3)}}")
+        cli::cli_text("R^2 test: {.val {round(cor(traj_model_all@diff_score[traj_model_all@type == 'test'], traj_model_all@predicted_diff_score[traj_model_all@type == 'test'], use = 'pairwise.complete.obs')^2, digits = 3)}}")
+        cli::cli_text("\n")
+        if (!is.null(file) && !is.null(output_dir)) {
+            out_file <- file.path(output_dir, file)
+            cli::cli_alert("Saving the model to {.val {out_file}}")
+            readr::write_rds(traj_model_all, out_file)
+        }
+        traj_model_all
+    }
+
     cli::cli_alert("Regressing on train set")
 
     traj_model <- regress_trajectory_motifs(
@@ -98,31 +127,26 @@ iq_regression <- function(
         bin_end = bin_end,
         max_motif_num = max_motif_num,
         seed = seed,
-        include_interactions = include_interactions,
-        interaction_threshold = interaction_threshold,
-        max_motif_interaction_n = max_motif_interaction_n,
-        max_add_interaction_n = max_add_interaction_n,
         ...
     )
+
+    final_model <- infer_and_save(traj_model, "iq_regression_model.rds")
 
     if (filter_model) {
         cli::cli_alert("Filtering the model")
         traj_model <- filter_traj_model(traj_model, r2_threshold = r2_threshold, bits_threshold = bits_threshold, sample_frac = filter_sample_frac, seed = seed)
+        final_model <- infer_and_save(traj_model, "iq_regression_filtered_model.rds")
     }
 
-    cli::cli_alert("Infering trajectory motifs on the test set")
-    traj_model_all <- infer_trajectory_motifs(traj_model, peak_intervals[test_idxs, ],
-        additional_features = additional_features[test_idxs, ],
-        atac_scores = atac_scores[test_idxs, ]
-    )
+    if (include_interactions) {
+        traj_model <- add_interactions(traj_model, interaction_threshold = interaction_threshold, max_motif_n = max_motif_interaction_n, max_add_n = max_add_interaction_n, seed = seed)
+        final_model <- infer_and_save(traj_model, "iq_regression_final_model.rds")
+    }
 
-    cli_alert_success("Finished IQ regression.")
-    cli::cli_text("\n")
-    cli::cli_text("Number of motifs: {.val {length(traj_model_all@motif_models)}}")
-    cli::cli_text("R^2 train: {.val {round(cor(traj_model_all@diff_score[traj_model_all@type == 'train'], traj_model_all@predicted_diff_score[traj_model_all@type == 'train'], use = 'pairwise.complete.obs')^2, digits = 3)}}")
-    cli::cli_text("R^2 test: {.val {round(cor(traj_model_all@diff_score[traj_model_all@type == 'test'], traj_model_all@predicted_diff_score[traj_model_all@type == 'test'], use = 'pairwise.complete.obs')^2, digits = 3)}}")
+
+    cli::cli_alert_success("Finished IQ regression")
     cli::cli_text("\n")
     cli::cli_text("Run {.code plot_traj_model_report(traj_model)} to visualize the model features")
     cli::cli_text("Run {.code plot_prediction_scatter(traj_model)} to visualize the model predictions")
-    return(traj_model_all)
+    return(final_model)
 }

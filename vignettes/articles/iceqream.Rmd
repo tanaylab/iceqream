@@ -121,7 +121,7 @@ traj_model <- iq_regression(
     n_prego_motifs = 0, # increase to include de-novo motifs
     frac_train = 0.8,
     max_motif_num = 30
-    # include_interactions = TRUE # uncomment to include pairwise interactions    
+    # include_interactions = TRUE # uncomment to include pairwise interactions
 )
 ```
 

@@ -30,6 +30,7 @@
 #' @param distill_on_diff whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.
 #' @param prego_sample_for_kmers whether to use a sample of the peaks for kmer screening. Default: TRUE
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
+#' @param prego_enrgy_norm_quantile,prego_spat_bin_size,prego_spat_num_bins parameters for prego motif inference. See \code{prego::regress_pwm} for more details.
 #' @param seed random seed for reproducibility.
 #' @param feature_selection_beta beta parameter used for feature selection.
 #' @param filter_using_r2 whether to filter features using R^2.
@@ -81,8 +82,12 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       traj_prego = NULL,
                                       min_diff = 0.1,
                                       distill_on_diff = FALSE,
+                                      prego_min_diff = min_diff,
                                       prego_sample_for_kmers = TRUE,
                                       prego_sample_fraction = 0.1,
+                                      prego_energy_norm_quantile = 1,
+                                      prego_spat_bin_size = NULL,
+                                      prego_spat_num_bins = NULL,
                                       seed = 60427,
                                       feature_selection_beta = 0.003,
                                       lambda = 1e-5,
@@ -92,7 +97,7 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       parallel = TRUE,
                                       peaks_size = 500,
                                       spat_num_bins = NULL,
-                                      spat_bin_size = 2,
+                                      spat_bin_size = NULL,
                                       kmer_sequence_length = 300,
                                       include_interactions = FALSE,
                                       interaction_threshold = 0.001,
@@ -190,9 +195,9 @@ regress_trajectory_motifs <- function(peak_intervals,
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
         traj_prego <- learn_traj_prego(peak_intervals, atac_diff,
-            n_motifs = n_prego_motifs, min_diff = min_diff,
+            n_motifs = n_prego_motifs, min_diff = prego_min_diff,
             sample_for_kmers = prego_sample_for_kmers,
-            sample_fraction = prego_sample_fraction, energy_norm_quantile = energy_norm_quantile, sequences = all_seqs, norm_intervals = norm_intervals, seed = seed, spat_bin_size = spat_bin_size, spat_num_bins = spat_num_bins
+            sample_fraction = prego_sample_fraction, energy_norm_quantile = prego_energy_norm_quantile, sequences = all_seqs, norm_intervals = norm_intervals, seed = seed, spat_bin_size = prego_spat_bin_size, spat_num_bins = prego_spat_num_bins, peaks_size = peaks_size
         )
     }
 

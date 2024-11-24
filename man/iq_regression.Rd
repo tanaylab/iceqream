@@ -31,6 +31,7 @@ iq_regression(
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
   n_cores = NULL,
+  output_dir = NULL,
   ...
 )
 }
@@ -87,6 +88,8 @@ iq_regression(
 
 \item{n_cores}{The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80\% of the available cores. See \code{\link{prego::set_parallel}} for more details.}
 
+\item{output_dir}{A directory to save intermediate results. If not NULL, the train and test indices are saved to a CSV file, together with the models at each step (before filtering, after filtering, and after adding interactions). The models are saved as RDS files. If the directory exists, the files are overwritten.}
+
 \item{...}{
   Arguments passed on to \code{\link[=regress_trajectory_motifs]{regress_trajectory_motifs}}
   \describe{
@@ -125,18 +128,7 @@ and its often faster to fit a whole path than compute a single fit.}
   }}
 }
 \value{
-An instance of \code{TrajectoryModel} containing model information and results:
-\itemize{
-\item model: The final General Linear Model (GLM) object.
-\item motif_models: Named List, PSSM and spatial models for each motif cluster.
-\item normalized_energies: Numeric vector, normalized energies of each motif in each peak.
-\item additional_features: data frame of the additional features.
-\item diff_score: Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.
-\item predicted_diff_score: Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.
-\item initial_prego_models: List, inferred prego models at the initial step of the algorithm.
-\item peak_intervals: data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.
-}
-Print the model to see more details.
+An instance of \code{TrajectoryModel} with the final model.
 }
 \description{
 Perform IQ regression on peak intervals using the provided ATAC-seq scores, ATAC-seq score differences, normalized intervals, motif energies, and additional features, after dividing the intervals into training and testing sets.

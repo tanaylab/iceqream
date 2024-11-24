@@ -1,4 +1,7 @@
 has_interactions <- function(traj_model) {
+    if (!.hasSlot(traj_model, "interactions")) {
+        return(FALSE)
+    }
     n_interactions(traj_model) > 0
 }
 
@@ -107,6 +110,12 @@ get_significant_interactions <- function(
 #' @return The updated trajectory model with added interactions.
 #' @export
 add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427) {
+    cli::cli_alert_info("R^2 all before learning: {.val {cor(traj_model@diff_score, traj_model@predicted_diff_score)^2}}")
+    if (traj_model_has_test(traj_model)) {
+        cli::cli_alert_info("R^2 train before learning: {.val {cor(traj_model@diff_score[traj_model@type == 'train'], traj_model@predicted_diff_score[traj_model@type == 'train'])^2}}")
+        cli::cli_alert_info("R^2 test before learning: {.val {cor(traj_model@diff_score[traj_model@type == 'test'], traj_model@predicted_diff_score[traj_model@type == 'test'])^2}}")
+    }
+
     if (!has_interactions(traj_model)) {
         cli::cli_alert("Adding interactions")
         interactions <- get_significant_interactions(
@@ -123,11 +132,6 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
         traj_model@model_features <- cbind(traj_model@model_features, logist_inter)
 
         cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}")
-        cli::cli_alert_info("R^2 all before learning: {.val {cor(traj_model@diff_score, traj_model@predicted_diff_score)^2}}")
-        if (traj_model_has_test(traj_model)) {
-            cli::cli_alert_info("R^2 train before learning: {.val {cor(traj_model@diff_score[traj_model@type == 'train'], traj_model@predicted_diff_score[traj_model@type == 'train'])^2}}")
-            cli::cli_alert_info("R^2 test before learning: {.val {cor(traj_model@diff_score[traj_model@type == 'test'], traj_model@predicted_diff_score[traj_model@type == 'test'])^2}}")
-        }
 
         traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE)
         cli::cli_alert_info("R^2 all after learning: {.val {cor(traj_model@diff_score, traj_model@predicted_diff_score)^2}}")
