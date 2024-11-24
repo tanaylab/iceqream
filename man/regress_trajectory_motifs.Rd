@@ -27,8 +27,12 @@ regress_trajectory_motifs(
   traj_prego = NULL,
   min_diff = 0.1,
   distill_on_diff = FALSE,
+  prego_min_diff = min_diff,
   prego_sample_for_kmers = TRUE,
   prego_sample_fraction = 0.1,
+  prego_energy_norm_quantile = 1,
+  prego_spat_bin_size = NULL,
+  prego_spat_num_bins = NULL,
   seed = 60427,
   feature_selection_beta = 0.003,
   lambda = 0.00001,
@@ -38,7 +42,7 @@ regress_trajectory_motifs(
   parallel = TRUE,
   peaks_size = 500,
   spat_num_bins = NULL,
-  spat_bin_size = 2,
+  spat_bin_size = NULL,
   kmer_sequence_length = 300,
   include_interactions = FALSE,
   interaction_threshold = 0.001,
@@ -135,6 +139,8 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{max_motif_interaction_n}{maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL}
 
 \item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
+
+\item{prego_enrgy_norm_quantile, prego_spat_bin_size, prego_spat_num_bins}{parameters for prego motif inference. See \code{prego::regress_pwm} for more details.}
 }
 \value{
 An instance of \code{TrajectoryModel} containing model information and results:
