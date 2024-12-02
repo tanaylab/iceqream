@@ -135,6 +135,7 @@ regress_trajectory_motifs <- function(peak_intervals,
 
     validate_peak_intervals(peak_intervals)
     validate_additional_features(additional_features, peak_intervals)
+    additional_features[is.na(additional_features)] <- 0
     if (is.null(norm_intervals)) {
         norm_intervals <- peak_intervals
     }
@@ -143,41 +144,19 @@ regress_trajectory_motifs <- function(peak_intervals,
 
     min_energy <- -7
 
-    # check if misha package is loaded
-    if (!requireNamespace("misha", quietly = TRUE)) {
-        cli_abort("Please install the misha package to use the 'min_tss_distance' parameter")
-    }
-    # check that an environment called .misha exists
-    if (!exists(".misha", envir = .GlobalEnv)) {
-        cli_abort("Please load the misha package {.code library(misha)} and set the genome using {.code misha::gsetroot()}")
-    }
+    validate_misha()
 
     # filter peaks that are too close to TSS
-    if (!is.null(min_tss_distance)) {
-        if (!misha::gintervals.exists("intervs.global.tss")) {
-            misha_root <- .misha$GROOT
-            cli_abort("Please make sure the current genome ({.field {misha_root}}) has an intervals set called {.val intervs.global.tss}")
-        }
+    enhancers_filter <- get_tss_distance_filter(peak_intervals, min_tss_distance)
 
-        tss_dist <- abs(misha::gintervals.neighbors(as.data.frame(peak_intervals), "intervs.global.tss", na.if.notfound = TRUE)$dist)
-        enhancers_filter <- tss_dist > min_tss_distance
-        enhancers_filter[is.na(enhancers_filter)] <- FALSE
-        if (sum(!enhancers_filter) > 0) {
-            cli_alert_info("{.val {sum(!enhancers_filter)}} peaks were filtered out because they are too close to TSS (<= {.val {min_tss_distance}}bp)")
-        }
+    peak_intervals_all <- peak_intervals
+    peak_intervals <- peak_intervals[enhancers_filter, ]
+    atac_scores <- atac_scores[enhancers_filter, ]
+    atac_diff <- atac_diff[enhancers_filter]
+    motif_energies <- motif_energies[enhancers_filter, ]
 
-        peak_intervals_all <- peak_intervals
-        peak_intervals <- peak_intervals[enhancers_filter, ]
-        atac_scores <- atac_scores[enhancers_filter, ]
-        atac_diff <- atac_diff[enhancers_filter]
-        motif_energies <- motif_energies[enhancers_filter, ]
-
-        if (!is.null(additional_features)) {
-            additional_features <- additional_features[enhancers_filter, ]
-        }
-    } else {
-        peak_intervals_all <- peak_intervals
-        enhancers_filter <- rep(TRUE, nrow(peak_intervals))
+    if (!is.null(additional_features)) {
+        additional_features <- additional_features[enhancers_filter, ]
     }
 
     cli_alert_info("Number of peaks: {.val {nrow(peak_intervals)}}")
@@ -214,45 +193,20 @@ regress_trajectory_motifs <- function(peak_intervals,
         prego_models <- list()
     }
 
-    cli_alert_info("Calculating correlations between {.val {ncol(motif_energies)}} motif energies and ATAC difference...")
-    cm <- tgs_cor(motif_energies, as.matrix(atac_diff), pairwise.complete.obs = TRUE)[, 1]
-    cm <- cm[!is.na(cm)]
-    motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
-    if (length(motifs) < min(max_motif_num, ncol(motif_energies))) {
-        cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with {.val {min_initial_energy_cor/2}}")
-        min_initial_energy_cor <- min_initial_energy_cor / 2
-        motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
-        if (length(motifs) == 0) {
-            n <- min(min(max_motif_num, ncol(motif_energies)), length(motifs))
-            motifs <- names(sort(abs(cm), decreasing = TRUE)[1:n])
-            cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Trying again with top {.val {n}} features")
-        }
-    }
+    motifs <- select_motifs_by_correlation(motif_energies, atac_diff, min_initial_energy_cor, max_motif_num)
 
-    cli_alert_info("Selected {.val {length(motifs)}} (out of {.val {ncol(motif_energies)}}) features with absolute correlation >= {.val {min_initial_energy_cor}}")
-    motifs <- motifs[!is.na(motifs)]
     motif_energies <- motif_energies[, motifs]
-
-    cli_alert_info("Running first round of regression, # of features: {.val {ncol(motif_energies)}}")
-    glm_model1 <- glmnet::glmnet(motif_energies, atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
-
-    features <- rownames(glm_model1$beta)[abs(glm_model1$beta[, 1]) >= feature_selection_beta]
-    cli_alert_info("Taking {.val {length(features)}} features with beta >= {.val {feature_selection_beta}}")
-    if (length(features) == 0) {
-        cli::cli_alert_warning("No features with beta >= {.val {feature_selection_beta}}. Using all features.")
-        features <- rownames(glm_model1$beta)
-    }
-
-    cli_alert_info("Running second round of regression...")
-    additional_features[is.na(additional_features)] <- 0
-    glm_model2 <- glmnet::glmnet(as.matrix(cbind(motif_energies[, features], additional_features)), atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
-
-    chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
-    if (length(chosen_motifs) == 0) {
-        cli::cli_alert_warning("No features with beta > 0. Using all features.")
-        chosen_motifs <- rownames(glm_model2$beta)
-    }
-    features <- motif_energies[, setdiff(chosen_motifs, colnames(additional_features))]
+    result <- select_features_by_regression(
+        motif_energies = motif_energies,
+        atac_diff_n = atac_diff_n,
+        additional_features = additional_features,
+        feature_selection_beta = feature_selection_beta,
+        alpha = alpha,
+        lambda = lambda,
+        parallel = parallel,
+        seed = seed
+    )
+    features <- result$features_mat
 
     if (distill_on_diff) {
         diff_filter <- abs(atac_diff) >= min_diff
@@ -393,6 +347,11 @@ validate_additional_features <- function(additional_features, peak_intervals) {
     if (!is.null(additional_features)) {
         if (nrow(additional_features) != nrow(peak_intervals)) {
             cli_abort("{.field 'additional_features'} must have the same number of rows as {.field 'peak_intervals'}. intervals number of rows {.val {nrow(peak_intervals)}} != additional_features number of rows {.val {nrow(additional_features)}}}}", call = parent.frame(1))
+        }
+    }
+    if (!is.null(additional_features)) {
+        if (any(is.na(additional_features))) {
+            cli_warn("NA values in additional features are replaced with 0", call = parent.frame(1))
         }
     }
 }
