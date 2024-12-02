@@ -8,13 +8,15 @@
 #' @param use_all_motifs Logical indicating whether to use all motifs in the resulting models. If FALSE, only motifs from clusters which had a motif from the original model are used.
 #' @param seed The random seed for reproducibility. Defaults to 60427.
 #' @param cluster_report_dir The directory to store cluster reports. If not NULL, a png would be created for each cluster.
+#' @param filter_models Logical indicating whether to filter the models before distillation. Defaults to TRUE.
+#' @param unique_motifs Logical indicating whether to keep only unique motifs. Defaults to FALSE.
 #'
 #' @return A distilled trajectory model.
 #'
 #' @inheritParams distill_traj_model
 #' @inheritParams filter_traj_model
 #' @export
-distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff = 0.1, intra_cor_thresh = 0.6, distill_single = FALSE, use_all_motifs = FALSE, bits_threshold = 1.75, r2_threshold = NULL, seed = 60427, parallel = TRUE, cluster_report_dir = NULL) {
+distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff = 0.1, intra_cor_thresh = 0.6, distill_single = FALSE, use_all_motifs = FALSE, bits_threshold = 1.75, r2_threshold = NULL, seed = 60427, parallel = TRUE, cluster_report_dir = NULL, filter_models = TRUE, unique_motifs = FALSE) {
     purrr::walk(traj_models, validate_traj_model)
 
     if (any(purrr::map_lgl(traj_models, traj_model_has_test))) {
@@ -64,11 +66,13 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         cli_abort("All trajectory models must have the same number of peaks.")
     }
 
-    cli_alert_info("Filtering models...")
-    traj_models <- purrr::imap(traj_models, ~ {
-        cli_alert("Filtering model {.val {.y}}")
-        filter_traj_model(.x, r2_threshold = r2_threshold, bits_threshold = bits_threshold)
-    })
+    if (filter_models) {
+        cli_alert_info("Filtering models...")
+        traj_models <- purrr::imap(traj_models, ~ {
+            cli_alert("Filtering model {.val {.y}}")
+            filter_traj_model(.x, r2_threshold = r2_threshold, bits_threshold = bits_threshold)
+        })
+    }
 
     orig_traj_model_names <- names(traj_models)
     names(traj_models) <- paste0("m", 1:length(traj_models))
@@ -156,6 +160,8 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 
     sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_models[[1]]@peak_intervals, traj_models[[1]]@params$peaks_size)))
 
+    cli::cli_alert("Number of clusters after splitting: {.val {nrow(clust_map %>% distinct(clust))}}")
+
     if (!is.null(cluster_report_dir)) {
         plot_traj_model_multi_clust(traj_models, clust_map, motif_models, cluster_report_dir)
     }
@@ -174,13 +180,17 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
             cli_alert_info("Running {.field prego} on cluster {.val {clust_name}}, fusing {.val {n_feats}} features")
         }
 
-
         clust_models <- names(traj_models)[names(traj_models) %in% x$model]
         partial_y <- purrr::map_dfc(clust_models, ~ {
             model <- traj_models[[.x]]
-            feats <- feat_to_variable(model) %>%
-                filter(variable %in% x$motif[x$model == .x]) %>%
-                pull(feature)
+            if (!is.null(model@params$features_type) && model@params$features_type == "linear") {
+                feats <- x$motif
+                feats <- feats[feats %in% colnames(model@model_features)]
+            } else {
+                feats <- feat_to_variable(model) %>%
+                    filter(variable %in% x$motif[x$model == .x]) %>%
+                    pull(feature)
+            }
 
             py <- (model@model_features[, feats, drop = FALSE] %*% coef(model@model, s = model@params$lambda)[feats, , drop = FALSE])[, 1]
             tibble(!!.x := py)
@@ -432,6 +442,11 @@ filter_multi_traj_model <- function(multi_traj, r2_threshold = 0.0005, bits_thre
     } else {
         multi_traj@models <- traj_models_f
     }
+
+    multi_traj@stats <- bind_rows(
+        compute_traj_list_stats(multi_traj@models) %>% mutate(type = "after"),
+        compute_traj_list_stats(multi_traj@models_full) %>% mutate(type = "full")
+    )
 
     return(multi_traj)
 }

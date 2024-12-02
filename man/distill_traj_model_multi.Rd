@@ -15,7 +15,9 @@ distill_traj_model_multi(
   r2_threshold = NULL,
   seed = 60427,
   parallel = TRUE,
-  cluster_report_dir = NULL
+  cluster_report_dir = NULL,
+  filter_models = TRUE,
+  unique_motifs = FALSE
 )
 }
 \arguments{
@@ -40,6 +42,10 @@ distill_traj_model_multi(
 \item{parallel}{Whether to use parallel processing}
 
 \item{cluster_report_dir}{The directory to store cluster reports. If not NULL, a png would be created for each cluster.}
+
+\item{filter_models}{Logical indicating whether to filter the models before distillation. Defaults to TRUE.}
+
+\item{unique_motifs}{Logical indicating whether to keep only unique motifs. Defaults to FALSE.}
 }
 \value{
 A distilled trajectory model.

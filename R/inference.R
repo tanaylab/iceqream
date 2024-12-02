@@ -15,6 +15,7 @@
 infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL, diff_score = NULL, sequences = NULL, norm_sequences = NULL) {
     validate_traj_model(traj_model)
     validate_additional_features(additional_features, peak_intervals)
+    additional_features[is.na(additional_features)] <- 0
     if (has_additional_features(traj_model)) {
         if (is.null(additional_features)) {
             additional_features <- matrix(0, nrow = nrow(peak_intervals), ncol = ncol(traj_model@additional_features))
@@ -24,7 +25,8 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
             for (feat in colnames(traj_model@additional_features)) {
                 if (!(feat %in% colnames(additional_features))) {
                     cli_warn("Additional feature {.val {feat}} is missing. Using 0 for this feature.")
-                    additional_features[, feat] <- 0
+                    additional_features <- as_tibble(additional_features)
+                    additional_features[[feat]] <- 0
                 }
             }
         }
