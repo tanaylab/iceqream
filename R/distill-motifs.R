@@ -46,6 +46,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
         glm_model <- traj_model@model
     } else {
         glm_model <- glmnet::glmnet(as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features)), atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
+        glm_model <- strip_glmnet(glm_model)
     }
 
 
@@ -55,6 +56,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
     clust_energies_logist <- create_logist_features(clust_energies)
 
     model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
+    model <- strip_glmnet(model)
 
     predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = params$lambda))[, 1]
     predicted_diff_score <- norm01(predicted_diff_score)

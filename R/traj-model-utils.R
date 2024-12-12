@@ -53,6 +53,7 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     y_train <- y[traj_model@type == "train"]
 
     model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+    model <- strip_glmnet(model)
 
     pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = traj_model@params$lambda))[, 1]
     pred <- norm01(pred)
@@ -68,6 +69,8 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     traj_model@predicted_diff_score <- pred
     traj_model@coefs <- get_model_coefs(model)
     traj_model@model_features <- X
+
+    traj_model <- add_traj_model_stats(traj_model)
 
     return(traj_model)
 }

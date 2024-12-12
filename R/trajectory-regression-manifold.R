@@ -196,5 +196,29 @@ regress_trajectory_motifs_manifold <- function(peak_intervals,
     cli::cli_h2("Distilling trajectory models...")
     traj_model_multi <- distill_traj_model_multi(traj_model_ls, max_motif_num = max_motif_num, min_diff = min_diff, seed = seed, filter_models = FALSE, ...)
 
+    for (model in traj_model_multi$models) {
+        model@params$features_type <- "logistic"
+    }
+
     return(traj_model_multi)
+}
+
+distill_manifold_model <- function(mm, ...) {
+    traj_models <- mm@models_full
+    for (i in seq_along(traj_models)) {
+        traj_models[[i]]@params$features_type <- "logistic"
+    }
+    distill_traj_model_multi(traj_models = traj_models, unique_motifs = TRUE, ...)
+}
+
+infer_trajectory_motifs_manifold <- function(mm, peak_intervals, atac_diff_mat, additional_features = NULL) {
+    atac_scores_list_tst <- purrr::map(names(mm@models), ~ {
+        as.matrix(data.frame(bin1 = 0, bin4 = atac_diff_mat[, .x]))
+    })
+    names(atac_scores_list_tst) <- names(mm@models)
+    if (!is.null(additional_features)) {
+        additional_features_tst <- purrr::map(names(mm@models), ~additional_features)
+        names(additional_features_tst) <- names(mm@models)
+    }
+    infer_trajectory_motifs_multi(mm, peak_intervals = peak_intervals, atac_scores = atac_scores_list_tst, additional_features = additional_features_tst)
 }
