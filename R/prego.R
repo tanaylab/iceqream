@@ -64,6 +64,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
         additional_features[is.na(additional_features)] <- 0
         cli_alert_info("Learning a model using only additional features...")
         glm_feats <- glmnet::glmnet(as.matrix(additional_features), norm01(peaks_df$score), binomial(link = "logit"), alpha = 1, lambda = 1e-5, parallel = TRUE, seed = seed)
+        glm_feats <- strip_glmnet(glm_feats)
         pred <- logist(glmnet::predict.glmnet(glm_feats, newx = as.matrix(additional_features), type = "link", s = 1e-5))[, 1]
         score <- norm01(peaks_df$score) - pred
     } else {

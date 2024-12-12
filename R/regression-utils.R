@@ -81,6 +81,7 @@ select_features_by_regression <- function(motif_energies, atac_diff_n, additiona
         parallel = parallel,
         seed = seed
     )
+    glm_model1 <- strip_glmnet(glm_model1)
 
     features <- rownames(glm_model1$beta)[abs(glm_model1$beta[, 1]) >= feature_selection_beta]
     cli_alert_info("Taking {.val {length(features)}} features with beta >= {.val {feature_selection_beta}}")
@@ -100,6 +101,7 @@ select_features_by_regression <- function(motif_energies, atac_diff_n, additiona
         parallel = parallel,
         seed = seed
     )
+    glm_model2 <- strip_glmnet(glm_model2)
 
     chosen_motifs <- rownames(glm_model2$beta)[abs(glm_model2$beta[, 1]) > 0]
     if (length(chosen_motifs) == 0) {
