@@ -41,9 +41,10 @@
 #' @param spat_bin_size size of each spatial bin.
 #' @param kmer_sequence_length length of the kmer sequence to use for kmer screening. By default the full sequence is used.
 #' @param include_interactions whether to include interactions between motifs / additional fetures as model features. IQ will create interactions between significant additional features and all motifs, and between significant motifs. Default: FALSE
-#' @param interaction_threshold threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001
+
 #' @param max_motif_interaction_n maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL
 #' @param max_add_interaction_n maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL
+#' @param max_interaction_n maximum number of interactions to consider.
 #'
 #' @return An instance of `TrajectoryModel` containing model information and results:
 #' \itemize{
@@ -59,6 +60,7 @@
 #' Print the model to see more details.
 #'
 #' @inheritParams glmnet::glmnet
+#' @inheritParams add_interactions
 #' @export
 regress_trajectory_motifs <- function(peak_intervals,
                                       atac_scores = NULL,
@@ -102,7 +104,8 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       include_interactions = FALSE,
                                       interaction_threshold = 0.001,
                                       max_motif_interaction_n = NULL,
-                                      max_add_interaction_n = NULL) {
+                                      max_add_interaction_n = NULL,
+                                      max_interaction_n = NULL) {
     withr::local_options(list(gmax.data.size = 1e9))
 
     if (is.null(atac_scores) && is.null(atac_diff)) {
@@ -246,6 +249,7 @@ regress_trajectory_motifs <- function(peak_intervals,
             interaction_threshold = interaction_threshold, additional_features = additional_features,
             max_motif_n = max_motif_interaction_n,
             max_add_n = max_add_interaction_n,
+            max_n = max_interaction_n,
             lambda = lambda, alpha = alpha, seed = seed
         )
         clust_energies <- cbind(clust_energies, interactions)
@@ -257,6 +261,7 @@ regress_trajectory_motifs <- function(peak_intervals,
 
     cli_alert_info("Running final regression, number of features: {.val {ncol(clust_energies_logist)}}")
     model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
+    model <- strip_glmnet(model)
 
     predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = lambda))[, 1]
     predicted_diff_score <- norm01(predicted_diff_score)

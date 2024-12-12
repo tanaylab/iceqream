@@ -32,18 +32,18 @@
 #'
 #' @export
 homogenize_pssm_models <- function(models) {
-    homogenize_model <- function(model) {
-        # if A is higher than T reverse complement the model
-        if (sum(model$pssm$T) > sum(model$pssm$A)) {
-            model$pssm <- prego::pssm_rc(model$pssm)
-        }
-        return(model)
-    }
-
     models <- models %>%
         purrr::map(homogenize_model)
 
     return(models)
+}
+
+homogenize_model <- function(model) {
+    # if A is higher than T reverse complement the model
+    if (sum(model$pssm$T) > sum(model$pssm$A)) {
+        model$pssm <- prego::pssm_rc(model$pssm)
+    }
+    return(model)
 }
 
 
