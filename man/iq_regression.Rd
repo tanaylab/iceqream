@@ -113,6 +113,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
     \item{\code{spat_num_bins}}{number of spatial bins to use.}
     \item{\code{spat_bin_size}}{size of each spatial bin.}
     \item{\code{kmer_sequence_length}}{length of the kmer sequence to use for kmer screening. By default the full sequence is used.}
+    \item{\code{max_interaction_n}}{maximum number of interactions to consider.}
     \item{\code{alpha}}{The elasticnet mixing parameter, with \eqn{0\le\alpha\le 1}.
 The penalty is defined as
 \deqn{(1-\alpha)/2||\beta||_2^2+\alpha||\beta||_1.} \code{alpha=1} is the
