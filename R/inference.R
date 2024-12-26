@@ -90,7 +90,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     return(traj_model)
 }
 
-calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp", sequences = NULL, norm_sequences = NULL) {
+calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp", sequences = NULL, norm_sequences = NULL, bidirect = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
 
     if (is.null(sequences)) {
@@ -115,23 +115,23 @@ calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@pea
     }
 
 
-    cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals")
-    e_test <- infer_energies(sequences, norm_sequences, traj_model@motif_models, traj_model@params$min_energy, traj_model@params$energy_norm_quantile, traj_model@params$norm_energy_max, func)
+    cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals and {.val {nrow(traj_model@normalization_intervals)}} normalization intervals")
+    e_test <- infer_energies(sequences, norm_sequences, traj_model@motif_models, traj_model@params$min_energy, traj_model@params$energy_norm_quantile, traj_model@params$norm_energy_max, func, bidirect = bidirect)
 
     return(e_test)
 }
 
-infer_energies <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp") {
+infer_energies <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp", bidirect = TRUE) {
     ml <- purrr::discard(motif_list, is.null)
 
     energies <- plyr::llply(ml, function(x) {
-        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
+        prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func, bidirect = bidirect)
     }, .parallel = getOption("prego.parallel", TRUE))
     names(energies) <- names(ml)
     energies <- do.call(cbind, energies)
 
     norm_energies <- plyr::llply(ml, function(x) {
-        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
+        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func, bidirect = bidirect)
     }, .parallel = getOption("prego.parallel", TRUE))
     names(norm_energies) <- names(ml)
     norm_energies <- do.call(cbind, norm_energies)
