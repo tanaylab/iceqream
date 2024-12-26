@@ -208,7 +208,8 @@ distill_manifold_model <- function(mm, ...) {
     for (i in seq_along(traj_models)) {
         traj_models[[i]]@params$features_type <- "logistic"
     }
-    distill_traj_model_multi(traj_models = traj_models, unique_motifs = TRUE, ...)
+
+    distill_traj_model_multi(traj_models = traj_models, unique_motifs = TRUE, learn_single_spatial = FALSE, ...)
 }
 
 infer_trajectory_motifs_manifold <- function(mm, peak_intervals, atac_diff_mat, additional_features = NULL) {
@@ -221,4 +222,53 @@ infer_trajectory_motifs_manifold <- function(mm, peak_intervals, atac_diff_mat, 
         names(additional_features_tst) <- names(mm@models)
     }
     infer_trajectory_motifs_multi(mm, peak_intervals = peak_intervals, atac_scores = atac_scores_list_tst, additional_features = additional_features_tst)
+}
+
+learn_traj_prego_manifold <- function(mm, n_motifs_per_traj = 2, min_diff = 0.2, ...) {
+    traj_models <- mm@models_full
+    traj_prego <- plyr::llply(names(traj_models), function(i) {
+        cli::cli_alert("Learning prego motifs for trajectory {.val {i}}")
+        traj_model <- traj_models[[i]]
+        train_idxs <- which(traj_model@type == "train")
+        atac_diff <- traj_model@diff_score[train_idxs]
+        peak_intervals <- traj_model@peak_intervals[train_idxs, ]
+        learn_traj_prego(peak_intervals, atac_diff, n_motifs = n_motifs_per_traj, min_diff = min_diff, seed = traj_model@params$seed, ...)
+    })
+    names(traj_prego) <- names(traj_models)
+    return(traj_prego)
+}
+
+add_prego_motifs_to_manifold <- function(mm, mm_prego) {
+    prego_models <- purrr::map(mm_prego, ~ .x$models) %>%
+        purrr::list_flatten(name_spec = "{outer}.{inner}")
+
+    traj_model <- mm@models_full[[1]]
+    traj_model@motif_models <- prego_models
+
+    prego_e <- calc_traj_model_energies(traj_model)
+
+    new_models <- purrr::imap(mm@models_full, ~ {
+        cli::cli_alert("Adding prego motifs to trajectory {.val {.y}}")
+        traj_model <- .x
+        models <- prego_models[grep(paste0("^", .y, "\\."), names(prego_models))]
+        traj_model@initial_prego_models <- models
+        traj_e <- prego_e[, names(models)]
+        traj_model@normalized_energies <- cbind(
+            traj_model@normalized_energies,
+            traj_e
+        )
+        traj_model@motif_models <- c(traj_model@motif_models, models)
+        X <- traj_model@model_features
+        X_new <- create_logist_features(traj_model@normalized_energies)
+        X <- cbind(X, X_new)
+        traj_model@model_features <- X
+
+        relearn_traj_model(traj_model, verbose = TRUE)
+    })
+    names(new_models) <- names(mm@models_full)
+
+    mm_new <- mm
+    mm_new@models_full <- new_models
+
+    return(mm_new)
 }

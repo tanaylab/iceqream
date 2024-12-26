@@ -5,6 +5,7 @@
 #' @param traj_models A list of trajectory models.
 #' @param max_motif_num The maximum number of motifs to be identified. If NULL - the number would be set to the maximum number of motifs in the input models.
 #' @param distill_single Logical indicating whether to distill clusters with a single motif.
+#' @param learn_single_spatial Logical indicating whether to learn only spatial features for clusters with a single motif, or skip them.
 #' @param use_all_motifs Logical indicating whether to use all motifs in the resulting models. If FALSE, only motifs from clusters which had a motif from the original model are used.
 #' @param seed The random seed for reproducibility. Defaults to 60427.
 #' @param cluster_report_dir The directory to store cluster reports. If not NULL, a png would be created for each cluster.
@@ -16,7 +17,7 @@
 #' @inheritParams distill_traj_model
 #' @inheritParams filter_traj_model
 #' @export
-distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff = 0.1, intra_cor_thresh = 0.6, distill_single = FALSE, use_all_motifs = FALSE, bits_threshold = 1.75, r2_threshold = NULL, seed = 60427, parallel = TRUE, cluster_report_dir = NULL, filter_models = TRUE, unique_motifs = FALSE) {
+distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff = 0.1, intra_cor_thresh = 0.6, distill_single = FALSE, learn_single_spatial = TRUE, use_all_motifs = FALSE, bits_threshold = 1.75, r2_threshold = NULL, seed = 60427, parallel = TRUE, cluster_report_dir = NULL, filter_models = TRUE, unique_motifs = FALSE) {
     purrr::walk(traj_models, validate_traj_model)
 
     if (any(purrr::map_lgl(traj_models, traj_model_has_test))) {
@@ -25,7 +26,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         traj_models_train <- traj_models_tt %>% purrr::map("train")
         traj_models_test <- traj_models_tt %>% purrr::map("test")
 
-        multi_traj <- distill_traj_model_multi(traj_models_train, max_motif_num = max_motif_num, min_diff = min_diff, intra_cor_thresh = intra_cor_thresh, distill_single = distill_single, use_all_motifs = use_all_motifs, bits_threshold = bits_threshold, r2_threshold = r2_threshold, seed = seed, parallel = parallel, cluster_report_dir = cluster_report_dir, filter_models = filter_models, unique_motifs = unique_motifs)
+        multi_traj <- distill_traj_model_multi(traj_models_train, max_motif_num = max_motif_num, min_diff = min_diff, intra_cor_thresh = intra_cor_thresh, distill_single = distill_single, use_all_motifs = use_all_motifs, bits_threshold = bits_threshold, r2_threshold = r2_threshold, seed = seed, parallel = parallel, cluster_report_dir = cluster_report_dir, filter_models = filter_models, unique_motifs = unique_motifs, learn_single_spatial = learn_single_spatial)
         if (!all(purrr::map_lgl(traj_models_test, traj_model_has_test))) {
             cli_alert_warning("Not all test models have test peaks. Skipping test inference. Run {.code infer_trajectory_motifs_multi} to infer test peaks.")
             return(multi_traj)
@@ -130,6 +131,11 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     nclust <- min(ncol(features), max_motif_num)
 
     if (unique_motifs) {
+        feat_map <- get_correlation_based_clusters(hc, cm, intra_cor_thresh) %>%
+            rename(feat = name, clust = cluster) %>%
+            mutate(clust = paste0("c", clust)) %>%
+            add_count(clust)
+        cli::cli_alert_info("Number of clusters: {.val {nrow(feat_map %>% distinct(clust))}}, using correlation threshold: {.val {intra_cor_thresh}}")
         clust_map <- purrr::imap_dfr(traj_models, ~ {
             tibble(
                 model = .y,
@@ -137,7 +143,9 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
                 feat = motif
             )
         }) %>%
-            left_join(data.frame(feat = colnames(features), clust = paste0("c", cutree(hc, k = nclust))), by = "feat")
+            left_join(feat_map, by = "feat")
+        # %>%
+        # left_join(data.frame(feat = colnames(features), clust = paste0("c", cutree(hc, k = nclust))), by = "feat")
     } else {
         clust_map <- data.frame(feat = colnames(features), clust = paste0("c", cutree(hc, k = nclust))) %>%
             mutate(model = stringr::str_extract(feat, "^m\\d+")) %>%
@@ -155,7 +163,6 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     clust_map <- clust_map %>%
         left_join(motif_cors, by = c("model", "motif")) %>%
         arrange(clust, desc(abs(cor)))
-
 
     if (!is.null(intra_cor_thresh)) {
         avg_intra_cluster_cor <- function(cluster_id, clust_map, corr_matrix) {
@@ -222,21 +229,33 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     withr::local_options(list(gmax.data.size = 1e9))
     sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_models[[1]]@peak_intervals, traj_models[[1]]@params$peaks_size)))
 
+    clust_map <- clust_map %>%
+        group_by(clust) %>%
+        mutate(n = n_distinct(feat)) %>%
+        ungroup()
+
     clust_sizes <- clust_map %>%
         distinct(clust, .keep_all = TRUE) %>%
         pull(n)
 
-    cli::cli_alert("Number of clusters after splitting: {.val {nrow(clust_map %>% distinct(clust))}}, out of which {.val {sum(clust_sizes == 1)}} have only one feature. Avg cluster size: {.val {mean(clust_sizes)}}")
+    cli::cli_alert("Number of clusters after splitting: {.val {nrow(clust_map %>% distinct(clust))}}, out of which {.val {sum(clust_sizes == 1)}} have only one feature. Avg cluster size: {.val {round(mean(clust_sizes), digits = 2)}}")
+
     prego_distilled <- plyr::dlply(clust_map, "clust", function(x) {
         n_feats <- length(unique(x$feat))
         clust_name <- clust_to_name[x$clust[1]]
 
         optimize_pwm <- TRUE
         motif <- NULL
-        if (!distill_single && n_feats == 1) {
-            cli_alert("Only one feature in cluster {.val {clust_name}}. Skipping distillation and learning only spatial")
-            optimize_pwm <- FALSE
-            motif <- motif_models[[x$feat[1]]]$pssm
+        if (n_feats == 1) {
+            if (!learn_single_spatial) {
+                cli_alert("Only one feature in cluster {.val {clust_name}}. Skipping.")
+                return(motif_models[[x$feat[1]]])
+            }
+            if (!distill_single) {
+                cli_alert("Only one feature in cluster {.val {clust_name}}. Skipping distillation and learning only spatial")
+                optimize_pwm <- FALSE
+                motif <- motif_models[[x$feat[1]]]$pssm
+            }
         } else {
             cli_alert_info("Running {.field prego} on cluster {.val {clust_name}}, fusing {.val {n_feats}} features")
         }
@@ -534,6 +553,105 @@ filter_multi_traj_model <- function(multi_traj, r2_threshold = 0.0005, bits_thre
     if (filter_full) {
         multi_traj@models_full <- traj_models_f
     } else {
+        multi_traj@models <- traj_models_f
+    }
+
+    multi_traj@stats <- bind_rows(
+        compute_traj_list_stats(multi_traj@models) %>% mutate(type = "after"),
+        compute_traj_list_stats(multi_traj@models_full) %>% mutate(type = "full")
+    )
+
+    return(multi_traj)
+}
+
+filter_traj_model_by_beta <- function(traj_model, threshold = 0.005) {
+    r2_train <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
+    if (traj_model_has_test(traj_model)) {
+        r2_test <- cor(traj_model@diff_score[traj_model@type == "test"], traj_model@predicted_diff_score[traj_model@type == "test"])^2
+    }
+    y <- norm01(traj_model@diff_score)
+
+    X <- as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features))
+
+    X_train <- X[traj_model@type == "train", ]
+    y_train <- y[traj_model@type == "train"]
+
+    model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, seed = traj_model@params$seed)
+    model <- strip_glmnet(model)
+
+    beta_df <- coef(model)[, 1] %>%
+        enframe("motif", "beta") %>%
+        mutate(beta = abs(beta)) %>%
+        filter(motif %in% names(traj_model@motif_models))
+
+    vars_to_remove <- beta_df %>%
+        filter(beta < threshold) %>%
+        pull(motif)
+
+    new_model <- remove_motif_models_from_traj(traj_model, vars_to_remove, verbose = FALSE)
+    new_r2_train <- cor(new_model@diff_score[new_model@type == "train"], new_model@predicted_diff_score[new_model@type == "train"])^2
+    cli::cli_alert_info("Number of motifs: {.val {length(traj_model@motif_models)}} -> {.val {length(new_model@motif_models)}}")
+    if (traj_model_has_test(traj_model)) {
+        new_r2_test <- cor(new_model@diff_score[new_model@type == "test"], new_model@predicted_diff_score[new_model@type == "test"])^2
+        cli::cli_alert_info("R^2 train: {.val {r2_train}}, test: {.val {r2_test}} -> {.val {new_r2_train}}, {.val {new_r2_test}}")
+    } else {
+        cli::cli_alert_info("R^2 train: {.val {r2_train}} -> {.val {new_r2_train}}")
+    }
+    return(new_model)
+}
+
+#' Filter multi-trajectory model by beta
+#'
+#' @param multi_traj A TrajectoryModelMulti model object.
+#' @param filter_full A logical value indicating whether to filter the full models (\code{@models_full}) or the reduced models (\code{@models}). Default is TRUE.
+#' @param beta_threshold The threshold for the absolute value of the beta coefficient. Default is 0.005.
+#' @param unify Whether to use all the motifs in each trajectory after filtering
+#'
+#' @return The filtered TrajectoryModelMulti object
+#'
+#'
+#' @export
+filter_multi_traj_model_by_beta <- function(multi_traj, beta_threshold = 0.005, filter_full = TRUE, unify = TRUE) {
+    if (filter_full) {
+        traj_models <- multi_traj@models_full
+    } else {
+        traj_models <- multi_traj@models
+    }
+
+    traj_models_f <- purrr::imap(traj_models, ~ {
+        cli::cli_alert_info("Filtering model {.val {.y}}, ({.val {length(.x@motif_models)}} models)")
+        filter_traj_model_by_beta(.x, threshold = beta_threshold)
+    })
+
+    if (filter_full) {
+        multi_traj@models_full <- traj_models_f
+    } else {
+        multi_traj@models <- traj_models_f
+    }
+
+    if (unify) {
+        all_motif_models <- purrr::imap(traj_models_f, ~ .x@motif_models) %>% purrr::flatten()
+        all_motif_models <- all_motif_models[unique(names(all_motif_models))]
+        normalized_energies <- purrr::imap(traj_models_f, ~ {
+            e <- .x@normalized_energies
+            e <- e[, colnames(e) %in% names(.x@motif_models)]
+            e
+        }) %>% do.call(cbind, .)
+        normalized_energies <- normalized_energies[, names(all_motif_models)]
+
+        cli::cli_alert("Unifying models (number of unique motifs: {.val {length(all_motif_models)}})")
+
+        traj_models_full <- purrr::imap(traj_models_f, ~ {
+            cli::cli_alert_info(.y)
+            new_model <- .x
+            new_model@normalized_energies <- normalized_energies
+            new_model@motif_models <- all_motif_models
+            new_model <- relearn_traj_model(new_model, new_logist = TRUE)
+            cli::cli_alert_info("Full model (unified): R^2 train: {.val {new_model@params$stats$r2_train}}, test: {.val {new_model@params$stats$r2_test}} ({.val {length(new_model@motif_models)}} motifs)")
+            new_model
+        })
+
+        multi_traj@models_full <- traj_models_full
         multi_traj@models <- traj_models_f
     }
 

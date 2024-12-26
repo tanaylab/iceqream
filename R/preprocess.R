@@ -94,6 +94,7 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #'   If NULL, calculated from const_quantile.
 #' @param add_tss_dist Logical. Whether to add TSS distance to peaks. Default: TRUE
 #' @param tss_intervals Character. Name of TSS intervals track. Default: "intervs.global.tss"
+#' @param proximal_atac_window_size Numeric. Window size for proximal ATAC signal computation. For each peak, a feature of the (punctrured) window signal is computed. Default: 2e4
 #'
 #' @return A list containing:
 #'   \itemize{
@@ -102,6 +103,7 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #'     \item atac_norm_const: Constitutive peak-normalized signal matrix
 #'     \item atac_norm_prob: Probability-normalized signal matrix
 #'     \item peaks: Data frame of peak information
+#'     \item additional_features: Data frame of additional features (dinucleotide distribution and punctured regional ATAC signal)
 #'     \item params: List of parameters used for normalization
 #'   }
 #'
@@ -138,7 +140,7 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #' \code{\link{normalize_regional}}, \code{\link{normalize_const}}, \code{\link{normalize_to_prob}}
 #'
 #' @export
-preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks = NULL, anchor_cell_type = NULL, figures_dir = NULL, peaks_size = 500, binsize = 20, overwrite_tracks = FALSE, overwrite_marginal = FALSE, window_size = 2e4, minimal_quantile = 0.1, const_threshold = -16, const_norm_quant = 1, const_scaling_quant = 1, const_quantile = 0.9, prob1_thresh = NULL, add_tss_dist = TRUE, tss_intervals = "intervs.global.tss") {
+preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks = NULL, anchor_cell_type = NULL, figures_dir = NULL, peaks_size = 500, binsize = 20, overwrite_tracks = FALSE, overwrite_marginal = FALSE, window_size = 2e4, minimal_quantile = 0.1, const_threshold = -16, const_norm_quant = 1, const_scaling_quant = 1, const_quantile = 0.9, prob1_thresh = NULL, add_tss_dist = TRUE, tss_intervals = "intervs.global.tss", proximal_atac_window_size = 2e4) {
     track_prefix <- project_name
 
     if (!is.null(files)) {
@@ -218,12 +220,16 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
         mutate(peak_name = paste0(chrom, "_", start, "_", end))
     stopifnot(all(peaks$peak_name == rownames(norm_mat_p)))
 
+    additional_features <- create_default_additional_features(peaks, marginal_track, proximal_atac_window_size)
+    rownames(additional_features) <- rownames(norm_mat_p)
+
     obj <- list(
         atac = atac_mat,
         atac_norm = norm_mat,
         atac_norm_const = norm_mat_const,
         atac_norm_prob = norm_mat_p,
         peaks = peaks,
+        additional_features = additional_features,
         params = list(
             window_size = window_size,
             minimal_quantile = minimal_quantile,
@@ -241,6 +247,52 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
     }
 
     return(obj)
+}
+
+#' Create Default Additional Features
+#'
+#' This function generates additional features for a given set of peaks. The features include sequence features and regional ATAC signal using a punctured window.
+#'
+#' @param peaks Intervals set of peaks
+#' @param tracks Tracks containing ATAC signal
+#' @param window_size An integer specifying the size of the window for computing regional ATAC signal. Default is 20,000 bp.
+#'
+#' @return A data frame with additional features: sequence features and regional ATAC signal. The features are normalized to the range 0-10.
+#'
+#' @export
+create_default_additional_features <- function(peaks, tracks, window_size = 2e4) {
+    cli::cli_alert("Creating sequence features")
+    seq_feats <- create_sequence_features(peaks)
+
+    cli::cli_alert_info("Computing regional ATAC signal (punctured window of {.val {window_size}}bp)")
+    regional_atac_punc <- proximal_atac_punctured(
+        tracks,
+        peaks,
+        window_size = window_size
+    )
+    additional_features <- seq_feats %>%
+        as.data.frame() %>%
+        mutate(regional_atac_punc = norm01(regional_atac_punc) * 10)
+
+    return(additional_features)
+}
+
+proximal_atac_punctured <- function(tracks, intervals, window_size = 2e4) {
+    vtracks <- paste0("vt", seq_along(tracks))
+    vtracks_prox <- paste0("vt_prox", seq_along(tracks))
+    purrr::walk2(vtracks, tracks, ~ gvtrack.create(.x, .y, func = "sum"))
+    purrr::walk2(vtracks_prox, tracks, ~ {
+        gvtrack.create(.x, .y, func = "sum")
+        gvtrack.iterator(.x, sshift = -window_size / 2, eshift = window_size / 2)
+    })
+
+    expr_intervs <- glue::glue("psum({tracks}, na.rm=TRUE)", tracks = paste(vtracks, collapse = ", "))
+    expr_prox <- glue::glue("psum({vtracks_prox}, na.rm=TRUE)", vtracks_prox = paste(vtracks_prox, collapse = ", "))
+    expr_punc <- glue("{expr_prox} - {expr_intervs}")
+    res <- gextract(expr_punc, intervals = intervals, iterator = intervals, colnames = "punc") %>%
+        arrange(intervalID) %>%
+        pull(punc)
+    return(res)
 }
 
 #' Generate and save normalization visualization plots

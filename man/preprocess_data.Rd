@@ -23,7 +23,8 @@ preprocess_data(
   const_quantile = 0.9,
   prob1_thresh = NULL,
   add_tss_dist = TRUE,
-  tss_intervals = "intervs.global.tss"
+  tss_intervals = "intervs.global.tss",
+  proximal_atac_window_size = 20000
 )
 }
 \arguments{
@@ -65,6 +66,8 @@ If NULL, calculated from const_quantile.}
 \item{add_tss_dist}{Logical. Whether to add TSS distance to peaks. Default: TRUE}
 
 \item{tss_intervals}{Character. Name of TSS intervals track. Default: "intervs.global.tss"}
+
+\item{proximal_atac_window_size}{Numeric. Window size for proximal ATAC signal computation. For each peak, a feature of the (punctrured) window signal is computed. Default: 2e4}
 }
 \value{
 A list containing:
@@ -74,6 +77,7 @@ A list containing:
 \item atac_norm_const: Constitutive peak-normalized signal matrix
 \item atac_norm_prob: Probability-normalized signal matrix
 \item peaks: Data frame of peak information
+\item additional_features: Data frame of additional features (dinucleotide distribution and punctured regional ATAC signal)
 \item params: List of parameters used for normalization
 }
 }
