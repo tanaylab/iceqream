@@ -13,9 +13,12 @@
 #'
 #' @export
 relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE) {
+    if (verbose) {
+        r2_train_before <- cor(traj_model@predicted_diff_score[traj_model@type == "train"], traj_model@diff_score[traj_model@type == "train"])^2
+        r2_test_before <- cor(traj_model@predicted_diff_score[traj_model@type == "test"], traj_model@diff_score[traj_model@type == "test"])^2
+    }
     if (new_energies) {
-        traj_model@normalized_energies[traj_model@type == "train", ] <- calc_traj_model_energies(traj_model, traj_model@peak_intervals[traj_model@type == "train", ])
-        traj_model@normalized_energies[traj_model@type == "test", ] <- calc_traj_model_energies(traj_model, traj_model@peak_intervals[traj_model@type == "test", ])
+        traj_model@normalized_energies <- calc_traj_model_energies(traj_model, traj_model@peak_intervals)
         new_logist <- TRUE
     }
 
@@ -60,9 +63,10 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     pred <- rescale(pred, traj_model@diff_score)
     if (verbose) {
         r2_f <- cor(pred, y)^2
+        r2_train <- cor(pred[traj_model@type == "train"], y[traj_model@type == "train"])^2
         r2_t <- cor(pred[traj_model@type == "test"], y[traj_model@type == "test"])^2
-        cli_alert_info("R^2 all after relearning: {.val {r2_f}}")
-        cli_alert_info("R^2 test after relearning: {.val {r2_t}}")
+        cli_alert_info("R^2 train before relearning: {.val {r2_train_before}}, after: {.val {r2_train}}, difference: {.val {r2_train - r2_train_before}}")
+        cli_alert_info("R^2 test before relearning: {.val {r2_test_before}}, after: {.val {r2_t}}, difference: {.val {r2_t - r2_test_before}}")
     }
 
     traj_model@model <- model
@@ -73,6 +77,55 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     traj_model <- add_traj_model_stats(traj_model)
 
     return(traj_model)
+}
+
+#' Add motif models to trajectory model
+#'
+#' This function adds specified motif models to a given trajectory model.
+#' It updates the model, motif models, predicted difference score, model features,
+#' coefficients, normalized energies, and features R^2 of the trajectory model.
+#'
+#' @param traj_model The trajectory model object to add motif models to.
+#' @param new_motif_models A named list of motif models to add. Each element should contain a 'pssm' component and optionally a 'spat' component.
+#' @param verbose A logical value indicating whether to display information about the R^2 after adding the motif models. Default is TRUE.
+#'
+#' @return The updated trajectory model object after adding the motif models.
+#'
+#' @export
+add_motif_models_to_traj <- function(traj_model, new_motif_models, verbose = TRUE) {
+    if (!all(purrr::map_lgl(new_motif_models, ~ !is.null(.x$pssm)))) {
+        cli_abort("All motif models must contain a 'pssm' component.")
+    }
+
+    # Check for name conflicts
+    existing_names <- names(traj_model@motif_models)
+    new_names <- names(new_motif_models)
+    if (any(new_names %in% existing_names)) {
+        cli_abort("Motif{?s} {.val {new_names[new_names %in% existing_names]}} already exist{?s} in the trajectory model.")
+    }
+
+    traj_model_new <- traj_model
+
+    traj_model_new_motifs <- traj_model
+    traj_model_new_motifs@motif_models <- new_motif_models
+
+    # infer energies
+    traj_model_new@normalized_energies <- cbind(
+        traj_model_new@normalized_energies,
+        calc_traj_model_energies(traj_model_new_motifs, traj_model@peak_intervals)
+    )
+
+    traj_model_new@motif_models <- c(traj_model@motif_models, new_motif_models)
+
+    # Create new logistic features and update model features
+    X <- traj_model_new@model_features
+    X_new <- create_logist_features(traj_model_new@normalized_energies)
+    X <- cbind(X, X_new)
+    traj_model_new@model_features <- X
+
+    traj_model_new <- relearn_traj_model(traj_model_new, verbose = verbose)
+
+    return(traj_model_new)
 }
 
 

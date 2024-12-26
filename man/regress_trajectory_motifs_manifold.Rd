@@ -137,6 +137,7 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
   \describe{
     \item{\code{traj_models}}{A list of trajectory models.}
     \item{\code{distill_single}}{Logical indicating whether to distill clusters with a single motif.}
+    \item{\code{learn_single_spatial}}{Logical indicating whether to learn only spatial features for clusters with a single motif, or skip them.}
     \item{\code{use_all_motifs}}{Logical indicating whether to use all motifs in the resulting models. If FALSE, only motifs from clusters which had a motif from the original model are used.}
     \item{\code{cluster_report_dir}}{The directory to store cluster reports. If not NULL, a png would be created for each cluster.}
     \item{\code{filter_models}}{Logical indicating whether to filter the models before distillation. Defaults to TRUE.}

@@ -10,6 +10,7 @@ distill_traj_model_multi(
   min_diff = 0.1,
   intra_cor_thresh = 0.6,
   distill_single = FALSE,
+  learn_single_spatial = TRUE,
   use_all_motifs = FALSE,
   bits_threshold = 1.75,
   r2_threshold = NULL,
@@ -30,6 +31,8 @@ distill_traj_model_multi(
 \item{intra_cor_thresh}{The threshold for the average intra-cluster correlation to split clusters. If NULL, no splitting is done.}
 
 \item{distill_single}{Logical indicating whether to distill clusters with a single motif.}
+
+\item{learn_single_spatial}{Logical indicating whether to learn only spatial features for clusters with a single motif, or skip them.}
 
 \item{use_all_motifs}{Logical indicating whether to use all motifs in the resulting models. If FALSE, only motifs from clusters which had a motif from the original model are used.}
 
