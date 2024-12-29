@@ -196,7 +196,7 @@ regress_trajectory_motifs_manifold <- function(peak_intervals,
     cli::cli_h2("Distilling trajectory models...")
     traj_model_multi <- distill_traj_model_multi(traj_model_ls, max_motif_num = max_motif_num, min_diff = min_diff, seed = seed, filter_models = FALSE, ...)
 
-    for (model in traj_model_multi$models) {
+    for (model in traj_model_multi@models) {
         model@params$features_type <- "logistic"
     }
 
