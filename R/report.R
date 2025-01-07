@@ -259,6 +259,7 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
                 apply(1, max) %>%
                 sort(decreasing = TRUE) %>%
                 names()
+            sorted_vars <- sorted_vars[sorted_vars %in% names(models)]
         }
         sorted_vars <- sorted_vars[!(sorted_vars %in% colnames(traj_model@additional_features))]
     } else {
