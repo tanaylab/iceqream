@@ -11,7 +11,8 @@ relearn_traj_model(
   lambda = NULL,
   use_additional_features = TRUE,
   use_motifs = TRUE,
-  verbose = FALSE
+  verbose = FALSE,
+  rescale_pred = TRUE
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ relearn_traj_model(
 \item{use_motifs}{A logical value indicating whether to use motif models. Default is TRUE.}
 
 \item{verbose}{Logical indicating whether to display additional information.}
+
+\item{rescale_pred}{Logical indicating whether to rescale the predicted values. Default is TRUE.}
 }
 \value{
 The updated trajectory model object.

@@ -4,7 +4,13 @@
 \alias{create_default_additional_features}
 \title{Create Default Additional Features}
 \usage{
-create_default_additional_features(peaks, tracks, window_size = 20000)
+create_default_additional_features(
+  peaks,
+  tracks,
+  window_size = 20000,
+  normalize = TRUE,
+  norm_quant = 0.05
+)
 }
 \arguments{
 \item{peaks}{Intervals set of peaks}
@@ -12,6 +18,10 @@ create_default_additional_features(peaks, tracks, window_size = 20000)
 \item{tracks}{Tracks containing ATAC signal}
 
 \item{window_size}{An integer specifying the size of the window for computing regional ATAC signal. Default is 20,000 bp.}
+
+\item{normalize}{A logical value indicating whether to normalize the features to the range 0-10.}
+
+\item{norm_quant}{The quantile to use for normalization. Values below this quantile and above 1-quantile are truncated, and the rest are linearly scaled to 0-10.}
 }
 \value{
 A data frame with additional features: sequence features and regional ATAC signal. The features are normalized to the range 0-10.
