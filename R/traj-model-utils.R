@@ -9,10 +9,11 @@
 #' @param use_additional_features A logical value indicating whether to use additional features. Default is TRUE.
 #' @param use_motifs A logical value indicating whether to use motif models. Default is TRUE.
 #' @param verbose Logical indicating whether to display additional information.
+#' @param rescale_pred Logical indicating whether to rescale the predicted values. Default is TRUE.
 #' @return The updated trajectory model object.
 #'
 #' @export
-relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE) {
+relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, rescale_pred = TRUE) {
     if (verbose) {
         r2_train_before <- cor(traj_model@predicted_diff_score[traj_model@type == "train"], traj_model@diff_score[traj_model@type == "train"])^2
         r2_test_before <- cor(traj_model@predicted_diff_score[traj_model@type == "test"], traj_model@diff_score[traj_model@type == "test"])^2
@@ -59,8 +60,12 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     model <- strip_glmnet(model)
 
     pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = traj_model@params$lambda))[, 1]
-    pred <- norm01(pred)
-    pred <- rescale(pred, traj_model@diff_score)
+
+    if (rescale_pred) {
+        pred <- norm01(pred)
+        pred <- rescale(pred, traj_model@diff_score)
+    }
+
     if (verbose) {
         r2_f <- cor(pred, y)^2
         r2_train <- cor(pred[traj_model@type == "train"], y[traj_model@type == "train"])^2
