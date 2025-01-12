@@ -11,12 +11,18 @@ strip_glmnet <- function(model) {
     )
 
     stripped$call <- NULL
-    stripped$family <- binomial(link = "logit")
 
     return(stripped)
 }
 
 strip_traj_model <- function(traj_model) {
+    traj_model@model <- strip_glmnet(traj_model@model)
     traj_model@params$distilled_features <- NULL
     return(traj_model)
+}
+
+strip_traj_model_multi <- function(mm) {
+    mm@models <- purrr::map(mm@models, strip_traj_model)
+    mm@models_full <- purrr::map(mm@models_full, strip_traj_model)
+    return(mm)
 }
