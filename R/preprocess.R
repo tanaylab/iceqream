@@ -259,10 +259,11 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
 #'
 #' @return A data frame with additional features: sequence features and regional ATAC signal. The features are normalized to the range 0-10.
 #'
+#' @inheritParams create_sequence_features
 #' @export
-create_default_additional_features <- function(peaks, tracks, window_size = 2e4) {
+create_default_additional_features <- function(peaks, tracks, window_size = 2e4, normalize = TRUE, norm_quant = 0.05) {
     cli::cli_alert("Creating sequence features")
-    seq_feats <- create_sequence_features(peaks)
+    seq_feats <- create_sequence_features(peaks, normalize = normalize)
 
     cli::cli_alert_info("Computing regional ATAC signal (punctured window of {.val {window_size}}bp)")
     regional_atac_punc <- proximal_atac_punctured(
@@ -270,11 +271,26 @@ create_default_additional_features <- function(peaks, tracks, window_size = 2e4)
         peaks,
         window_size = window_size
     )
-    additional_features <- seq_feats %>%
-        as.data.frame() %>%
-        mutate(regional_atac_punc = norm01(regional_atac_punc) * 10)
+
+    additional_features <- as.data.frame(seq_feats) %>%
+        mutate(regional_atac_punc = regional_atac_punc)
+
+    if (normalize) {
+        additional_features <- additional_features %>%
+            mutate(regional_atac_punc = normalize_feature(regional_atac_punc, norm_quant))
+    }
+
 
     return(additional_features)
+}
+
+normalize_feature <- function(x, quant) {
+    q_low <- quantile(x, quant, na.rm = TRUE)
+    q_high <- quantile(x, 1 - quant, na.rm = TRUE)
+    x <- ifelse(x > q_high, q_high, x)
+    x <- ifelse(x < q_low, q_low, x)
+    y <- norm01(x) * 10
+    return(y)
 }
 
 proximal_atac_punctured <- function(tracks, intervals, window_size = 2e4) {

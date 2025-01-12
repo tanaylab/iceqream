@@ -4,12 +4,21 @@
 \alias{create_sequence_features}
 \title{Create Sequence Features}
 \usage{
-create_sequence_features(intervals, size = NULL)
+create_sequence_features(
+  intervals,
+  size = NULL,
+  normalize = TRUE,
+  norm_quant = 0.05
+)
 }
 \arguments{
 \item{intervals}{A data frame containing interval information with columns \code{start} and \code{end}.}
 
 \item{size}{The size of the sequences to extract. If NULL, the size is calculated from the first interval.}
+
+\item{normalize}{A logical value indicating whether to normalize the features to the range 0-10.}
+
+\item{norm_quant}{The quantile to use for normalization. Values below this quantile and above 1-quantile are truncated, and the rest are linearly scaled to 0-10.}
 }
 \value{
 A matrix of normalized sequence features including GC content and dinucleotide frequencies.
