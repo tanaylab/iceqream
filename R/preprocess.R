@@ -261,7 +261,7 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
 #'
 #' @inheritParams create_sequence_features
 #' @export
-create_default_additional_features <- function(peaks, tracks, window_size = 2e4, normalize = TRUE, norm_quant = 0.05) {
+create_default_additional_features <- function(peaks, tracks, window_size = 2e4, normalize = TRUE, norm_quant = 0.05, spatial_ratio_ext = 1e3) {
     cli::cli_alert("Creating sequence features")
     seq_feats <- create_sequence_features(peaks, normalize = normalize)
 
@@ -301,14 +301,31 @@ proximal_atac_punctured <- function(tracks, intervals, window_size = 2e4) {
         gvtrack.create(.x, .y, func = "sum")
         gvtrack.iterator(.x, sshift = -window_size / 2, eshift = window_size / 2)
     })
+    centers <- misha.ext::gintervals.centers(intervals)
 
     expr_intervs <- glue::glue("psum({tracks}, na.rm=TRUE)", tracks = paste(vtracks, collapse = ", "))
     expr_prox <- glue::glue("psum({vtracks_prox}, na.rm=TRUE)", vtracks_prox = paste(vtracks_prox, collapse = ", "))
     expr_punc <- glue("{expr_prox} - {expr_intervs}")
-    res <- gextract(expr_punc, intervals = intervals, iterator = intervals, colnames = "punc") %>%
+    res <- gextract(expr_punc, intervals = centers, iterator = centers, colnames = "punc") %>%
         arrange(intervalID) %>%
         pull(punc)
     return(res)
+}
+
+compute_spatial_ratio <- function(peaks, marginal_track, ext = 1e3) {
+    gvtrack.create("marginal", marginal_track, func = "sum")
+    peaks_size <- peaks$end[1] - peaks$start[1]
+    gvtrack.iterator("marginal", sshift = -peaks_size, eshift = peaks_size)
+    gvtrack.create("marginal_ext", marginal_track, func = "sum")
+    gvtrack.iterator("marginal_ext", sshift = -ext, eshift = ext)
+    centers <- misha.ext::gintervals.centers(peaks)
+    spat_ratio_df <- gextract("marginal / marginal_ext",
+        intervals = centers, iterator = centers,
+        colnames = "spatial_ratio"
+    ) %>%
+        arrange(intervalID) %>%
+        select(-intervalID)
+    return(spat_ratio_df$spatial_ratio)
 }
 
 #' Generate and save normalization visualization plots
@@ -559,7 +576,8 @@ normalize_regional <- function(peaks, mat, marginal_track, window_size = 2e4, mi
     gvtrack.iterator("marginal_20k", sshift = -window_size / 2, eshift = window_size / 2)
 
     peaks_metadata <- misha.ext::gextract.left_join(
-        c("marginal", "marginal_20k"),
+        c("ifelse(is.na(marginal), 0, marginal)", "ifelse(is.na(marginal_20k), 0, marginal_20k)"),
+        colnames = c("marginal", "marginal_20k"),
         intervals = peaks,
         iterator = peaks
     ) %>%
