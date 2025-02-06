@@ -9,7 +9,8 @@ create_default_additional_features(
   tracks,
   window_size = 20000,
   normalize = TRUE,
-  norm_quant = 0.05
+  norm_quant = 0.05,
+  spatial_ratio_ext = 1000
 )
 }
 \arguments{
