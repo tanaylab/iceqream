@@ -66,7 +66,10 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     pred <- predict_traj_model(traj_model, e_test_logist)
     traj_model@predicted_diff_score <- c(traj_model@predicted_diff_score, pred)
 
-    traj_model@model_features <- as.matrix(rbind(traj_model@model_features, e_test_logist[, intersect(colnames(e_test_logist), colnames(traj_model@model_features))]))
+    traj_model@model_features <- as.matrix(rbind(
+        traj_model@model_features,
+        e_test_logist[, colnames(e_test_logist)[colnames(e_test_logist) %in% colnames(traj_model@model_features)]]
+    ))
     traj_model@normalized_energies <- as.matrix(rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))]))
     if (!is.null(diff_score)) {
         traj_model@diff_score <- c(traj_model@diff_score, diff_score)
@@ -90,35 +93,73 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     return(traj_model)
 }
 
+extract_traj_model_sequences <- function(traj_model, peak_intervals) {
+    all_intervals <- bind_rows(
+        peak_intervals %>% mutate(type = "f"),
+        traj_model@normalization_intervals %>% mutate(type = "n")
+    ) %>%
+        select(chrom, start, end, type)
+    unique_intervals <- all_intervals %>%
+        distinct(chrom, start, end) %>%
+        mutate(intervalID = row_number())
+    all_intervals <- all_intervals %>%
+        left_join(unique_intervals, by = c("chrom", "start", "end"))
+    cli_alert_info("Extracting sequences...")
+    if (!is.null(traj_model@params$peaks_size)) {
+        sequences_all <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(all_intervals, traj_model@params$peaks_size)))
+    } else {
+        sequences_all <- toupper(misha::gseq.extract(all_intervals))
+    }
+
+    sequences <- sequences_all[all_intervals$intervalID[all_intervals$type == "f"]]
+    norm_sequences <- sequences_all[all_intervals$intervalID[all_intervals$type == "n"]]
+
+    return(list(sequences = sequences, norm_sequences = norm_sequences))
+}
+
 calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp", sequences = NULL, norm_sequences = NULL, bidirect = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
 
-    if (is.null(sequences)) {
-        cli_alert_info("Extracting sequences...")
-        if (!is.null(traj_model@params$peaks_size)) {
-            sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals, traj_model@params$peaks_size)))
-        } else {
-            sequences <- toupper(misha::gseq.extract(peak_intervals))
-        }
-    } else {
-        if (length(sequences) != nrow(peak_intervals)) {
-            cli_abort("The number of sequences should be equal to the number of peaks in peak_intervals.")
-        }
+    if (is.null(sequences) || is.null(norm_sequences)) {
+        seqs <- extract_traj_model_sequences(traj_model, peak_intervals)
+        sequences <- seqs$sequences
+        norm_sequences <- seqs$norm_sequences
+    } else if (!is.null(sequences) && is.null(norm_sequences)) {
+        cli_abort("If sequences are provided, norm_sequences should also be provided.")
+    } else if (is.null(sequences) && !is.null(norm_sequences)) {
+        cli_abort("If norm_sequences are provided, sequences should also be provided.")
     }
-
-    if (is.null(norm_sequences)) {
-        norm_sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, traj_model@params$peaks_size)))
-    } else {
-        if (length(norm_sequences) != nrow(traj_model@normalization_intervals)) {
-            cli_abort("The number of normalization sequences should be equal to the number of normalization intervals in the trajectory model.")
-        }
-    }
-
 
     cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals and {.val {nrow(traj_model@normalization_intervals)}} normalization intervals")
-    e_test <- infer_energies(sequences, norm_sequences, traj_model@motif_models, traj_model@params$min_energy, traj_model@params$energy_norm_quantile, traj_model@params$norm_energy_max, func, bidirect = bidirect)
+    e_test <- infer_energies_new(sequences, norm_sequences, traj_model@motif_models, traj_model@params$min_energy, traj_model@params$energy_norm_quantile, traj_model@params$norm_energy_max, func, bidirect = bidirect)
 
     return(e_test)
+}
+
+motifs_to_mdb <- function(ml) {
+    spat_factors <- ml %>%
+        purrr::imap_dfc(~ .x$spat$spat_factor) %>%
+        as.matrix() %>%
+        t()
+    spat_bin_size <- unique(purrr::map_dbl(ml, ~ unique(diff(.x$spat$bin))))
+    if (length(spat_bin_size) > 1) {
+        cli::cli_abort("All models must have the same bin size")
+    }
+    motif_db <- purrr::imap_dfr(ml, ~ .x$pssm %>% dplyr::mutate(motif = .y))
+    prego::create_motif_db(motif_db, spat_factors = spat_factors, spat_bin_size = spat_bin_size, spat_min = ml[[1]]$spat_min, spat_max = ml[[1]]$spat_max)
+}
+
+infer_energies_new <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp", bidirect = TRUE) {
+    ml <- purrr::discard(motif_list, is.null)
+    mdb <- motifs_to_mdb(ml)
+
+    all_energies <- prego::extract_pwm(c(sequences, norm_sequences), dataset = mdb, prior = 0.01)
+    energies <- all_energies[1:length(sequences), ]
+    norm_energies <- all_energies[(length(sequences) + 1):nrow(all_energies), ]
+
+    energies <- norm_energy_matrix(energies, norm_energies, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
+
+    return(energies)
 }
 
 infer_energies <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp", bidirect = TRUE) {
