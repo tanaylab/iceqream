@@ -38,6 +38,13 @@ iq_regression <- function(
     train_idxs = NULL,
     test_idxs = NULL,
     filter_model = TRUE,
+    min_diff = 0.1,
+    prego_min_diff = min_diff,
+    prego_sample_for_kmers = TRUE,
+    prego_sample_fraction = 0.1,
+    prego_energy_norm_quantile = 1,
+    prego_spat_bin_size = NULL,
+    prego_spat_num_bins = NULL,
     r2_threshold = 0.0005,
     bits_threshold = 1.75,
     filter_sample_frac = 0.1,
@@ -45,6 +52,7 @@ iq_regression <- function(
     interaction_threshold = 0.001,
     max_motif_interaction_n = NULL,
     max_add_interaction_n = NULL,
+    n_prego_motifs = 0,
     n_cores = NULL,
     output_dir = NULL,
     ...) {
@@ -71,6 +79,13 @@ iq_regression <- function(
         }
     }
 
+    if (!is.null(atac_diff)) {
+        # create fake atac scores with bin1 = 0
+        atac_scores <- matrix(0, nrow = length(atac_diff), ncol = 2)
+        atac_scores[, 2] <- atac_diff
+        normalize_bins <- FALSE
+    }
+
     cli::cli_alert_info("Seed: {.val {seed}}")
     set.seed(seed)
     n_intervals <- nrow(peak_intervals)
@@ -93,6 +108,24 @@ iq_regression <- function(
         readr::write_csv(peak_intervals %>% mutate(type = train_test), file.path(output_dir, "train_test_indices.csv"))
     }
 
+    if (is.null(traj_prego) && n_prego_motifs > 0) {
+        cli::cli_alert_info("Learning prego motifs (de-novo motifs)")
+        if (is.null(atac_diff)) {
+            atac_diff <- atac_scores[, 2] - atac_scores[, 1]
+        }
+        traj_prego <- learn_traj_prego(peak_intervals[train_idxs, ], atac_diff[train_idxs],
+            n_motifs = n_prego_motifs, min_diff = prego_min_diff,
+            sample_for_kmers = prego_sample_for_kmers,
+            sample_fraction = prego_sample_fraction, energy_norm_quantile = prego_energy_norm_quantile, norm_intervals = norm_intervals, seed = seed, spat_bin_size = prego_spat_bin_size, spat_num_bins = prego_spat_num_bins, peaks_size = peaks_size
+        )
+        if (!is.null(output_dir)) {
+            out_file <- file.path(output_dir, "prego_model.rds")
+            cli::cli_alert("Saving the prego model to {.val {out_file}}")
+            readr::write_rds(traj_prego, out_file)
+        }
+    }
+
+
     infer_and_save <- function(traj_model, file = NULL) {
         traj_model_all <- infer_trajectory_motifs(traj_model, peak_intervals[test_idxs, ],
             additional_features = additional_features[test_idxs, ],
@@ -106,6 +139,7 @@ iq_regression <- function(
         if (!is.null(file) && !is.null(output_dir)) {
             out_file <- file.path(output_dir, file)
             cli::cli_alert("Saving the model to {.val {out_file}}")
+            traj_model_all <- strip_traj_model(traj_model_all)
             readr::write_rds(traj_model_all, out_file)
         }
         traj_model_all
@@ -116,7 +150,6 @@ iq_regression <- function(
     traj_model <- regress_trajectory_motifs(
         peak_intervals = peak_intervals[train_idxs, ],
         atac_scores = atac_scores[train_idxs, ],
-        atac_diff = atac_diff[train_idxs, ],
         normalize_bins = normalize_bins,
         norm_intervals = norm_intervals,
         motif_energies = motif_energies[train_idxs, ],
@@ -127,6 +160,7 @@ iq_regression <- function(
         bin_end = bin_end,
         max_motif_num = max_motif_num,
         seed = seed,
+        min_diff = min_diff,
         ...
     )
 

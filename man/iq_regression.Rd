@@ -23,6 +23,13 @@ iq_regression(
   train_idxs = NULL,
   test_idxs = NULL,
   filter_model = TRUE,
+  min_diff = 0.1,
+  prego_min_diff = min_diff,
+  prego_sample_for_kmers = TRUE,
+  prego_sample_fraction = 0.1,
+  prego_energy_norm_quantile = 1,
+  prego_spat_bin_size = NULL,
+  prego_spat_num_bins = NULL,
   r2_threshold = 0.0005,
   bits_threshold = 1.75,
   filter_sample_frac = 0.1,
@@ -30,6 +37,7 @@ iq_regression(
   interaction_threshold = 0.001,
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
+  n_prego_motifs = 0,
   n_cores = NULL,
   output_dir = NULL,
   ...
@@ -72,6 +80,12 @@ iq_regression(
 
 \item{filter_model}{A logical value indicating whether to filter the model (default is TRUE).}
 
+\item{min_diff}{minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).}
+
+\item{prego_sample_for_kmers}{whether to use a sample of the peaks for kmer screening. Default: TRUE}
+
+\item{prego_sample_fraction}{Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1}
+
 \item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
 
 \item{bits_threshold}{minimal sum of bits for a feature to be included in the model.}
@@ -85,6 +99,8 @@ iq_regression(
 \item{max_motif_interaction_n}{maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL}
 
 \item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
+
+\item{n_prego_motifs}{number of prego motifs (de-novo motifs) to consider.}
 
 \item{n_cores}{The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80\% of the available cores. See \code{\link{prego::set_parallel}} for more details.}
 
@@ -102,11 +118,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
     \item{\code{min_initial_energy_cor}}{minimal correlation between the motif normalized energy and the ATAC difference.}
     \item{\code{energy_norm_quantile}}{quantile of the energy used for normalization. Default: 1}
     \item{\code{norm_energy_max}}{maximum value of the normalized energy. Default: 10}
-    \item{\code{n_prego_motifs}}{number of prego motifs (de-novo motifs) to consider.}
-    \item{\code{min_diff}}{minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).}
     \item{\code{distill_on_diff}}{whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.}
-    \item{\code{prego_sample_for_kmers}}{whether to use a sample of the peaks for kmer screening. Default: TRUE}
-    \item{\code{prego_sample_fraction}}{Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1}
     \item{\code{feature_selection_beta}}{beta parameter used for feature selection.}
     \item{\code{filter_using_r2}}{whether to filter features using R^2.}
     \item{\code{parallel}}{whether to use parallel processing on glmnet.}

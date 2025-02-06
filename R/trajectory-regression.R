@@ -134,6 +134,8 @@ regress_trajectory_motifs <- function(peak_intervals,
         if (length(atac_diff) != nrow(peak_intervals)) {
             cli_abort("Length of {.field {atac_diff}} must be equal to the number of rows in {.field {peak_intervals}}")
         }
+        atac_scores <- matrix(0, nrow = length(atac_diff), ncol = 2)
+        atac_scores[, 2] <- atac_diff
     }
 
     validate_peak_intervals(peak_intervals)
@@ -187,7 +189,7 @@ regress_trajectory_motifs <- function(peak_intervals,
         prego_models <- traj_prego$models
         prego_e <- traj_prego$energies
         prego_pssm <- traj_prego$pssm
-        if (!is.null(min_tss_distance)) {
+        if (!is.null(min_tss_distance) && min_tss_distance > 0) {
             prego_e <- prego_e[enhancers_filter, ]
         }
         motif_energies <- cbind(motif_energies, prego_e)
@@ -210,6 +212,8 @@ regress_trajectory_motifs <- function(peak_intervals,
         seed = seed
     )
     features <- result$features_mat
+    glm_model2 <- result$glm_model2
+    chosen_motifs <- result$chosen_motifs
 
     if (distill_on_diff) {
         diff_filter <- abs(atac_diff) >= min_diff
