@@ -248,6 +248,7 @@ norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy
     min_dataset_y <- range_dataset_y[, 1]
 
     y <- t((t(y) - min_dataset_y) / (range)) * norm_energy_max
+    y[is.na(y)] <- 0
 
     colnames(y) <- colnames(x)
     rownames(y) <- rownames(x)
@@ -395,3 +396,26 @@ create_logist_features <- function(features) {
 
     return(features)
 }
+
+inverse_logist_by_type <- function(y, type) {
+    switch(type,
+        "low-energy" = {
+            # Reverse of: logist(x, x_0 = 0, L = 2, k = 0.5) - 1
+            -2 * log(2 / (y + 1) - 1)
+        },
+        "high-energy" = {
+            # Reverse of: logist(x, x_0 = 10, L = 2, k = 0.50)
+            10 - 2 * log(2 / y - 1)
+        },
+        "sigmoid" = {
+            # Reverse of: logist(x - 5, x_0 = 0, L = 1, k = 1)
+            -log(1 / y - 1) + 5
+        },
+        "higher-energy" = {
+            # Reverse of: logist(x, x_0 = 10, L = 2, k = 1)
+            10 - log(2 / y - 1)
+        },
+        stop("Unknown transformation type")
+    )
+}
+
