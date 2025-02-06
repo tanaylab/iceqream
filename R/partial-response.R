@@ -1,3 +1,18 @@
+escape_vars <- function(vars) {
+    vars <- gsub("([()])", "\\\\\\1", vars)
+    vars <- gsub("\\?", "\\\\?", vars)
+    vars <- gsub("\\|", "\\\\|", vars)
+    vars <- gsub("\\*", "\\\\*", vars)
+    vars <- gsub("\\+", "\\\\+", vars)
+    vars <- gsub("\\.", "\\\\.?", vars)
+    vars <- gsub("\\^", "\\\\^", vars)
+    vars <- gsub("\\$", "\\\\$", vars)
+    vars <- gsub("\\{", "\\\\{", vars)
+    vars <- gsub("\\}", "\\\\}", vars)
+
+    return(vars)
+}
+
 classify_var <- function(var, traj_model) {
     case_when(
         var %in% names(traj_model@motif_models) ~ "motif",
@@ -9,24 +24,27 @@ classify_var <- function(var, traj_model) {
 feat_to_variable <- function(traj_model, add_types = FALSE) {
     ftv <- tibble::tibble(
         feature = colnames(traj_model@model_features),
-        variable = sub("_(low-energy|high-energy|higher-energy|sigmoid)$", "", feature)
+        variable = sub("(low-energy|high-energy|higher-energy|sigmoid)$", "", feature)
     )
     if (add_types) {
         ftv <- ftv %>%
-            mutate(type = classify_var(variable, traj_model))
+            mutate(type = classify_var(gsub("_$", "", variable), traj_model))
 
         if (has_interactions(traj_model)) {
             ftv_nointer <- ftv %>%
                 filter(type != "interaction")
-            valid_variables <- unique(ftv_nointer$variable)
+            valid_variables <- unique(gsub("_$", "", ftv_nointer$variable))
+            valid_variables <- escape_vars(valid_variables)
             valid_variables_regex <- paste0("(", paste(valid_variables, collapse = "|"), ")")
+
             ftv_inter <- ftv %>%
                 filter(type == "interaction") %>%
                 mutate(
                     term1 = stringr::str_extract(variable, paste0(valid_variables_regex, ":")),
-                    term2 = stringr::str_extract(variable, paste0(":", valid_variables_regex)),
+                    term2 = stringr::str_extract(variable, paste0(":", valid_variables_regex, "_")),
                     term1 = gsub(":$", "", term1),
-                    term2 = gsub("^:", "", term2)
+                    term2 = gsub("^:", "", term2),
+                    term2 = gsub("_$", "", term2)
                 ) %>%
                 mutate(
                     term1_type = classify_var(term1, traj_model),
@@ -34,6 +52,8 @@ feat_to_variable <- function(traj_model, add_types = FALSE) {
                 )
             ftv <- bind_rows(ftv_nointer, ftv_inter)
         }
+        ftv <- ftv %>%
+            mutate(variable = gsub("_$", "", variable))
     }
     return(ftv)
 }

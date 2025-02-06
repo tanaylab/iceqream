@@ -418,4 +418,3 @@ inverse_logist_by_type <- function(y, type) {
         stop("Unknown transformation type")
     )
 }
-
