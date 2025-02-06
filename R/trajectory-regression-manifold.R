@@ -270,5 +270,7 @@ add_prego_motifs_to_manifold <- function(mm, mm_prego) {
     mm_new <- mm
     mm_new@models_full <- new_models
 
+    mm@motif_models <- c(mm@motif_models, prego_models)
+
     return(mm_new)
 }
