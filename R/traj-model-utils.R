@@ -10,10 +10,11 @@
 #' @param use_motifs A logical value indicating whether to use motif models. Default is TRUE.
 #' @param verbose Logical indicating whether to display additional information.
 #' @param rescale_pred Logical indicating whether to rescale the predicted values. Default is TRUE.
+#' @param relearn_model Logical indicating whether to relearn the model. Default is TRUE.
 #' @return The updated trajectory model object.
 #'
 #' @export
-relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, rescale_pred = TRUE) {
+relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, rescale_pred = TRUE, relearn_model = TRUE) {
     if (verbose) {
         r2_train_before <- cor(traj_model@predicted_diff_score[traj_model@type == "train"], traj_model@diff_score[traj_model@type == "train"])^2
         r2_test_before <- cor(traj_model@predicted_diff_score[traj_model@type == "test"], traj_model@diff_score[traj_model@type == "test"])^2
@@ -27,9 +28,21 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
         if (use_additional_features) {
             add_feats <- traj_model@additional_features[rownames(traj_model@normalized_energies), ]
             if (use_motifs) {
+                if (has_interactions(traj_model)) {
+                    ftv_inter <- feat_to_variable(traj_model, add_type = TRUE) %>%
+                        filter(type == "interaction") %>%
+                        distinct(variable, term1, term2)
+                    interactions <- create_specifc_terms(cbind(traj_model@normalized_energies, traj_model@additional_features), ftv_inter)
+                    interactions <- interactions[, colnames(traj_model@interactions), drop = FALSE]
+                    traj_model@interactions <- interactions
+                    interactions_logist <- create_logist_features(interactions)
+                } else {
+                    interactions_logist <- NULL
+                }
                 traj_model@model_features <- as.matrix(cbind(
                     create_logist_features(traj_model@normalized_energies),
-                    create_logist_features(traj_model@additional_features)
+                    create_logist_features(traj_model@additional_features),
+                    interactions_logist
                 ))
             } else {
                 traj_model@model_features <- create_logist_features(traj_model@additional_features)
@@ -56,7 +69,12 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     X_train <- X[traj_model@type == "train", ]
     y_train <- y[traj_model@type == "train"]
 
-    model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+    if (relearn_model) {
+        model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+    } else {
+        model <- traj_model@model
+    }
+
     model <- strip_glmnet(model)
 
     pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = traj_model@params$lambda))[, 1]
