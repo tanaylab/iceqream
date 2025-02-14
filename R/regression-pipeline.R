@@ -10,6 +10,7 @@
 #' @param train_idxs A vector of indices to use for training. If NULL, the training set is randomly selected.
 #' @param test_idxs A vector of indices to use for testing. If NULL, the testing set is the complement of the training set.
 #' @param output_dir A directory to save intermediate results. If not NULL, the train and test indices are saved to a CSV file, together with the models at each step (before filtering, after filtering, and after adding interactions). The models are saved as RDS files. If the directory exists, the files are overwritten.
+#' @param plot_report A logical value indicating whether to plot the model report. Default is TRUE.
 #'
 #' @return An instance of \code{TrajectoryModel} with the final model.
 #'
@@ -55,6 +56,7 @@ iq_regression <- function(
     n_prego_motifs = 0,
     n_cores = NULL,
     output_dir = NULL,
+    plot_report = TRUE,
     ...) {
     if (!is.null(n_cores)) {
         cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
@@ -116,7 +118,7 @@ iq_regression <- function(
         traj_prego <- learn_traj_prego(peak_intervals[train_idxs, ], atac_diff[train_idxs],
             n_motifs = n_prego_motifs, min_diff = prego_min_diff,
             sample_for_kmers = prego_sample_for_kmers,
-            sample_fraction = prego_sample_fraction, energy_norm_quantile = prego_energy_norm_quantile, norm_intervals = norm_intervals, seed = seed, spat_bin_size = prego_spat_bin_size, spat_num_bins = prego_spat_num_bins, peaks_size = peaks_size
+            sample_fraction = prego_sample_fraction, energy_norm_quantile = prego_energy_norm_quantile, norm_intervals = norm_intervals, seed = seed, spat_bin_size = prego_spat_bin_size, spat_num_bins = prego_spat_num_bins, peaks_size = peaks_size, symmetrize_spat = symmetrize_spat
         )
         if (!is.null(output_dir)) {
             out_file <- file.path(output_dir, "prego_model.rds")
@@ -141,6 +143,10 @@ iq_regression <- function(
             cli::cli_alert("Saving the model to {.val {out_file}}")
             traj_model_all <- strip_traj_model(traj_model_all)
             readr::write_rds(traj_model_all, out_file)
+
+            if (plot_report) {
+                plot_traj_model_report(traj_model_all, file = file.path(output_dir, gsub("\\.rds$", ".pdf", file)))
+            }
         }
         traj_model_all
     }
