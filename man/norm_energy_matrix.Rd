@@ -4,7 +4,13 @@
 \alias{norm_energy_matrix}
 \title{Normalize Energy Matrix}
 \usage{
-norm_energy_matrix(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10)
+norm_energy_matrix(
+  x,
+  dataset_x = x,
+  min_energy = -7,
+  q = 1,
+  norm_energy_max = 10
+)
 }
 \arguments{
 \item{x}{The input matrix to be normalized.}

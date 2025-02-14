@@ -13,7 +13,9 @@ add_interactions(
   lambda = 0.00001,
   alpha = 1,
   seed = 60427,
-  interactions = NULL
+  interactions = NULL,
+  ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG",
+    "AG", "TA", "CA", "GA", "AA")
 )
 }
 \arguments{
@@ -28,6 +30,8 @@ add_interactions(
 \item{seed}{random seed for reproducibility.}
 
 \item{interactions}{A precomputed interaction matrix. If provided, the function will not compute the interactions. Default: NULL}
+
+\item{ignore_feats}{A character vector of features to ignore when creating interactions. Default: dinucleotides}
 }
 \value{
 The updated trajectory model with added interactions.

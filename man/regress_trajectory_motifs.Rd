@@ -48,7 +48,8 @@ regress_trajectory_motifs(
   interaction_threshold = 0.001,
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
-  max_interaction_n = NULL
+  max_interaction_n = NULL,
+  symmetrize_spat = TRUE
 )
 }
 \arguments{
@@ -142,6 +143,8 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
 
 \item{max_interaction_n}{maximum number of interactions to consider.}
+
+\item{symmetrize_spat}{if TRUE, the spatial model would be symmetrized around the center bin. Default: TRUE.}
 
 \item{prego_enrgy_norm_quantile, prego_spat_bin_size, prego_spat_num_bins}{parameters for prego motif inference. See \code{prego::regress_pwm} for more details.}
 }
