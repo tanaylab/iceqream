@@ -18,6 +18,8 @@ plot_traj_model_report(
   sort_motifs = TRUE,
   names_map = NULL,
   boxp_ylim = c(-0.5, 0.5),
+  boxp_ylab = "ATAC difference",
+  boxp_y_data = traj_model@diff_score,
   ...
 )
 }
@@ -47,6 +49,10 @@ plot_traj_model_report(
 \item{names_map}{a named vector to map the names of the motifs to new names.}
 
 \item{boxp_ylim}{ylimits for the boxplot of energy vs response.}
+
+\item{boxp_ylab}{ylab for the boxplot of energy vs response.}
+
+\item{boxp_y_data}{y_data for the boxplot of energy vs response.}
 
 \item{...}{Additional arguments to pass to the device.}
 }

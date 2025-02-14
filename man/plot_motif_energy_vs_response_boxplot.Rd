@@ -13,7 +13,8 @@ plot_motif_energy_vs_response_boxplot(
   fill = "lightblue1",
   title = "",
   subtitle = NULL,
-  outliers = TRUE
+  outliers = TRUE,
+  y_data = traj_model@diff_score
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ plot_motif_energy_vs_response_boxplot(
 \item{subtitle}{The subtitle for the plot (default is a kologorov-smirnov test between the lowest and highest energy levels). The color of the subtitle will be set to "darkred" if the p-value is less than 0.01.}
 
 \item{outliers}{Whether to plot outliers (default is TRUE).}
+
+\item{y_data}{The y data to use for the plot (default is the ATAC difference).}
 }
 \value{
 A ggplot object representing the boxplot.
