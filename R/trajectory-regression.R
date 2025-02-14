@@ -61,6 +61,7 @@
 #'
 #' @inheritParams glmnet::glmnet
 #' @inheritParams add_interactions
+#' @inheritParams prego::regress_pwm
 #' @export
 regress_trajectory_motifs <- function(peak_intervals,
                                       atac_scores = NULL,
@@ -105,7 +106,8 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       interaction_threshold = 0.001,
                                       max_motif_interaction_n = NULL,
                                       max_add_interaction_n = NULL,
-                                      max_interaction_n = NULL) {
+                                      max_interaction_n = NULL,
+                                      symmetrize_spat = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
 
     if (is.null(atac_scores) && is.null(atac_diff)) {
@@ -242,7 +244,8 @@ regress_trajectory_motifs <- function(peak_intervals,
         spat_bin_size = spat_bin_size,
         kmer_sequence_length = kmer_sequence_length,
         n_clust_factor = n_clust_factor,
-        distill_single = FALSE
+        distill_single = FALSE,
+        symmetrize_spat = symmetrize_spat
     )
     clust_energies <- distilled$energies
 
@@ -307,6 +310,7 @@ regress_trajectory_motifs <- function(peak_intervals,
             n_clust_factor = n_clust_factor,
             include_interactions = include_interactions,
             interaction_threshold = interaction_threshold,
+            symmetrize_spat = symmetrize_spat,
             seed = seed
         )
     )
@@ -366,8 +370,8 @@ validate_additional_features <- function(additional_features, peak_intervals) {
 }
 
 
-get_model_coefs <- function(model) {
-    df <- coef(model, s = model$lambda) %>%
+get_model_coefs <- function(model, s = model$lambda) {
+    df <- coef(model, s = s) %>%
         as.matrix() %>%
         as.data.frame() %>%
         tibble::rownames_to_column("variable")

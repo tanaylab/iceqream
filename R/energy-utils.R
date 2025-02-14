@@ -217,7 +217,7 @@ norm_energy_matrix_old <- function(x, dataset_x, min_energy = -7, q = 1, norm_en
 #' normalized_data <- norm_energy_matrix(data, data, min_energy = -7, q = 1, norm_energy_max = 10)
 #'
 #' @export
-norm_energy_matrix <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
+norm_energy_matrix <- function(x, dataset_x = x, min_energy = -7, q = 1, norm_energy_max = 10) {
     # Check for missing columns
     not_in_x <- setdiff(colnames(dataset_x), colnames(x))
     if (length(not_in_x) > 0) {
