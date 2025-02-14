@@ -32,7 +32,7 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
 
     if (is.null(sequences)) {
         cli::cli_alert_info("Extracting sequences...")
-        sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals, peaks_size)))
+        sequences <- prego::intervals_to_seq(peak_intervals, peaks_size)
     }
 
     peaks_df <- peak_intervals %>%
@@ -74,8 +74,8 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
         score <- peaks_df$score
     }
 
-    seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peaks_df, peaks_size)))
-    norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(norm_intervals, peaks_size)))
+    seqs <- prego::intervals_to_seq(peaks_df, peaks_size)
+    norm_seqs <- prego::intervals_to_seq(norm_intervals, peaks_size)
 
     cli_alert_info("Inferring {.val {n_motifs}} prego motifs...")
     reg <- prego::regress_pwm(seqs, score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = sample_for_kmers, sample_frac = sample_fraction, ...)
@@ -106,8 +106,8 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
 infer_traj_prego <- function(traj_prego, peak_intervals, norm_intervals = peak_intervals, ...) {
     withr::local_options(list(gmax.data.size = 1e9))
 
-    seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals, traj_prego$peaks_size)))
-    norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(norm_intervals, traj_prego$peaks_size)))
+    seqs <- prego::intervals_to_seq(peak_intervals, traj_prego$peaks_size)
+    norm_seqs <- prego::intervals_to_seq(norm_intervals, traj_prego$peaks_size)
 
     cli_alert_info("Inferring energies using prego models...")
     e_test <- infer_energies(seqs, norm_seqs, traj_prego$models, traj_prego$min_energy, traj_prego$energy_norm_quantile, traj_prego$norm_energy_max, ...)

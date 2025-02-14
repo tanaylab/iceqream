@@ -105,11 +105,7 @@ extract_traj_model_sequences <- function(traj_model, peak_intervals) {
     all_intervals <- all_intervals %>%
         left_join(unique_intervals, by = c("chrom", "start", "end"))
     cli_alert_info("Extracting sequences...")
-    if (!is.null(traj_model@params$peaks_size)) {
-        sequences_all <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(all_intervals, traj_model@params$peaks_size)))
-    } else {
-        sequences_all <- toupper(misha::gseq.extract(all_intervals))
-    }
+    sequences_all <- prego::intervals_to_seq(all_intervals, traj_model@params$peaks_size)
 
     sequences <- sequences_all[all_intervals$intervalID[all_intervals$type == "f"]]
     norm_sequences <- sequences_all[all_intervals$intervalID[all_intervals$type == "n"]]
