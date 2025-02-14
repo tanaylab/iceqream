@@ -175,8 +175,8 @@ regress_trajectory_motifs <- function(peak_intervals,
     diff_filter[is.na(diff_filter)] <- FALSE
 
     cli_alert("Extracting sequences...")
-    all_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals_all, peaks_size)))
-    norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(norm_intervals, peaks_size)))
+    all_seqs <- prego::intervals_to_seq(peak_intervals_all, peaks_size)
+    norm_seqs <- prego::intervals_to_seq(norm_intervals, peaks_size)
 
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {

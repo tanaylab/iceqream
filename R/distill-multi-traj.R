@@ -227,7 +227,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         deframe()
 
     withr::local_options(list(gmax.data.size = 1e9))
-    sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_models[[1]]@peak_intervals, traj_models[[1]]@params$peaks_size)))
+    sequences <- prego::intervals_to_seq(traj_models[[1]]@peak_intervals, traj_models[[1]]@params$peaks_size)
 
     clust_map <- clust_map %>%
         group_by(clust) %>%
@@ -306,7 +306,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         plot_traj_model_multi_clust(traj_models, clust_map, prego_distilled, cluster_report_dir, unique_motifs = unique_motifs)
     }
 
-    norm_sequences <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_models[[1]]@normalization_intervals, traj_models[[1]]@params$peaks_size)))
+    norm_sequences <- prego::intervals_to_seq(traj_models[[1]]@normalization_intervals, traj_models[[1]]@params$peaks_size)
 
     cli_alert_info("Infering energies...")
     clust_energies <- infer_energies(sequences, norm_sequences, prego_distilled, traj_models[[1]]@params$min_energy, traj_models[[1]]@params$energy_norm_quantile, traj_models[[1]]@params$norm_energy_max)
