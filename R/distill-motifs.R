@@ -50,7 +50,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
     }
 
 
-    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_model, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prev_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor, distill_single = FALSE, intra_cor_thresh = intra_cor_thresh, use_non_linear = use_non_linear)
+    distilled <- distill_motifs(traj_model@normalized_energies, max_motif_num, glm_model, y = atac_diff_n, diff_filter = diff_filter, seqs = seqs, norm_seqs = norm_seqs, additional_features = traj_model@additional_features, pssm_db = pssm_db, prev_models = traj_model@motif_models, lambda = params$lambda, alpha = params$alpha, energy_norm_quantile = params$energy_norm_quantile, seed = params$seed, spat_num_bins = params$spat_num_bins, spat_bin_size = params$spat_bin_size, kmer_sequence_length = params$kmer_sequence_length, nclust = max_motif_num, n_clust_factor = params$n_clust_factor, distill_single = FALSE, intra_cor_thresh = intra_cor_thresh, use_non_linear = use_non_linear, symmetrize_spat = traj_model@params$symmetrize_spat %||% TRUE)
 
     clust_energies <- distilled$energies
     clust_energies_logist <- create_logist_features(clust_energies)
@@ -89,7 +89,7 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
     return(traj_model_distilled)
 }
 
-distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prev_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1, distill_single = TRUE, intra_cor_thresh = NULL, use_non_linear = FALSE) {
+distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seqs, diff_filter, additional_features = NULL, pssm_db = prego::all_motif_datasets(), prev_models = list(), lambda = 1e-5, alpha = 1, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, nclust = NULL, n_clust_factor = 1, distill_single = TRUE, intra_cor_thresh = NULL, use_non_linear = FALSE, symmetrize_spat = TRUE) {
     if (is.null(nclust)) {
         nclust <- min(ncol(features), target_number * n_clust_factor)
     }
@@ -198,7 +198,8 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
             kmer_sequence_length = kmer_sequence_length,
             use_non_linear = use_non_linear,
             motif = motif,
-            optimize_pwm = optimize_pwm
+            optimize_pwm = optimize_pwm,
+            symmetrize_spat = symmetrize_spat
         )
         cli::cli_alert_success("Finished running {.field prego} on cluster {.val {x$feat}}")
         return(res)
@@ -206,7 +207,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     names(best_motifs_prego) <- best_clust_map$feat
 
     cli_alert_info("Infering energies...")
-    clust_energies <- infer_energies(seqs, norm_seqs, best_motifs_prego, min_energy, energy_norm_quantile, norm_energy_max)
+    clust_energies <- infer_energies_new(seqs, norm_seqs, best_motifs_prego, min_energy, energy_norm_quantile, norm_energy_max)
 
     # add missing features
     missing_features <- setdiff(best_clust_map$feat, colnames(clust_energies))
@@ -228,7 +229,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     return(list(energies = clust_energies, motifs = best_motifs_prego, features = distilled_features))
 }
 
-run_prego_on_clust_residuals <- function(model, feats, clust_motifs, sequences, lambda = 1e-5, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, use_non_linear = FALSE, motif = NULL, optimize_pwm = TRUE) {
+run_prego_on_clust_residuals <- function(model, feats, clust_motifs, sequences, lambda = 1e-5, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, use_non_linear = FALSE, motif = NULL, optimize_pwm = TRUE, symmetrize_spat = TRUE) {
     if (use_non_linear) {
         feats <- create_logist_features(feats[, clust_motifs, drop = FALSE])
         partial_y <- (feats %*% coef(model, s = lambda)[colnames(feats), , drop = FALSE])[, 1]
@@ -236,7 +237,7 @@ run_prego_on_clust_residuals <- function(model, feats, clust_motifs, sequences, 
         partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
     }
 
-    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, symmetrize_spat = TRUE, motif = motif, optimize_pwm = optimize_pwm))
+    cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, symmetrize_spat = symmetrize_spat, motif = motif, optimize_pwm = optimize_pwm))
 
     return(prego::export_regression_model(prego_model))
 }

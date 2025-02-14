@@ -43,7 +43,8 @@ merge_trajectory_motifs <- function(traj_model, motifs, new_motif_name, min_diff
         seed = seed,
         spat_num_bins = params$spat_num_bins,
         spat_bin_size = params$spat_bin_size,
-        kmer_sequence_length = params$kmer_sequence_length
+        kmer_sequence_length = params$kmer_sequence_length,
+        symmetrize_spat = params$symmetrize_spat %||% 1
     )
 
     motif_e <- prego::compute_pwm(seqs, distilled$pssm, spat = distilled$spat, spat_min = distilled$spat_min %||% 1, spat_max = distilled$spat_max, func = "logSumExp")
