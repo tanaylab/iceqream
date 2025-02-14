@@ -52,9 +52,9 @@ feat_to_variable <- function(traj_model, add_types = FALSE) {
                 )
             ftv <- bind_rows(ftv_nointer, ftv_inter)
         }
-        ftv <- ftv %>%
-            mutate(variable = gsub("_$", "", variable))
     }
+    ftv <- ftv %>%
+        mutate(variable = gsub("_$", "", variable))
     return(ftv)
 }
 
