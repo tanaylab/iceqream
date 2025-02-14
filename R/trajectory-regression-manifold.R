@@ -78,8 +78,8 @@ regress_trajectory_motifs_manifold <- function(peak_intervals,
     cli_alert_info("Number of peaks: {.val {nrow(peak_intervals)}}")
 
     cli_alert("Extracting sequences...")
-    all_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(peak_intervals_all, peaks_size)))
-    norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(norm_intervals, peaks_size)))
+    all_seqs <- prego::intervals_to_seq(peak_intervals_all, peaks_size)
+    norm_seqs <- prego::intervals_to_seq(norm_intervals, peaks_size)
 
     motif_energies_all <- motif_energies
 

@@ -34,9 +34,8 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
         select(motif, pos, everything())
 
     params <- traj_model@params
-    withr::local_options(list(gmax.data.size = 1e9))
-    seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@peak_intervals, params$peaks_size)))
-    norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, params$peaks_size)))
+    seqs <- prego::intervals_to_seq(traj_model@peak_intervals, params$peaks_size)
+    norm_seqs <- prego::intervals_to_seq(traj_model@normalization_intervals, params$peaks_size)
     atac_diff <- traj_model@diff_score
     atac_diff_n <- norm01(atac_diff)
 
