@@ -173,19 +173,20 @@ plot_partial_response <- function(traj_model, motif, ylim = NULL, xlab = "Energy
 #' @param outliers Whether to plot outliers (default is TRUE).
 #' @param title The title for the plot.
 #' @param subtitle The subtitle for the plot (default is a kologorov-smirnov test between the lowest and highest energy levels). The color of the subtitle will be set to "darkred" if the p-value is less than 0.01.
+#' @param y_data The y data to use for the plot (default is the ATAC difference).
 #'
 #' @return A ggplot object representing the boxplot.
 #'
 #'
 #' @export
-plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = paste(motif, "energy"), ylab = "ATAC difference", ylim = c(-0.5, 0.5), fill = "lightblue1", title = "", subtitle = NULL, outliers = TRUE) {
+plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = paste(motif, "energy"), ylab = "ATAC difference", ylim = c(-0.5, 0.5), fill = "lightblue1", title = "", subtitle = NULL, outliers = TRUE, y_data = traj_model@diff_score) {
     validate_traj_model(traj_model)
     if (!(motif %in% colnames(traj_model@normalized_energies))) {
         cli_abort("Motif {.val {motif}} not found in the model.")
     }
 
     plot_df <- tibble(
-        observed = traj_model@diff_score,
+        observed = y_data,
         e = traj_model@normalized_energies[, motif]
     ) %>%
         mutate(energy = cut(e, c(0, 3, 6, 7, 8, 9, 10), include.lowest = TRUE, labels = c("0-3", "3-6", "6-7", "7-8", "8-9", "9-10")))
@@ -209,8 +210,11 @@ plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = past
         geom_hline(yintercept = 0) +
         geom_boxplot(outlier.size = 0.1, outlier.alpha = 0.5, fill = fill, fatten = 1, linewidth = 0.5, outliers = outliers) +
         xlab(xlab) +
-        ylab(ylab) +
-        coord_cartesian(ylim = ylim) +
+        ylab(ylab)
+    if (!is.null(ylim)) {
+        p <- p + coord_cartesian(ylim = ylim)
+    }
+    p <- p +
         ggtitle(title, subtitle = subtitle) +
         theme_classic() +
         theme(plot.subtitle = ggtext::element_markdown(color = subtitle_color)) +
@@ -237,12 +241,14 @@ plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = past
 #' @param sort_motifs Whether to sort the motifs by the absolute value of the coefficients / r2 values.
 #' @param names_map a named vector to map the names of the motifs to new names.
 #' @param boxp_ylim ylimits for the boxplot of energy vs response.
+#' @param boxp_ylab ylab for the boxplot of energy vs response.
+#' @param boxp_y_data y_data for the boxplot of energy vs response.
 #'
 #' @return ggplot2 object. If filename is not NULL, the plot will be saved to the file and the function will return \code{invisible(NULL)}.
 #'
 #'
 #' @export
-plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, names_map = NULL, boxp_ylim = c(-0.5, 0.5), ...) {
+plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL, free_coef_axis = TRUE, spatial_freqs = NULL, width = NULL, height = NULL, dev = grDevices::pdf, title = NULL, motif_titles = NULL, sort_motifs = TRUE, names_map = NULL, boxp_ylim = c(-0.5, 0.5), boxp_ylab = "ATAC difference", boxp_y_data = traj_model@diff_score, ...) {
     validate_traj_model(traj_model)
     models <- traj_model@motif_models
     has_features_r2 <- length(traj_model@features_r2) > 0 && all(names(models) %in% names(traj_model@features_r2))
@@ -331,7 +337,7 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
     pr <- compute_partial_response(traj_model)
     e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x, pr, traj_model, aspect.ratio = NULL))
 
-    e_vs_r_boxp_p <- purrr::map(names(models), ~ plot_motif_energy_vs_response_boxplot(traj_model, .x, ylim = boxp_ylim, xlab = paste(names_map[.x], "energy"), outliers = FALSE))
+    e_vs_r_boxp_p <- purrr::map(names(models), ~ plot_motif_energy_vs_response_boxplot(traj_model, .x, ylim = boxp_ylim, xlab = paste(names_map[.x], "energy"), ylab = boxp_ylab, y_data = boxp_y_data, outliers = FALSE))
 
     # scatter_p <- purrr::map(names(models), ~ plot_variable_vs_response(traj_model, .x, point_size = 0.001))
 
