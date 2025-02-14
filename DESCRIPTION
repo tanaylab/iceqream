@@ -21,7 +21,7 @@ Imports:
     misha,
     misha.ext,
     methods,
-    prego (>= 0.0.3),
+    prego (>= 0.0.4),
     purrr,
     plyr,
     tgstat,

@@ -23,9 +23,8 @@ merge_trajectory_motifs <- function(traj_model, motifs, new_motif_name, min_diff
         cli_abort("Motif{?s} {.val {motifs[!motifs %in% names(traj_model@motif_models)]}} not found in the trajectory model.")
     }
     params <- traj_model@params
-    withr::local_options(list(gmax.data.size = 1e9))
-    seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@peak_intervals, params$peaks_size)))
-    norm_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@normalization_intervals, params$peaks_size)))
+    seqs <- prego::intervals_to_seq(traj_model@peak_intervals, params$peaks_size)
+    norm_seqs <- prego::intervals_to_seq(traj_model@normalization_intervals, params$peaks_size)
     atac_diff <- traj_model@diff_score
     atac_diff_n <- norm01(atac_diff)
 

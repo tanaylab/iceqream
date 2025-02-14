@@ -8,9 +8,7 @@ compute_spat_pwm <- function(pssm, intervals = NULL, size = NULL, sequences = NU
             intervals <- misha.ext::gintervals.normalize(intervals %>% select(any_of(c("chrom", "start", "end", "strand"))), size)
         }
 
-        withr::local_options(list(gmax.data.size = 1e9))
-
-        sequences <- toupper(misha::gseq.extract(intervals))
+        sequences <- prego::intervals_to_seq(intervals)
     }
 
     local_pwm <- prego::compute_local_pwm(sequences, pssm, bidirect = bidirect)
@@ -41,7 +39,7 @@ direct_sequences <- function(sequences, pssm, bidi_seqs = sequences) {
 
 direct_intervals <- function(intervals, pssm, bidi_seqs = NULL) {
     if (is.null(bidi_seqs)) {
-        bidi_seqs <- toupper(misha::gseq.extract(intervals))
+        bidi_seqs <- prego::intervals_to_seq(intervals)
     }
 
     bidi_seqs <- direct_sequences(bidi_seqs, pssm)
@@ -54,9 +52,7 @@ direct_intervals <- function(intervals, pssm, bidi_seqs = NULL) {
 
 direct_traj_model <- function(traj_model, size = 500) {
     max_motifs <- apply(traj_model@normalized_energies, 1, function(x) colnames(traj_model@normalized_energies)[which.max(x)])
-    withr::local_options(list(gmax.data.size = 1e9))
-
-    bidi_seqs <- toupper(misha::gseq.extract(misha.ext::gintervals.normalize(traj_model@peak_intervals, size)))
+    bidi_seqs <- prego::intervals_to_seq(traj_model@peak_intervals, size)
 
     middle_point <- round(size / 2)
     s_l <- substr(bidi_seqs, 1, middle_point)
@@ -204,9 +200,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             intervals <- misha.ext::gintervals.normalize(intervals, size)
         }
 
-        withr::local_options(list(gmax.data.size = 1e9))
-
-        sequences <- toupper(misha::gseq.extract(intervals))
+        sequences <- prego::intervals_to_seq(intervals)
     }
 
     local_pwm <- prego::compute_local_pwm(sequences, pssm, bidirect = TRUE)
