@@ -1,2 +1,5 @@
 *.html
 *.R
+articles/mm10
+articles/gastrulation-example
+articles/gastrulation_energies.rds
