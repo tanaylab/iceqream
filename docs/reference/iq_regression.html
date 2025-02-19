@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,14 +45,24 @@
 <span>  norm_intervals <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  motif_energies <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  additional_features <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  add_sequences_features <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  max_motif_num <span class="op">=</span> <span class="fl">30</span>,</span>
 <span>  traj_prego <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  peaks_size <span class="op">=</span> <span class="fl">300</span>,</span>
+<span>  peaks_size <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  bin_start <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  bin_end <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">60427</span>,</span>
 <span>  frac_train <span class="op">=</span> <span class="fl">0.8</span>,</span>
+<span>  train_idxs <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  test_idxs <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  filter_model <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  min_diff <span class="op">=</span> <span class="fl">0.1</span>,</span>
+<span>  prego_min_diff <span class="op">=</span> <span class="va">min_diff</span>,</span>
+<span>  prego_sample_for_kmers <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  prego_sample_fraction <span class="op">=</span> <span class="fl">0.1</span>,</span>
+<span>  prego_energy_norm_quantile <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  prego_spat_bin_size <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  prego_spat_num_bins <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  r2_threshold <span class="op">=</span> <span class="fl">0.0005</span>,</span>
 <span>  bits_threshold <span class="op">=</span> <span class="fl">1.75</span>,</span>
 <span>  filter_sample_frac <span class="op">=</span> <span class="fl">0.1</span>,</span>
@@ -60,7 +70,10 @@
 <span>  interaction_threshold <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  max_motif_interaction_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  max_add_interaction_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  n_prego_motifs <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  n_cores <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  plot_report <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -97,6 +110,10 @@
 <dd><p>A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.</p></dd>
 
 
+<dt id="arg-add-sequences-features">add_sequences_features<a class="anchor" aria-label="anchor" href="#arg-add-sequences-features"></a></dt>
+<dd><p>Add CG content and dinuceotide content to the additional features.</p></dd>
+
+
 <dt id="arg-max-motif-num">max_motif_num<a class="anchor" aria-label="anchor" href="#arg-max-motif-num"></a></dt>
 <dd><p>maximum number of motifs to consider. Default: 50</p></dd>
 
@@ -106,7 +123,7 @@
 
 
 <dt id="arg-peaks-size">peaks_size<a class="anchor" aria-label="anchor" href="#arg-peaks-size"></a></dt>
-<dd><p>size of the peaks to extract sequences from. Default: 300bp</p></dd>
+<dd><p>size of the peaks to extract sequences from. Default: 500bp</p></dd>
 
 
 <dt id="arg-bin-start">bin_start<a class="anchor" aria-label="anchor" href="#arg-bin-start"></a></dt>
@@ -125,8 +142,28 @@
 <dd><p>A numeric value indicating the fraction of intervals to use for training (default is 0.8).</p></dd>
 
 
+<dt id="arg-train-idxs">train_idxs<a class="anchor" aria-label="anchor" href="#arg-train-idxs"></a></dt>
+<dd><p>A vector of indices to use for training. If NULL, the training set is randomly selected.</p></dd>
+
+
+<dt id="arg-test-idxs">test_idxs<a class="anchor" aria-label="anchor" href="#arg-test-idxs"></a></dt>
+<dd><p>A vector of indices to use for testing. If NULL, the testing set is the complement of the training set.</p></dd>
+
+
 <dt id="arg-filter-model">filter_model<a class="anchor" aria-label="anchor" href="#arg-filter-model"></a></dt>
 <dd><p>A logical value indicating whether to filter the model (default is TRUE).</p></dd>
+
+
+<dt id="arg-min-diff">min_diff<a class="anchor" aria-label="anchor" href="#arg-min-diff"></a></dt>
+<dd><p>minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if <code>distill_on_diff</code> is TRUE).</p></dd>
+
+
+<dt id="arg-prego-sample-for-kmers">prego_sample_for_kmers<a class="anchor" aria-label="anchor" href="#arg-prego-sample-for-kmers"></a></dt>
+<dd><p>whether to use a sample of the peaks for kmer screening. Default: TRUE</p></dd>
+
+
+<dt id="arg-prego-sample-fraction">prego_sample_fraction<a class="anchor" aria-label="anchor" href="#arg-prego-sample-fraction"></a></dt>
+<dd><p>Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1</p></dd>
 
 
 <dt id="arg-r-threshold">r2_threshold<a class="anchor" aria-label="anchor" href="#arg-r-threshold"></a></dt>
@@ -157,8 +194,20 @@
 <dd><p>maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL</p></dd>
 
 
+<dt id="arg-n-prego-motifs">n_prego_motifs<a class="anchor" aria-label="anchor" href="#arg-n-prego-motifs"></a></dt>
+<dd><p>number of prego motifs (de-novo motifs) to consider.</p></dd>
+
+
 <dt id="arg-n-cores">n_cores<a class="anchor" aria-label="anchor" href="#arg-n-cores"></a></dt>
 <dd><p>The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80% of the available cores. See <code><a href="https://rdrr.io/pkg/prego/man/set_parallel.html" class="external-link">prego::set_parallel</a></code> for more details.</p></dd>
+
+
+<dt id="arg-output-dir">output_dir<a class="anchor" aria-label="anchor" href="#arg-output-dir"></a></dt>
+<dd><p>A directory to save intermediate results. If not NULL, the train and test indices are saved to a CSV file, together with the models at each step (before filtering, after filtering, and after adding interactions). The models are saved as RDS files. If the directory exists, the files are overwritten.</p></dd>
+
+
+<dt id="arg-plot-report">plot_report<a class="anchor" aria-label="anchor" href="#arg-plot-report"></a></dt>
+<dd><p>A logical value indicating whether to plot the model report. Default is TRUE.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -187,20 +236,8 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
     <dt><code>norm_energy_max</code></dt>
 <dd><p>maximum value of the normalized energy. Default: 10</p></dd>
 
-    <dt><code>n_prego_motifs</code></dt>
-<dd><p>number of prego motifs (de-novo motifs) to consider.</p></dd>
-
-    <dt><code>min_diff</code></dt>
-<dd><p>minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if <code>distill_on_diff</code> is TRUE).</p></dd>
-
     <dt><code>distill_on_diff</code></dt>
 <dd><p>whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility &gt;= min_diff will be used.</p></dd>
-
-    <dt><code>prego_sample_for_kmers</code></dt>
-<dd><p>whether to use a sample of the peaks for kmer screening. Default: TRUE</p></dd>
-
-    <dt><code>prego_sample_fraction</code></dt>
-<dd><p>Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1</p></dd>
 
     <dt><code>feature_selection_beta</code></dt>
 <dd><p>beta parameter used for feature selection.</p></dd>
@@ -220,6 +257,9 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
     <dt><code>kmer_sequence_length</code></dt>
 <dd><p>length of the kmer sequence to use for kmer screening. By default the full sequence is used.</p></dd>
 
+    <dt><code>max_interaction_n</code></dt>
+<dd><p>maximum number of interactions to consider.</p></dd>
+
     <dt><code>alpha</code></dt>
 <dd><p>The elasticnet mixing parameter, with \(0\le\alpha\le 1\).
 The penalty is defined as
@@ -236,21 +276,16 @@ single value for <code>lambda</code> (for predictions after CV use
 <code>lambda</code> values. <code>glmnet</code> relies on its warms starts for speed,
 and its often faster to fit a whole path than compute a single fit.</p></dd>
 
+    <dt><code>symmetrize_spat</code></dt>
+<dd><p>if TRUE, the spatial model would be symmetrized around the center bin. Default: TRUE.</p></dd>
+
 
 </dl></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An instance of <code>TrajectoryModel</code> containing model information and results:</p><ul><li><p>model: The final General Linear Model (GLM) object.</p></li>
-<li><p>motif_models: Named List, PSSM and spatial models for each motif cluster.</p></li>
-<li><p>normalized_energies: Numeric vector, normalized energies of each motif in each peak.</p></li>
-<li><p>additional_features: data frame of the additional features.</p></li>
-<li><p>diff_score: Numeric, normalized score of differential accessibility between 'bin_start' and 'bin_end'.</p></li>
-<li><p>predicted_diff_score: Numeric, predicted differential accessibility score between 'bin_start' and 'bin_end'.</p></li>
-<li><p>initial_prego_models: List, inferred prego models at the initial step of the algorithm.</p></li>
-<li><p>peak_intervals: data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak used for training.</p></li>
-</ul><p>Print the model to see more details.</p>
+    <p>An instance of <code>TrajectoryModel</code> with the final model.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
