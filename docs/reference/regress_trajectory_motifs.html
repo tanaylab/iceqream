@@ -11,7 +11,7 @@ Optionally, additional features such as epigenomic features can be provided."><m
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -66,8 +66,12 @@ Optionally, additional features such as epigenomic features can be provided.</p>
 <span>  traj_prego <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  min_diff <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  distill_on_diff <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  prego_min_diff <span class="op">=</span> <span class="va">min_diff</span>,</span>
 <span>  prego_sample_for_kmers <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  prego_sample_fraction <span class="op">=</span> <span class="fl">0.1</span>,</span>
+<span>  prego_energy_norm_quantile <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  prego_spat_bin_size <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  prego_spat_num_bins <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">60427</span>,</span>
 <span>  feature_selection_beta <span class="op">=</span> <span class="fl">0.003</span>,</span>
 <span>  lambda <span class="op">=</span> <span class="fl">0.00001</span>,</span>
@@ -77,12 +81,14 @@ Optionally, additional features such as epigenomic features can be provided.</p>
 <span>  parallel <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  peaks_size <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  spat_num_bins <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  spat_bin_size <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  spat_bin_size <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  kmer_sequence_length <span class="op">=</span> <span class="fl">300</span>,</span>
 <span>  include_interactions <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  interaction_threshold <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  max_motif_interaction_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  max_add_interaction_n <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  max_add_interaction_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  max_interaction_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  symmetrize_spat <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -226,7 +232,7 @@ lasso penalty, and <code>alpha=0</code> the ridge penalty.</p></dd>
 
 
 <dt id="arg-peaks-size">peaks_size<a class="anchor" aria-label="anchor" href="#arg-peaks-size"></a></dt>
-<dd><p>size of the peaks to extract sequences from. Default: 300bp</p></dd>
+<dd><p>size of the peaks to extract sequences from. Default: 500bp</p></dd>
 
 
 <dt id="arg-spat-num-bins">spat_num_bins<a class="anchor" aria-label="anchor" href="#arg-spat-num-bins"></a></dt>
@@ -255,6 +261,18 @@ lasso penalty, and <code>alpha=0</code> the ridge penalty.</p></dd>
 
 <dt id="arg-max-add-interaction-n">max_add_interaction_n<a class="anchor" aria-label="anchor" href="#arg-max-add-interaction-n"></a></dt>
 <dd><p>maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL</p></dd>
+
+
+<dt id="arg-max-interaction-n">max_interaction_n<a class="anchor" aria-label="anchor" href="#arg-max-interaction-n"></a></dt>
+<dd><p>maximum number of interactions to consider.</p></dd>
+
+
+<dt id="arg-symmetrize-spat">symmetrize_spat<a class="anchor" aria-label="anchor" href="#arg-symmetrize-spat"></a></dt>
+<dd><p>if TRUE, the spatial model would be symmetrized around the center bin. Default: TRUE.</p></dd>
+
+
+<dt id="arg-prego-enrgy-norm-quantile-prego-spat-bin-size-prego-spat-num-bins">prego_enrgy_norm_quantile, prego_spat_bin_size, prego_spat_num_bins<a class="anchor" aria-label="anchor" href="#arg-prego-enrgy-norm-quantile-prego-spat-bin-size-prego-spat-num-bins"></a></dt>
+<dd><p>parameters for prego motif inference. See <code><a href="https://rdrr.io/pkg/prego/man/regress_pwm.html" class="external-link">prego::regress_pwm</a></code> for more details.</p></dd>
 
 </dl></div>
     <div class="section level2">

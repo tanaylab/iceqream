@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,6 +51,8 @@
 <span>  sort_motifs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  names_map <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  boxp_ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span>,</span>
+<span>  boxp_ylab <span class="op">=</span> <span class="st">"ATAC difference"</span>,</span>
+<span>  boxp_y_data <span class="op">=</span> <span class="va">traj_model</span><span class="op">@</span><span class="va">diff_score</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -109,6 +111,14 @@
 
 <dt id="arg-boxp-ylim">boxp_ylim<a class="anchor" aria-label="anchor" href="#arg-boxp-ylim"></a></dt>
 <dd><p>ylimits for the boxplot of energy vs response.</p></dd>
+
+
+<dt id="arg-boxp-ylab">boxp_ylab<a class="anchor" aria-label="anchor" href="#arg-boxp-ylab"></a></dt>
+<dd><p>ylab for the boxplot of energy vs response.</p></dd>
+
+
+<dt id="arg-boxp-y-data">boxp_y_data<a class="anchor" aria-label="anchor" href="#arg-boxp-y-data"></a></dt>
+<dd><p>y_data for the boxplot of energy vs response.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

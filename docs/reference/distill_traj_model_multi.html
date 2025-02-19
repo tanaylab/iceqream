@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,12 +43,15 @@
 <span>  min_diff <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  intra_cor_thresh <span class="op">=</span> <span class="fl">0.6</span>,</span>
 <span>  distill_single <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  learn_single_spatial <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  use_all_motifs <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  bits_threshold <span class="op">=</span> <span class="fl">1.75</span>,</span>
 <span>  r2_threshold <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">60427</span>,</span>
 <span>  parallel <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  cluster_report_dir <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  cluster_report_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  filter_models <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  unique_motifs <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -76,6 +79,10 @@
 <dd><p>Logical indicating whether to distill clusters with a single motif.</p></dd>
 
 
+<dt id="arg-learn-single-spatial">learn_single_spatial<a class="anchor" aria-label="anchor" href="#arg-learn-single-spatial"></a></dt>
+<dd><p>Logical indicating whether to learn only spatial features for clusters with a single motif, or skip them.</p></dd>
+
+
 <dt id="arg-use-all-motifs">use_all_motifs<a class="anchor" aria-label="anchor" href="#arg-use-all-motifs"></a></dt>
 <dd><p>Logical indicating whether to use all motifs in the resulting models. If FALSE, only motifs from clusters which had a motif from the original model are used.</p></dd>
 
@@ -98,6 +105,14 @@
 
 <dt id="arg-cluster-report-dir">cluster_report_dir<a class="anchor" aria-label="anchor" href="#arg-cluster-report-dir"></a></dt>
 <dd><p>The directory to store cluster reports. If not NULL, a png would be created for each cluster.</p></dd>
+
+
+<dt id="arg-filter-models">filter_models<a class="anchor" aria-label="anchor" href="#arg-filter-models"></a></dt>
+<dd><p>Logical indicating whether to filter the models before distillation. Defaults to TRUE.</p></dd>
+
+
+<dt id="arg-unique-motifs">unique_motifs<a class="anchor" aria-label="anchor" href="#arg-unique-motifs"></a></dt>
+<dd><p>Logical indicating whether to keep only unique motifs. Defaults to FALSE.</p></dd>
 
 </dl></div>
     <div class="section level2">

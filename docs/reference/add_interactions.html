@@ -13,7 +13,7 @@ the new features."><meta property="og:image" content="https://tanaylab.github.io
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,9 +51,13 @@ the new features.</p>
 <span>  interaction_threshold <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  max_motif_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  max_add_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  max_n <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  lambda <span class="op">=</span> <span class="fl">0.00001</span>,</span>
 <span>  alpha <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">60427</span></span>
+<span>  seed <span class="op">=</span> <span class="fl">60427</span>,</span>
+<span>  interactions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ignore_feats <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"TT"</span>, <span class="st">"CT"</span>, <span class="st">"GT"</span>, <span class="st">"AT"</span>, <span class="st">"TC"</span>, <span class="st">"CC"</span>, <span class="st">"GC"</span>, <span class="st">"AC"</span>, <span class="st">"TG"</span>, <span class="st">"CG"</span>, <span class="st">"GG"</span>,</span>
+<span>    <span class="st">"AG"</span>, <span class="st">"TA"</span>, <span class="st">"CA"</span>, <span class="st">"GA"</span>, <span class="st">"AA"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -65,26 +69,28 @@ the new features.</p>
 <dd><p>threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001</p></dd>
 
 
-<dt id="arg-lambda">lambda<a class="anchor" aria-label="anchor" href="#arg-lambda"></a></dt>
-<dd><p>A user supplied <code>lambda</code> sequence. Typical usage is to
-have the program compute its own <code>lambda</code> sequence based on
-<code>nlambda</code> and <code>lambda.min.ratio</code>. Supplying a value of
-<code>lambda</code> overrides this. WARNING: use with care. Avoid supplying a
-single value for <code>lambda</code> (for predictions after CV use
-<code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> instead).  Supply instead a decreasing sequence of
-<code>lambda</code> values. <code>glmnet</code> relies on its warms starts for speed,
-and its often faster to fit a whole path than compute a single fit.</p></dd>
+<dt id="arg-max-motif-n">max_motif_n<a class="anchor" aria-label="anchor" href="#arg-max-motif-n"></a></dt>
+<dd><p>maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL</p></dd>
 
 
-<dt id="arg-alpha">alpha<a class="anchor" aria-label="anchor" href="#arg-alpha"></a></dt>
-<dd><p>The elasticnet mixing parameter, with \(0\le\alpha\le 1\).
-The penalty is defined as
-$$(1-\alpha)/2||\beta||_2^2+\alpha||\beta||_1.$$ <code>alpha=1</code> is the
-lasso penalty, and <code>alpha=0</code> the ridge penalty.</p></dd>
+<dt id="arg-max-add-n">max_add_n<a class="anchor" aria-label="anchor" href="#arg-max-add-n"></a></dt>
+<dd><p>maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL</p></dd>
+
+
+<dt id="arg-max-n">max_n<a class="anchor" aria-label="anchor" href="#arg-max-n"></a></dt>
+<dd><p>maximum number of interactions to consider. If NULL, all interactions will be considered. If set, the interactions will be selected based on correlation with the signal in the training data. Default: NULL</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
 <dd><p>random seed for reproducibility.</p></dd>
+
+
+<dt id="arg-interactions">interactions<a class="anchor" aria-label="anchor" href="#arg-interactions"></a></dt>
+<dd><p>A precomputed interaction matrix. If provided, the function will not compute the interactions. Default: NULL</p></dd>
+
+
+<dt id="arg-ignore-feats">ignore_feats<a class="anchor" aria-label="anchor" href="#arg-ignore-feats"></a></dt>
+<dd><p>A character vector of features to ignore when creating interactions. Default: dinucleotides</p></dd>
 
 </dl></div>
     <div class="section level2">
