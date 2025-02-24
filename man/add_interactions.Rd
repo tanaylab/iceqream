@@ -15,7 +15,8 @@ add_interactions(
   seed = 60427,
   interactions = NULL,
   ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG",
-    "AG", "TA", "CA", "GA", "AA")
+    "AG", "TA", "CA", "GA", "AA"),
+  force = FALSE
 )
 }
 \arguments{
@@ -25,13 +26,15 @@ add_interactions(
 
 \item{max_add_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
 
-\item{max_n}{maximum number of interactions to consider. If NULL, all interactions will be considered. If set, the interactions will be selected based on correlation with the signal in the training data. Default: NULL}
+\item{max_n}{maximum number of interactions to consider. If NULL, all interactions will be considered. If set, the interactions will be selected based on correlation with the signal in the training data. Default: (motif models + additional features) * 10}
 
 \item{seed}{random seed for reproducibility.}
 
 \item{interactions}{A precomputed interaction matrix. If provided, the function will not compute the interactions. Default: NULL}
 
 \item{ignore_feats}{A character vector of features to ignore when creating interactions. Default: dinucleotides}
+
+\item{force}{If TRUE, the function will add interactions even if they already exist. Default: FALSE}
 }
 \value{
 The updated trajectory model with added interactions.
