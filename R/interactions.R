@@ -75,8 +75,11 @@ get_significant_interactions <- function(
     energies, y, interaction_threshold, max_motif_n = NULL, max_add_n = NULL,
     max_n = NULL,
     additional_features = NULL, lambda = 1e-5, alpha = 1, seed = 60427,
-    ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA")) {
-    glm_model_lin <- glmnet::glmnet(as.matrix(energies), y, binomial(link = "logit"), alpha = alpha, lambda = lambda, seed = seed)
+    ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), idxs = NULL) {
+    if (is.null(idxs)) {
+        idxs <- seq_len(nrow(energies))
+    }
+    glm_model_lin <- glmnet::glmnet(as.matrix(energies[idxs, ]), y[idxs], binomial(link = "logit"), alpha = alpha, lambda = lambda, seed = seed)
     glm_model_lin <- strip_glmnet(glm_model_lin)
 
     feats_all <- abs(stats::coef(glm_model_lin)[-1])
@@ -110,7 +113,7 @@ get_significant_interactions <- function(
     if (!is.null(max_n)) {
         cli::cli_alert_info("Selecting top {.val {max_n}} interactions based on correlation with the signal.")
         max_n <- min(max_n, ncol(inter))
-        cm <- tgs_cor(inter, as.matrix(y))[, 1]
+        cm <- tgs_cor(inter[idxs, ], as.matrix(y[idxs]))[, 1]
         chosen <- names(sort(abs(cm), decreasing = TRUE)[1:max_n])
         inter <- inter[, chosen]
     }
@@ -127,54 +130,68 @@ get_significant_interactions <- function(
 #' @param interaction_threshold threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001
 #' @param max_motif_n maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL
 #' @param max_add_n maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL
-#' @param max_n maximum number of interactions to consider. If NULL, all interactions will be considered. If set, the interactions will be selected based on correlation with the signal in the training data. Default: NULL
+#' @param max_n maximum number of interactions to consider. If NULL, all interactions will be considered. If set, the interactions will be selected based on correlation with the signal in the training data. Default: (motif models + additional features) * 10
 #' @param interactions A precomputed interaction matrix. If provided, the function will not compute the interactions. Default: NULL
 #' @param ignore_feats A character vector of features to ignore when creating interactions. Default: dinucleotides
+#' @param force If TRUE, the function will add interactions even if they already exist. Default: FALSE
 #'
 #' @inheritParams regress_trajectory_motifs
 #'
 #' @return The updated trajectory model with added interactions.
 #' @export
-add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA")) {
+add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE) {
     r2_all_before <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
     if (traj_model_has_test(traj_model)) {
         r2_train_before <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
         r2_test_before <- cor(traj_model@diff_score[traj_model@type == "test"], traj_model@predicted_diff_score[traj_model@type == "test"])^2
     }
 
-    if (!has_interactions(traj_model)) {
-        if (is.null(interactions)) {
-            cli::cli_alert("Adding interactions")
-            interactions <- get_significant_interactions(
-                cbind(traj_model@normalized_energies, traj_model@additional_features), norm01(traj_model@diff_score), interaction_threshold,
-                max_motif_n = max_motif_n, max_add_n = max_add_n,
-                max_n = max_n,
-                additional_features = traj_model@additional_features, lambda = lambda, alpha = alpha, seed = seed, ignore_feats = ignore_feats
-            )
-        }
-
-        if (!is.null(interactions)) {
-            traj_model@interactions <- interactions
-        }
-
-        logist_inter <- create_logist_features(interactions)
-        traj_model@model_features <- cbind(traj_model@model_features, logist_inter)
-
-        cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}")
-
-        traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE)
-        if (traj_model_has_test(traj_model)) {
-            r2_train_after <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
-            cli::cli_alert_info("R^2 train before: {.val {r2_train_before}}, after: {.val {r2_train_after}}, change: {.val {r2_train_after - r2_train_before}}")
-            r2_test_after <- cor(traj_model@diff_score[traj_model@type == "test"], traj_model@predicted_diff_score[traj_model@type == "test"])^2
-            cli::cli_alert_info("R^2 test before: {.val {r2_test_before}}, after: {.val {r2_test_after}}, change: {.val {r2_test_after - r2_test_before}}")
-        } else {
-            r2_after <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
-            cli::cli_alert_info("R^2 all before: {.val {r2_all_before}}, after: {.val {r2_after}}, change: {.val {r2_after - r2_all_before}}")
-        }
-    } else {
-        cli::cli_alert_warning("Interactions already exist.")
+    if (is.null(max_n)) {
+        n_feats <- ncol(traj_model@additional_features[, setdiff(colnames(traj_model@additional_features), ignore_feats)])
+        max_n <- (ncol(traj_model@normalized_energies) + n_feats) * 10
+        cli::cli_alert("Setting {.field max_n} (maximal number of interactions) to {.val {max_n}}.")
     }
+
+    if (has_interactions(traj_model)) {
+        if (force) {
+            traj_model@interactions <- matrix(nrow = 0, ncol = 0)
+        } else {
+            cli::cli_alert_warning("Interactions already exist. Set {.field force} to TRUE to overwrite.")
+            return(traj_model)
+        }
+    }
+
+
+    if (is.null(interactions)) {
+        cli::cli_alert("Adding interactions")
+        interactions <- get_significant_interactions(
+            cbind(traj_model@normalized_energies, traj_model@additional_features), norm01(traj_model@diff_score), interaction_threshold,
+            max_motif_n = max_motif_n, max_add_n = max_add_n,
+            max_n = max_n,
+            additional_features = traj_model@additional_features, lambda = lambda, alpha = alpha, seed = seed, ignore_feats = ignore_feats, idxs = which(traj_model@type == "train")
+        )
+    }
+
+    if (!is.null(interactions)) {
+        traj_model@interactions <- interactions
+    }
+
+    logist_inter <- create_logist_features(interactions)
+    traj_model@model_features <- cbind(traj_model@model_features, logist_inter)
+
+    cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}, out of which {.val {ncol(traj_model@normalized_energies)}} are motif features, {.val {ncol(traj_model@additional_features)}} are additional features and {.val {ncol(traj_model@interactions)}} are interactions.")
+
+    traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE)
+    if (traj_model_has_test(traj_model)) {
+        r2_train_after <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
+        cli::cli_alert_info("R^2 train before: {.val {r2_train_before}}, after: {.val {r2_train_after}}, change: {.val {r2_train_after - r2_train_before}}")
+        r2_test_after <- cor(traj_model@diff_score[traj_model@type == "test"], traj_model@predicted_diff_score[traj_model@type == "test"])^2
+        cli::cli_alert_info("R^2 test before: {.val {r2_test_before}}, after: {.val {r2_test_after}}, change: {.val {r2_test_after - r2_test_before}}")
+    } else {
+        r2_after <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
+        cli::cli_alert_info("R^2 all before: {.val {r2_all_before}}, after: {.val {r2_after}}, change: {.val {r2_after - r2_all_before}}")
+    }
+
 
     return(traj_model)
 }
