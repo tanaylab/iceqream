@@ -11,6 +11,7 @@
 #' @param test_idxs A vector of indices to use for testing. If NULL, the testing set is the complement of the training set.
 #' @param output_dir A directory to save intermediate results. If not NULL, the train and test indices are saved to a CSV file, together with the models at each step (before filtering, after filtering, and after adding interactions). The models are saved as RDS files. If the directory exists, the files are overwritten.
 #' @param plot_report A logical value indicating whether to plot the model report. Default is TRUE.
+#' @param rename_motifs A logical value indicating whether to rename the motifs based on the HOMER database. Default is TRUE.
 #'
 #' @return An instance of \code{TrajectoryModel} with the final model.
 #'
@@ -57,6 +58,7 @@ iq_regression <- function(
     n_cores = NULL,
     output_dir = NULL,
     plot_report = TRUE,
+    rename_motifs = TRUE,
     ...) {
     if (!is.null(n_cores)) {
         cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
@@ -169,6 +171,11 @@ iq_regression <- function(
         min_diff = min_diff,
         ...
     )
+
+    if (rename_motifs) {
+        nm <- match_traj_model_motif_names(traj_model)
+        traj_model <- rename_motif_models(traj_model, nm)
+    }
 
     final_model <- infer_and_save(traj_model, "iq_regression_model.rds")
 
