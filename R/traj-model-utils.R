@@ -402,7 +402,6 @@ filter_traj_model_intervals <- function(traj_model, idxs) {
 #'
 #' @export
 match_traj_model_motif_names <- function(traj_model, dataset = prego::all_motif_datasets() %>% filter(dataset == "HOMER")) {
-    cli::cli_alert_info("Matching motif names, note that this might take a while.")
     motmatch <- purrr::imap_dfr(traj_model@motif_models, ~ {
         cli::cli_alert("Matching {.field {.y}}")
         m <- prego::pssm_match(.x$pssm, dataset) %>% mutate(motif1 = .y)
