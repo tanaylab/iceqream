@@ -9,25 +9,19 @@
   new_data = NULL,
   intervals = NULL,
   sequences = NULL,
-  pbm_responses = NULL,
-  iq_responses = NULL,
   rescale = TRUE
 )
 }
 \arguments{
 \item{object}{An IQmodel object}
 
-\item{new_data}{Optional data frame or matrix of new data for IQ features}
+\item{new_data}{Optional data frame or matrix of pre-computed features}
 
 \item{intervals}{Optional genomic intervals}
 
 \item{sequences}{Optional DNA sequences}
 
-\item{pbm_responses}{Optional pre-computed PBM responses}
-
-\item{iq_responses}{Optional pre-computed IQ responses}
-
-\item{rescale}{Logical indicating whether to rescale predictions}
+\item{rescale}{Logical indicating whether to rescale predictions to the original scale}
 }
 \value{
 A vector of normalized and rescaled predictions
