@@ -48,13 +48,38 @@ traj_model_to_iq_feature_list <- function(traj_model) {
     dinucs <- c("AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT", "GA", "GC", "GG", "GT", "TA", "TC", "TG", "TT")
     dinuc_feats <- all_feats[all_feats %in% dinucs]
 
+    # Check if gc_content is among the additional features
+    has_gc_content <- "gc_content" %in% all_feats
+
+    # Check if cg_cont is among the additional features
+    has_cg_cont <- "cg_cont" %in% all_feats
+
+    # Initialize the IQ features list
+    iq_features <- list()
+
     if (length(dinuc_feats) > 0) {
-        iq_features <- list(dinucleotides = create_dinuc_feature_group(traj_model, dinucleotides = dinuc_feats))
-        all_feats <- all_feats[!(all_feats %in% dinuc_feats)]
-    } else {
-        iq_features <- list()
+        # Create dinucleotide feature group, including GC content if available
+        iq_features$dinucleotides <- create_dinuc_feature_group(traj_model,
+            dinucleotides = dinuc_feats,
+            include_gc = has_gc_content
+        )
+
+        # Remove dinucleotide features and GC content (if included) from all_feats
+        feats_to_remove <- c(dinuc_feats)
+        if (has_gc_content) feats_to_remove <- c(feats_to_remove, "gc_content")
+        all_feats <- all_feats[!(all_feats %in% feats_to_remove)]
     }
 
+    # Handle the cg_cont feature if present
+    if (has_cg_cont) {
+        # Create the CG content feature
+        iq_features$cg_cont <- create_cg_content_feature(traj_model)
+
+        # Remove cg_cont from all_feats to avoid processing it twice
+        all_feats <- all_feats[all_feats != "cg_cont"]
+    }
+
+    # Process all remaining features
     other_features <- purrr::map(all_feats, function(name) {
         variables <- f2v %>%
             filter(variable == name) %>%
@@ -166,7 +191,7 @@ iq_feature_list.compute <- function(feature_list, sequences = NULL, intervals = 
                 results[[length(results) + 1]] <- data.frame(feature_result)
                 colnames(results[[length(results)]]) <- feature_obj@name
             } else {
-                cli::cli_warn("Skipping IQFeature object without a compute function: {.val {feature_obj@name}}")
+                cli::cli_warn("Skipping IQFeature object without a compute function: {.val {feature_obj@name}}. Note that the model accuracy may be affected.")
             }
         } else {
             cli::cli_warn("Skipping unknown object type in feature_list: {.type {class(feature_obj)}}")
@@ -175,6 +200,10 @@ iq_feature_list.compute <- function(feature_list, sequences = NULL, intervals = 
 
     # Combine all results into a single data frame
     combined_results <- do.call(cbind, results)
+
+    if (is.null(combined_results)) {
+        return(NULL)
+    }
 
     # make sure that the number of rows in the results match the number of intervals
     if (!is.null(intervals)) {

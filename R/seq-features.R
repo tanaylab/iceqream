@@ -15,7 +15,7 @@ create_sequence_features <- function(intervals, size = NULL, normalize = TRUE, n
     if (is.null(size)) {
         size <- intervals$end[1] - intervals$start[1]
     }
-    seqs <- prego::intervals_to_seq(misha.ext::gintervals.normalize(intervals, size))
+    seqs <- prego::intervals_to_seq(intervals, size)
     dinucs <- prego::calc_sequences_dinucs(seqs)
     dinucs <- dinucs / (size - 1)
     gc_content <- stringr::str_count(seqs, "G|C") / nchar(seqs)

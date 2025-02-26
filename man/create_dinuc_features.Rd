@@ -7,10 +7,11 @@
 create_dinuc_features(
   traj_model,
   quantile = 0.99,
-  size = traj_model@params$peaks_size,
+  size = NULL,
   dinucleotides = c("AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT", "GA", "GC", "GG",
     "GT", "TA", "TC", "TG", "TT"),
-  feat_names = dinucleotides
+  feat_names = dinucleotides,
+  include_gc = TRUE
 )
 }
 \arguments{
@@ -23,10 +24,12 @@ create_dinuc_features(
 \item{dinucleotides}{A vector of dinucleotides to create features for (default is all possible dinucleotides).}
 
 \item{feat_names}{A vector of feature names to use for each dinucleotide (default is the dinucleotide itself).}
+
+\item{include_gc}{Logical indicating whether to include GC content feature (default is TRUE).}
 }
 \value{
-A list of IQSeqFeature objects, one for each dinucleotide.
+A list of IQSeqFeature objects, one for each dinucleotide and GC content if included.
 }
 \description{
-This function creates IQSeqFeature objects for all possible dinucleotides.
+This function creates IQSeqFeature objects for all possible dinucleotides and GC content.
 }

@@ -21,7 +21,7 @@ This method defines how an IQmodel object should be displayed.
 \section{Slots}{
 
 \describe{
-\item{\code{iq_features}}{A list of IQFeature objects.}
+\item{\code{features}}{A list of IQFeature objects.}
 
 \item{\code{pbms}}{A list of PBM objects.}
 

@@ -10,7 +10,8 @@
   intervals = NULL,
   sequences = NULL,
   pbm_responses = NULL,
-  iq_responses = NULL
+  iq_responses = NULL,
+  rescale = TRUE
 )
 }
 \arguments{
@@ -25,6 +26,8 @@
 \item{pbm_responses}{Optional pre-computed PBM responses}
 
 \item{iq_responses}{Optional pre-computed IQ responses}
+
+\item{rescale}{Logical indicating whether to rescale predictions}
 }
 \value{
 A vector of normalized and rescaled predictions

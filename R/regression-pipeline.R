@@ -54,6 +54,7 @@ iq_regression <- function(
     interaction_threshold = 0.001,
     max_motif_interaction_n = NULL,
     max_add_interaction_n = NULL,
+    max_n_interactions = NULL,
     n_prego_motifs = 0,
     n_cores = NULL,
     output_dir = NULL,
@@ -186,7 +187,7 @@ iq_regression <- function(
     }
 
     if (include_interactions) {
-        traj_model <- add_interactions(traj_model, interaction_threshold = interaction_threshold, max_motif_n = max_motif_interaction_n, max_add_n = max_add_interaction_n, seed = seed)
+        traj_model <- add_interactions(traj_model, interaction_threshold = interaction_threshold, max_motif_n = max_motif_interaction_n, max_add_n = max_add_interaction_n, max_n = max_n_interactions, seed = seed)
         final_model <- infer_and_save(traj_model, "iq_regression_final_model.rds")
     }
 
