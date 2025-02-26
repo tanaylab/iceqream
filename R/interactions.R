@@ -14,7 +14,7 @@ create_specifc_terms <- function(energies, terms) {
     term2_matrix <- energies[, terms$term2]
     inter <- term1_matrix * term2_matrix
     inter <- t(t(inter) / apply(inter, 2, max, na.rm = TRUE))
-    inter <- apply(inter, 2, norm01) * 1
+    inter <- apply(inter, 2, norm01) * 10
     colnames(inter) <- terms$variable
     return(inter)
 }
@@ -27,7 +27,7 @@ create_features_terms <- function(energies, features, data) {
         inter
     })
 
-    interactions <- apply(interactions, 2, norm01) * 1
+    interactions <- apply(interactions, 2, norm01) * 10
     interactions
 }
 
@@ -110,7 +110,7 @@ get_significant_interactions <- function(
         additional_features = additional_features, max_motif_n = max_motif_n, max_add_n = max_add_n
     )
 
-    if (!is.null(max_n)) {
+    if (!is.null(max_n) && ncol(inter) > max_n) {
         cli::cli_alert_info("Selecting top {.val {max_n}} interactions based on correlation with the signal.")
         max_n <- min(max_n, ncol(inter))
         cm <- tgs_cor(inter[idxs, ], as.matrix(y[idxs]))[, 1]
@@ -179,7 +179,7 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
     logist_inter <- create_logist_features(interactions)
     traj_model@model_features <- cbind(traj_model@model_features, logist_inter)
 
-    cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}, out of which {.val {ncol(traj_model@normalized_energies)}} are motif features, {.val {ncol(traj_model@additional_features)}} are additional features and {.val {ncol(traj_model@interactions)}} are interactions.")
+    cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}, out of which {.val {ncol(traj_model@normalized_energies)}}*4 are motif features, {.val {ncol(traj_model@additional_features)}}*4 are additional features and {.val {ncol(traj_model@interactions)}}*4 are interactions.")
 
     traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE)
     if (traj_model_has_test(traj_model)) {
