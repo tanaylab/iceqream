@@ -457,6 +457,7 @@ rename_motif_models <- function(traj_model, names_map) {
 
     names(traj_model@motif_models) <- names_map[names(traj_model@motif_models)]
     colnames(traj_model@normalized_energies) <- names_map[colnames(traj_model@normalized_energies)]
+    names(colnames(traj_model@normalized_energies)) <- NULL
     names(traj_model@features_r2) <- names_map[names(traj_model@features_r2)]
 
     ext_names_map <- purrr::map(c("low-energy", "high-energy", "higher-energy", "sigmoid"), ~ {
@@ -466,6 +467,7 @@ rename_motif_models <- function(traj_model, names_map) {
     }) %>% do.call(c, .)
 
     colnames(traj_model@model_features) <- ext_names_map[colnames(traj_model@model_features)]
+    names(colnames(traj_model@model_features)) <- NULL
     traj_model@coefs <- traj_model@coefs %>%
         mutate(variable = names_map[variable])
     if (!is.null(traj_model@params$distilled_features)) {

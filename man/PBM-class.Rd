@@ -34,5 +34,7 @@ It inherits from the IQFeature class.
 \item{\code{spat_max}}{A numeric value representing the spatial maximum (optional)}
 
 \item{\code{seq_length}}{A numeric value representing the length of the sequence for spatial distribution (optional)}
+
+\item{\code{size}}{A numeric value representing the number of bp in the normalization intervals}
 }}
 

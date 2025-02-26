@@ -133,6 +133,7 @@ calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@pea
 }
 
 motifs_to_mdb <- function(ml) {
+    ml <- purrr::discard(ml, is.null)
     spat_factors <- ml %>%
         purrr::imap_dfc(~ .x$spat$spat_factor) %>%
         as.matrix() %>%
@@ -146,8 +147,7 @@ motifs_to_mdb <- function(ml) {
 }
 
 infer_energies_new <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp", bidirect = TRUE) {
-    ml <- purrr::discard(motif_list, is.null)
-    mdb <- motifs_to_mdb(ml)
+    mdb <- motifs_to_mdb(motif_list)
 
     all_energies <- prego::extract_pwm(c(sequences, norm_sequences), dataset = mdb, prior = 0.01)
     energies <- all_energies[1:length(sequences), ]

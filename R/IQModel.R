@@ -3,7 +3,7 @@
 #' This class represents an IQ model including IQ features and PBMs,
 #' along with necessary model parameters.
 #'
-#' @slot iq_features A list of IQFeature objects.
+#' @slot features A list of IQFeature objects.
 #' @slot pbms A list of PBM objects.
 #' @slot intercept The intercept term from the model.
 #' @slot func The function used for computing energies (e.g., "logSumExp" or "max").
@@ -17,7 +17,7 @@
 IQmodel <- setClass(
     "IQmodel",
     slots = list(
-        iq_features = "list",
+        features = "list",
         pbms = "list",
         intercept = "numeric",
         func = "character",
@@ -40,11 +40,11 @@ IQmodel <- setClass(
 setMethod("show", signature = "IQmodel", function(object) {
     cli::cli({
         cli::cli_text("An {.cls IQmodel} object")
-        n_groups <- sum(purrr::map_lgl(object@iq_features, ~ inherits(.x, "IQFeatureGroup")))
+        n_groups <- sum(purrr::map_lgl(object@features, ~ inherits(.x, "IQFeatureGroup")))
         if (n_groups > 0) {
-            cli::cli_text("Contains {.val {length(object@pbms)}} PBMs ({.code @pbms}), and {.val {length(object@iq_features)}} IQ features ({.code @iq_features}), including {.val {n_groups}} feature groups")
+            cli::cli_text("Contains {.val {length(object@pbms)}} PBMs ({.code @pbms}), and {.val {length(object@features)}} IQ features ({.code @features}), including {.val {n_groups}} feature groups")
         } else {
-            cli::cli_text("Contains {.val {length(object@pbms)}} PBMs ({.code @pbms}), and {.val {length(object@iq_features)}} IQ features ({.code @iq_features})")
+            cli::cli_text("Contains {.val {length(object@pbms)}} PBMs ({.code @pbms}), and {.val {length(object@features)}} IQ features ({.code @features})")
         }
 
         cli::cli_text("Intercept: {.val {object@intercept}} ({.code @intercept})")
@@ -56,7 +56,7 @@ setMethod("show", signature = "IQmodel", function(object) {
         cli::cli_text("Normalization factors: {.val {object@norm_factors}} ({.code @norm_factors})")
 
         cli::cli_text("\n")
-        if (length(object@iq_features) > 0) {
+        if (length(object@features) > 0) {
             cli::cli_text("Run {.code predict(object, intervals = new_intervals, new_data = new_data)} to make predictions using this model.")
         } else {
             cli::cli_text("Run {.code predict(object, intervals = new_intervals)} to make predictions using this model.")
@@ -75,6 +75,10 @@ setMethod("show", signature = "IQmodel", function(object) {
 #'
 #' @export
 create_iq_model <- function(traj_model, func = "logSumExp") {
+    if (has_interactions(traj_model)) {
+        cli::cli_abort("Creating an IQ model from a trajectory model with interactions is not implemented yet.")
+    }
+
     traj_model <- split_traj_model_to_train_test(traj_model)$train
     iq_features <- traj_model_to_iq_feature_list(traj_model)
     pbms <- traj_model_to_pbm_list(traj_model, func = func)
@@ -96,7 +100,7 @@ create_iq_model <- function(traj_model, func = "logSumExp") {
     norm_factors <- c(norm_factors, max(traj_model@diff_score - norm_factors, na.rm = TRUE))
 
     IQmodel(
-        iq_features = iq_features,
+        features = iq_features,
         pbms = pbms,
         intercept = intercept,
         func = func,
@@ -169,6 +173,9 @@ get_all_feature_names <- function(iq_features) {
 #' @return Vector of missing feature names
 #' @noRd
 identify_missing_features <- function(all_feature_names, new_data) {
+    if (is.null(new_data)) {
+        return(all_feature_names)
+    }
     setdiff(all_feature_names, colnames(new_data))
 }
 
@@ -223,10 +230,6 @@ compute_missing_features <- function(features_to_compute, use_intervals, interva
 #' @return Data frame of IQ responses
 #' @noRd
 compute_iq_responses <- function(iq_features, new_data, use_intervals, intervals, sequences) {
-    if (is.null(new_data)) {
-        new_data <- data.frame()
-    }
-
     all_feature_names <- get_all_feature_names(iq_features)
     missing_features <- identify_missing_features(all_feature_names, new_data)
 
@@ -235,7 +238,13 @@ compute_iq_responses <- function(iq_features, new_data, use_intervals, intervals
         features_to_compute <- create_features_to_compute(iq_features, missing_features)
 
         computed_features <- compute_missing_features(features_to_compute, use_intervals, intervals, sequences)
-        new_data <- cbind(new_data, computed_features)
+        if (!is.null(computed_features)) {
+            if (is.null(new_data)) {
+                new_data <- computed_features
+            } else {
+                new_data <- cbind(new_data, computed_features)
+            }
+        }
     }
 
     iq_feature_list.compute_response(iq_features, new_data)
@@ -260,11 +269,12 @@ handle_missing_iq_responses <- function(iq_responses, all_feature_names) {
 #' @param sequences Optional DNA sequences
 #' @param pbm_responses Optional pre-computed PBM responses
 #' @param iq_responses Optional pre-computed IQ responses
+#' @param rescale Logical indicating whether to rescale predictions
 #'
 #' @return A vector of normalized and rescaled predictions
 #'
 #' @exportMethod predict
-setMethod("predict", signature = "IQmodel", function(object, new_data = NULL, intervals = NULL, sequences = NULL, pbm_responses = NULL, iq_responses = NULL) {
+setMethod("predict", signature = "IQmodel", function(object, new_data = NULL, intervals = NULL, sequences = NULL, pbm_responses = NULL, iq_responses = NULL, rescale = TRUE) {
     use_intervals <- validate_predict_input(intervals, sequences, pbm_responses)
 
     if (is.null(sequences) && !is.null(intervals)) {
@@ -274,12 +284,12 @@ setMethod("predict", signature = "IQmodel", function(object, new_data = NULL, in
     pbm_responses <- compute_pbm_responses(object@pbms, sequences, object@func, pbm_responses)
     all_features <- pbm_responses
 
-    if (length(object@iq_features) > 0) {
+    if (length(object@features) > 0) {
         if (is.null(iq_responses)) {
-            iq_responses <- compute_iq_responses(object@iq_features, new_data, use_intervals, intervals, sequences)
+            iq_responses <- compute_iq_responses(object@features, new_data, use_intervals, intervals, sequences)
         }
 
-        all_feature_names <- get_all_feature_names(object@iq_features)
+        all_feature_names <- get_all_feature_names(object@features)
         iq_responses <- handle_missing_iq_responses(iq_responses, all_feature_names)
 
         if (nrow(iq_responses) != nrow(pbm_responses)) {
@@ -291,8 +301,162 @@ setMethod("predict", signature = "IQmodel", function(object, new_data = NULL, in
 
     pred <- rowSums(all_features, na.rm = TRUE) + object@intercept
     pred <- logist(pred)
-    pred <- (pred - object@min_pred) / (object@max_pred - object@min_pred)
-    pred <- pred * object@norm_factors[2] + object@norm_factors[1]
+    if (rescale) {
+        pred <- (pred - object@min_pred) / (object@max_pred - object@min_pred)
+        pred <- pred * object@norm_factors[2] + object@norm_factors[1]
+    }
+
 
     return(pred)
 })
+
+#' Compute all features required by an IQModel for sequences or intervals
+#'
+#' This function computes all features required by a given IQModel for prediction,
+#' based on the model's configuration. It can return either raw features or model responses.
+#'
+#' @param model An IQModel object that defines which features to compute.
+#' @param sequences Optional vector of DNA sequences. Either sequences or intervals must be provided.
+#' @param intervals Optional data frame of genomic intervals with columns 'chrom', 'start', and 'end'.
+#' @param size Optional size for intervals. If not provided, will be determined from the model.
+#' @param return_responses Logical indicating whether to return responses (TRUE) or raw features (FALSE).
+#'        Default is FALSE to return responses.
+#' @param return_separate Logical indicating whether to return separate data frames for PBM and IQ features.
+#'        Default is FALSE.
+#'
+#' @return If return_separate is FALSE, a single data frame containing all computed features/responses.
+#'         If return_separate is TRUE, a list with components for PBMs and IQ features.
+#'
+#' @export
+iq_model.compute_features <- function(model, sequences = NULL, intervals = NULL, size = NULL,
+                                      return_responses = FALSE, return_separate = FALSE) {
+    # Validate input parameters
+    if (is.null(sequences) && is.null(intervals)) {
+        cli::cli_abort("Either sequences or intervals must be provided.")
+    }
+
+    # Prepare sequences from intervals if needed
+    if (is.null(sequences) && !is.null(intervals)) {
+        # Determine size if not provided
+        if (is.null(size)) {
+            # Try to get size from IQ features
+            if (!is.null(model@features) && length(model@features) > 0) {
+                for (feat in model@features) {
+                    if ("size" %in% slotNames(feat)) {
+                        size <- feat@size
+                        cli::cli_alert_info("Using size {.val {size}} from IQ features")
+                        break
+                    }
+                }
+            }
+
+            # If not found in IQ features, try PBMs
+            if (is.null(size) && !is.null(model@pbms) && length(model@pbms) > 0) {
+                size <- model@pbms[[1]]@size
+                cli::cli_alert_info("Using size {.val {size}} from PBMs")
+            }
+
+            # If still not found, throw an error
+            if (is.null(size)) {
+                cli::cli_abort("Size could not be determined from model. Please provide the size parameter.")
+            }
+        }
+
+        # Convert intervals to sequences with the specified size
+        cli::cli_alert_info("Converting intervals to sequences with size {.val {size}}")
+        sequences <- prego::intervals_to_seq(intervals, size = size)
+    }
+
+    # Process PBMs
+    if (!is.null(model@pbms) && length(model@pbms) > 0) {
+        cli::cli_alert_info("Computing PBM features")
+
+        if (return_responses) {
+            # Compute PBM responses directly
+            pbm_results <- pbm_list.compute(model@pbms, sequences, response = TRUE, func = model@func)
+        } else {
+            # Compute raw PBM features (binding scores) without aggregating with the response function
+            pbm_results <- pbm_list.compute(model@pbms, sequences, response = FALSE)
+        }
+    } else {
+        pbm_results <- NULL
+    }
+
+    # Process IQ features
+    if (!is.null(model@features) && length(model@features) > 0) {
+        # First compute the raw feature values
+        if (!is.null(intervals)) {
+            cli::cli_alert_info("Computing IQ features from intervals")
+            iq_features <- iq_feature_list.compute(model@features, intervals = intervals)
+        } else {
+            cli::cli_alert_info("Computing IQ features from sequences")
+            iq_features <- iq_feature_list.compute(model@features, sequences = sequences)
+        }
+
+        if (return_responses && !is.null(iq_features)) {
+            # Compute responses based on the model coefficients
+            cli::cli_alert_info("Computing IQ responses")
+            iq_results <- iq_feature_list.compute_response(model@features, iq_features)
+        } else {
+            # Use the raw features
+            iq_results <- iq_features
+        }
+    } else {
+        iq_results <- NULL
+    }
+
+    # Return results based on format preference
+    if (return_separate) {
+        if (return_responses) {
+            return(list(
+                pbm_responses = pbm_results,
+                iq_responses = iq_results
+            ))
+        } else {
+            return(list(
+                pbm_features = pbm_results,
+                iq_features = iq_results
+            ))
+        }
+    } else {
+        # Combine all results into a single data frame
+        combined_results <- NULL
+
+        if (!is.null(pbm_results)) {
+            combined_results <- pbm_results
+        }
+
+        if (!is.null(iq_results)) {
+            if (is.null(combined_results)) {
+                combined_results <- iq_results
+            } else {
+                # Check for dimension compatibility
+                if (nrow(pbm_results) == nrow(iq_results)) {
+                    combined_results <- cbind(combined_results, iq_results)
+                } else {
+                    cli::cli_warn("PBM data ({.val {nrow(pbm_results)}} rows) and IQ data ({.val {nrow(iq_results)}} rows) have different dimensions. Returning them separately.")
+                    if (return_responses) {
+                        return(list(
+                            pbm_responses = pbm_results,
+                            iq_responses = iq_results
+                        ))
+                    } else {
+                        return(list(
+                            pbm_features = pbm_results,
+                            iq_features = iq_results
+                        ))
+                    }
+                }
+            }
+        }
+
+        # If intervals had rownames, add them back
+        if (!is.null(intervals) && !is.null(rownames(intervals)) && !is.null(combined_results)) {
+            if (nrow(combined_results) == nrow(intervals)) {
+                rownames(combined_results) <- rownames(intervals)
+            }
+        }
+
+        return(as.data.frame(combined_results))
+    }
+}

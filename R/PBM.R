@@ -11,6 +11,7 @@
 #' @slot spat_min A numeric value representing the spatial minimum (optional).
 #' @slot spat_max A numeric value representing the spatial maximum (optional)
 #' @slot seq_length A numeric value representing the length of the sequence for spatial distribution (optional)
+#' @slot size A numeric value representing the number of bp in the normalization intervals
 #'
 #' @exportClass PBM
 PBM <- setClass(
@@ -23,7 +24,8 @@ PBM <- setClass(
         spat = "data.frame",
         spat_min = "numeric",
         spat_max = "numeric",
-        seq_length = "numeric"
+        seq_length = "numeric",
+        size = "numeric"
     ),
     contains = "IQFeature"
 )
@@ -80,6 +82,10 @@ validate_pbm <- function(pbm) {
         cli::cli_abort("The PBM object does not contain the energy range.")
     }
 
+    if (pbm@size < 1) {
+        cli::cli_abort("The PBM object does not contain the size of the normalization intervals.")
+    }
+
     if (nrow(pbm@spat) > 0) {
         spat <- pbm@spat
         if (!is.data.frame(spat)) {
@@ -122,7 +128,7 @@ traj_model_to_pbm_list <- function(
     normalization_intervals = traj_model@normalization_intervals,
     bits_threshold = NULL) {
     f2v <- feat_to_variable(traj_model)
-    norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(normalization_intervals, traj_model@params$peaks_size))
+    norm_sequences <- prego::intervals_to_seq(normalization_intervals, traj_model@params$peaks_size)
     cli_alert_info("Computing motif energies for {.val {length(traj_model@motif_models)}} motifs on {.val {nrow(normalization_intervals)}} normalization intervals")
 
     if (!is.null(bits_threshold)) {
@@ -132,12 +138,8 @@ traj_model_to_pbm_list <- function(
         })
     }
 
-    norm_energies <- plyr::llply(traj_model@motif_models, function(x) {
-        prego::compute_pwm(norm_sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func)
-    }, .parallel = getOption("prego.parallel", TRUE))
-    names(norm_energies) <- names(traj_model@motif_models)
-    norm_energies <- do.call(cbind, norm_energies)
-
+    mdb <- motifs_to_mdb(traj_model@motif_models)
+    norm_energies <- prego::extract_pwm(norm_sequences, dataset = mdb, prior = 0.01)
     norm_energies <- norm_energies / log(2)
 
     max_e <- log2(matrixStats::colQuantiles(2^norm_energies, probs = traj_model@params$energy_norm_quantile, na.rm = TRUE))
@@ -161,7 +163,7 @@ traj_model_to_pbm_list <- function(
             pull(feature)
         coefs <- coef(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
         names(coefs) <- gsub(paste0("^", name, "_"), "", names(coefs))
-        pbm <- PBM(name = name, pssm = pssm, max_energy = max_energy, min_energy = min_energy, energy_range = energy_range, spat = spat, spat_min = spat_min, spat_max = spat_max, seq_length = seq_length, coefs = coefs)
+        pbm <- PBM(name = name, pssm = pssm, max_energy = max_energy, min_energy = min_energy, energy_range = energy_range, spat = spat, spat_min = spat_min, spat_max = spat_max, seq_length = seq_length, coefs = coefs, size = traj_model@params$peaks_size)
         validate_pbm(pbm)
         pbm
     })
@@ -212,6 +214,9 @@ pbm.compute <- function(pbm, sequences, response = FALSE, func = "logSumExp", no
         select(pos, everything())
     energies <- prego::compute_pwm(sequences, pssm, spat = pbm@spat, spat_min = pbm@spat_min %||% 1, spat_max = pbm@spat_max, func = func)
     if (normalize_energies) {
+        if (any(stringr::str_length(sequences) != pbm@size)) {
+            cli::cli_alert_warning("The sequences are not of the same length as the normalization intervals (size = {.val {pbm@size}})")
+        }
         energies <- pbm.normalize_energies(pbm, energies)
     }
     if (response) {
@@ -245,6 +250,67 @@ pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp", n
     return(energies)
 }
 
+#' Convert a list of PBM objects to a motif database
+#'
+#' This function converts a list of PBM objects to a motif database format
+#' compatible with prego::extract_pwm.
+#'
+#' @param pbm_list A list of PBM objects
+#'
+#' @return A motif database object compatible with prego::extract_pwm
+#'
+#' @export
+pbm_list_to_mdb <- function(pbm_list) {
+    # Convert PBM list to the format expected by motifs_to_mdb
+    motif_models <- purrr::imap(pbm_list, function(pbm, name) {
+        list(
+            pssm = pbm@pssm %>%
+                as.data.frame() %>%
+                mutate(pos = row_number() - 1),
+            spat = pbm@spat,
+            spat_min = pbm@spat_min %||% 1,
+            spat_max = pbm@spat_max,
+            seq_length = pbm@seq_length
+        )
+    })
+
+    return(motifs_to_mdb(motif_models))
+}
+
+#' Normalize energies for a list of PBMs
+#'
+#' This function normalizes energy values for a list of PBMs based on their
+#' normalization parameters, using the pbm.normalize_energies function.
+#'
+#' @param pbm_list A list of PBM objects
+#' @param energies A matrix of energy values to normalize, with column names matching PBM names
+#' @param norm_energy_max The maximum value for normalized energies (default is 10)
+#'
+#' @return A matrix of normalized energy values
+#'
+#' @export
+pbm_list.normalize <- function(pbm_list, energies, norm_energy_max = 10) {
+    # Create a copy of the energy matrix
+    normalized_energies <- energies
+
+    # Get the list of PBM names
+    pbm_names <- names(pbm_list)
+
+    # Normalize each column according to its corresponding PBM parameters
+    for (pbm_name in pbm_names) {
+        if (pbm_name %in% colnames(normalized_energies)) {
+            pbm <- pbm_list[[pbm_name]]
+            normalized_energies[, pbm_name] <- pbm.normalize_energies(
+                pbm,
+                normalized_energies[, pbm_name],
+                norm_energy_max = norm_energy_max
+            )
+        }
+    }
+
+    return(normalized_energies)
+}
+
 #' Compute energies / response for a list of PBMs on given sequences
 #'
 #' This function computes the energies for a list of PBMs on given sequences.
@@ -258,12 +324,33 @@ pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp", n
 #' @export
 pbm_list.compute <- function(pbm_list, sequences, response = FALSE, func = "logSumExp", normalize_energies = TRUE) {
     cli::cli_alert_info("Computing energies for {.val {length(pbm_list)}} PBMs on {.val {length(sequences)}} sequences")
-    energies <- plyr::llply(pbm_list, function(pbm) {
-        pbm.compute(pbm, sequences, response, func = func, normalize_energies = normalize_energies)
-    }, .parallel = getOption("prego.parallel", TRUE))
-    energies <- do.call(cbind, energies)
 
-    return(energies)
+    mdb <- pbm_list_to_mdb(pbm_list)
+    all_energies <- prego::extract_pwm(sequences, dataset = mdb, prior = 0.01, func = func)
+
+
+    if (normalize_energies) {
+        all_energies <- pbm_list.normalize(pbm_list, all_energies)
+    } else {
+        all_energies <- all_energies / log(2)
+    }
+
+    if (response) {
+        if (!normalize_energies) {
+            cli::cli_abort("Response computation requires normalized energies, set {.field normalize_energies} to TRUE")
+        }
+
+        for (i in seq_along(pbm_list)) {
+            pbm_name <- names(pbm_list)[i]
+            pbm <- pbm_list[[pbm_name]]
+
+            # Apply logistic response model
+            logist_e <- create_logist_features(as.matrix(all_energies[, pbm_name, drop = FALSE]))
+            all_energies[, pbm_name] <- (logist_e %*% pbm@coefs)[, 1]
+        }
+    }
+
+    return(all_energies)
 }
 
 #' Compute energy for a list of pbm lists (multiple trajectories)
