@@ -2,37 +2,34 @@
 % Please edit documentation in R/IQModel.R
 \name{iq_model.compute_features}
 \alias{iq_model.compute_features}
-\title{Compute all features required by an IQModel for sequences or intervals}
+\title{Compute all features or responses required by an IQModel}
 \usage{
 iq_model.compute_features(
   model,
   sequences = NULL,
   intervals = NULL,
-  size = NULL,
+  new_data = NULL,
   return_responses = FALSE,
   return_separate = FALSE
 )
 }
 \arguments{
-\item{model}{An IQModel object that defines which features to compute.}
+\item{model}{An IQModel object}
 
-\item{sequences}{Optional vector of DNA sequences. Either sequences or intervals must be provided.}
+\item{sequences}{Optional vector of DNA sequences}
 
-\item{intervals}{Optional data frame of genomic intervals with columns 'chrom', 'start', and 'end'.}
+\item{intervals}{Optional data frame of genomic intervals}
 
-\item{size}{Optional size for intervals. If not provided, will be determined from the model.}
+\item{new_data}{Optional data frame of pre-computed features}
 
-\item{return_responses}{Logical indicating whether to return responses (TRUE) or raw features (FALSE).
-Default is FALSE to return responses.}
+\item{return_responses}{Logical indicating whether to return responses (TRUE) or raw features (FALSE)}
 
-\item{return_separate}{Logical indicating whether to return separate data frames for PBM and IQ features.
-Default is FALSE.}
+\item{return_separate}{Logical indicating whether to return separate data frames}
 }
 \value{
-If return_separate is FALSE, a single data frame containing all computed features/responses.
-If return_separate is TRUE, a list with components for PBMs and IQ features.
+A data frame of computed features/responses or list of separate components
 }
 \description{
-This function computes all features required by a given IQModel for prediction,
-based on the model's configuration. It can return either raw features or model responses.
+This function computes features or feature responses for an IQModel based on
+the provided inputs.
 }

@@ -308,6 +308,8 @@ pbm_list.normalize <- function(pbm_list, energies, norm_energy_max = 10) {
         }
     }
 
+    normalized_energies[is.na(normalized_energies)] <- 0
+
     return(normalized_energies)
 }
 
