@@ -42,7 +42,7 @@ setMethod(
     function(.Object, name, coefs, compute_func, min_value, max_value, quantile = 0.99, size) {
         .Object@name <- name
         .Object@coefs <- coefs
-        .Object@compute_func <- compute_func
+        .Object@compute_func <- local(compute_func)
         .Object@min_value <- min_value
         .Object@max_value <- max_value
         .Object@quantile <- quantile
@@ -173,7 +173,7 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
                                       "AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT",
                                       "GA", "GC", "GG", "GT", "TA", "TC", "TG", "TT"
                                   ),
-                                  feat_names = dinucleotides, include_gc = TRUE) {
+                                  feat_names = dinucleotides, include_gc = TRUE, add_compute_func = TRUE) {
     if (is.null(size)) {
         if (!is.null(traj_model@params$feats_peaks_size)) {
             size <- traj_model@params$feats_peaks_size
@@ -185,14 +185,10 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
         cli::cli_abort("The number of feature names should be equal to the number of dinucleotides.")
     }
     dinuc_to_name <- setNames(feat_names, dinucleotides)
-    # Create a function to compute dinucleotide distributions
-    compute_dinuc_dist <- function(sequences) {
-        prego::calc_sequences_dinucs(sequences)
-    }
 
     # Compute dinucleotide distribution for normalization intervals
     norm_sequences <- prego::intervals_to_seq(traj_model@normalization_intervals, size)
-    dinuc_dist <- compute_dinuc_dist(norm_sequences)
+    dinuc_dist <- prego::calc_sequences_dinucs(norm_sequences)
 
     # Compute GC content for normalization intervals if needed
     if (include_gc) {
@@ -204,10 +200,16 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
 
     for (dinuc in dinucleotides) {
         # Create a function to compute the specific dinucleotide frequency
-        compute_func <- function(sequences) {
-            dist <- compute_dinuc_dist(sequences)
-            return(dist[, dinuc, drop = TRUE])
-        }
+        compute_func <- local({
+            dinuc <- dinuc
+            force(dinuc)
+            function(sequences) {
+                dist <- prego::calc_sequences_dinucs(sequences)
+                return(dist[, dinuc, drop = TRUE])
+            }
+        })
+        environment(compute_func) <- new.env(parent = globalenv())
+        environment(compute_func)$dinuc <- dinuc
 
         # Calculate min and max values for this dinucleotide
         feature_values <- dinuc_dist[, dinuc, drop = TRUE]
@@ -235,12 +237,16 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
         )
     }
 
+
     # Add GC content feature if requested
     if (include_gc) {
         # Create a function to compute GC content
-        compute_gc_func <- function(sequences) {
-            stringr::str_count(sequences, "G|C") / nchar(sequences)
-        }
+        compute_gc_func <- local({
+            function(sequences) {
+                stringr::str_count(sequences, "G|C") / nchar(sequences)
+            }
+        })
+        environment(compute_gc_func) <- new.env(parent = globalenv())
 
         # Calculate min and max values for GC content
         min_gc <- min(gc_content, na.rm = TRUE)
@@ -307,20 +313,29 @@ create_dinuc_feature_group <- function(traj_model, quantile = 0.99, size = NULL,
     dinuc_features <- create_dinuc_features(traj_model, quantile, size, dinucleotides, include_gc = include_gc)
 
     # Create the compute function for all features at once
-    compute_func <- function(sequences) {
-        # Get dinucleotide frequencies
-        dinuc_dist <- prego::calc_sequences_dinucs(sequences)
+    compute_func <- local({
+        include_gc <- include_gc
+        feat_names <- names(dinuc_features)
 
-        # Add GC content if included
-        if (include_gc && "gc_content" %in% names(dinuc_features)) {
-            gc_content <- stringr::str_count(sequences, "G|C") / nchar(sequences)
-            result <- cbind(dinuc_dist, gc_content)
-            colnames(result)[ncol(result)] <- "gc_content"
-            return(result)
+        function(sequences) {
+            # Get dinucleotide frequencies
+            dinuc_dist <- prego::calc_sequences_dinucs(sequences)
+
+            # Add GC content if included
+            if (include_gc && "gc_content" %in% feat_names) {
+                gc_content <- stringr::str_count(sequences, "G|C") / nchar(sequences)
+                result <- cbind(dinuc_dist, gc_content)
+                colnames(result)[ncol(result)] <- "gc_content"
+                return(result)
+            }
+
+            return(dinuc_dist)
         }
+    })
+    environment(compute_func) <- new.env(parent = globalenv())
+    environment(compute_func)$include_gc <- include_gc
+    environment(compute_func)$feat_names <- names(dinuc_features)
 
-        return(dinuc_dist)
-    }
 
     # Create and return the IQFeatureGroup object
     IQFeatureGroup(
@@ -350,22 +365,25 @@ create_cg_content_feature <- function(traj_model, quantile = 0.99) {
     }
 
     # Create function to compute -log2(1-CG_fraction)
-    compute_cg_content <- function(sequences) {
-        # Extract all CG dinucleotides
-        cg_counts <- stringr::str_count(sequences, "CG")
+    compute_cg_content <- local({
+        function(sequences) {
+            # Extract all CG dinucleotides
+            cg_counts <- stringr::str_count(sequences, "CG")
 
-        # Calculate total possible positions for CG dinucleotides
-        total_positions <- nchar(sequences) - 1
+            # Calculate total possible positions for CG dinucleotides
+            total_positions <- nchar(sequences) - 1
 
-        # Calculate CG fraction
-        cg_fraction <- cg_counts / total_positions
+            # Calculate CG fraction
+            cg_fraction <- cg_counts / total_positions
 
-        # Apply -log2(1-CG_fraction) transformation
-        # Handle edge cases where CG_fraction = 1 (would result in -Inf)
-        result <- -log2(pmax(1 - cg_fraction, .Machine$double.eps))
+            # Apply -log2(1-CG_fraction) transformation
+            # Handle edge cases where CG_fraction = 1 (would result in -Inf)
+            result <- -log2(pmax(1 - cg_fraction, .Machine$double.eps))
 
-        return(result)
-    }
+            return(result)
+        }
+    })
+    environment(compute_cg_content) <- new.env(parent = globalenv())
 
     # Compute feature values on normalization intervals
     norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(traj_model@normalization_intervals, size))

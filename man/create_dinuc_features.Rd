@@ -11,7 +11,8 @@ create_dinuc_features(
   dinucleotides = c("AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT", "GA", "GC", "GG",
     "GT", "TA", "TC", "TG", "TT"),
   feat_names = dinucleotides,
-  include_gc = TRUE
+  include_gc = TRUE,
+  add_compute_func = TRUE
 )
 }
 \arguments{
