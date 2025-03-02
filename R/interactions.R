@@ -147,7 +147,7 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
     }
 
     if (is.null(max_n)) {
-        n_feats <- ncol(traj_model@additional_features[, setdiff(colnames(traj_model@additional_features), ignore_feats)])
+        n_feats <- ncol(traj_model@additional_features[, setdiff(colnames(traj_model@additional_features), ignore_feats)]) %||% 0
         max_n <- (ncol(traj_model@normalized_energies) + n_feats) * 10
         cli::cli_alert("Setting {.field max_n} (maximal number of interactions) to {.val {max_n}}.")
     }
