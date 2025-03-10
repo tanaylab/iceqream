@@ -10,7 +10,8 @@ iq_model.compute_features(
   intervals = NULL,
   new_data = NULL,
   return_responses = FALSE,
-  return_separate = FALSE
+  return_separate = FALSE,
+  normalize_energies = TRUE
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ iq_model.compute_features(
 \item{return_responses}{Logical indicating whether to return responses (TRUE) or raw features (FALSE)}
 
 \item{return_separate}{Logical indicating whether to return separate data frames}
+
+\item{normalize_energies}{Logical indicating whether to normalize PBM energies}
 }
 \value{
 A data frame of computed features/responses or list of separate components
