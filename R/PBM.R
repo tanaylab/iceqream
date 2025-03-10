@@ -330,11 +330,8 @@ pbm_list.compute <- function(pbm_list, sequences, response = FALSE, func = "logS
     mdb <- pbm_list_to_mdb(pbm_list)
     all_energies <- prego::extract_pwm(sequences, dataset = mdb, prior = 0.01, func = func)
 
-
     if (normalize_energies) {
         all_energies <- pbm_list.normalize(pbm_list, all_energies)
-    } else {
-        all_energies <- all_energies / log(2)
     }
 
     if (response) {
