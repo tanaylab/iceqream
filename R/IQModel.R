@@ -421,13 +421,14 @@ setMethod("predict", signature = "IQmodel", function(object, new_data = NULL, in
 #' @param new_data Optional data frame of pre-computed features
 #' @param return_responses Logical indicating whether to return responses (TRUE) or raw features (FALSE)
 #' @param return_separate Logical indicating whether to return separate data frames
+#' @param normalize_energies Logical indicating whether to normalize PBM energies
 #'
 #' @return A data frame of computed features/responses or list of separate components
 #'
 #' @export
 iq_model.compute_features <- function(model, sequences = NULL, intervals = NULL,
                                       new_data = NULL, return_responses = FALSE,
-                                      return_separate = FALSE) {
+                                      return_separate = FALSE, normalize_energies = TRUE) {
     # Validate inputs
     if (is.null(sequences) && is.null(intervals) && is.null(new_data)) {
         cli::cli_abort("Either sequences, intervals, or new_data must be provided.")
@@ -468,7 +469,8 @@ iq_model.compute_features <- function(model, sequences = NULL, intervals = NULL,
                     pbms_to_compute,
                     sequences,
                     response = FALSE, # Always compute raw features first
-                    func = model@func
+                    func = model@func,
+                    normalize_energies = normalize_energies
                 )
 
                 # Combine existing and newly computed PBM results
@@ -484,7 +486,8 @@ iq_model.compute_features <- function(model, sequences = NULL, intervals = NULL,
                 model@pbms,
                 sequences,
                 response = FALSE, # Always compute raw features first
-                func = model@func
+                func = model@func,
+                normalize_energies = normalize_energies
             )
         }
 
