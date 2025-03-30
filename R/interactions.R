@@ -141,7 +141,7 @@ get_significant_interactions <- function(
 #'
 #' @return The updated trajectory model with added interactions.
 #' @export
-add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial",  rescale_pred = FALSE) {
+add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial", rescale_pred = FALSE) {
     r2_all_before <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
     if (traj_model_has_test(traj_model)) {
         r2_train_before <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
@@ -187,7 +187,7 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
         cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}, out of which {.val {ncol(traj_model@normalized_energies)}}*4 are motif features, {.val {ncol(traj_model@additional_features)}}*4 are additional features and {.val {ncol(traj_model@interactions)}} are interactions.")
     }
     traj_model@params$logist_interactions <- logist_interactions
-    
+
 
     traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, logist_interactions = logist_interactions, use_cv = use_cv, nfolds = nfolds, lambda = lambda, family = family, rescale_pred = rescale_pred)
     if (traj_model_has_test(traj_model)) {
@@ -204,7 +204,7 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
     return(traj_model)
 }
 
-remove_interactions <- function(traj_model) {    
+remove_interactions <- function(traj_model) {
     if (has_interactions(traj_model)) {
         if (is.null(traj_model@params$logist_interactions) || !traj_model@params$logist_interactions) {
             inter_terms <- colnames(traj_model@interactions)

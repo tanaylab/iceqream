@@ -42,6 +42,7 @@ feat_to_variable <- function(traj_model, add_types = FALSE) {
                 mutate(
                     term1 = stringr::str_extract(variable, paste0(valid_variables_regex, ":")),
                     term2 = stringr::str_extract(variable, paste0(":", valid_variables_regex, "_")),
+                    term2 = ifelse(is.na(term2), stringr::str_extract(variable, paste0(":", valid_variables_regex, "$")), term2),
                     term1 = gsub(":$", "", term1),
                     term2 = gsub("^:", "", term2),
                     term2 = gsub("_$", "", term2)
