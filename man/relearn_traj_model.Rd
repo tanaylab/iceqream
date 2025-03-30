@@ -13,7 +13,15 @@ relearn_traj_model(
   use_motifs = TRUE,
   verbose = FALSE,
   rescale_pred = TRUE,
-  relearn_model = TRUE
+  relearn_model = TRUE,
+  family = "binomial",
+  new_interactions = FALSE,
+  max_n_interactions = NULL,
+  use_cv = FALSE,
+  nfolds = 10,
+  interaction_scale_factor = 1,
+  logist_interactions = FALSE,
+  logist_dinucs = FALSE
 )
 }
 \arguments{
@@ -34,6 +42,22 @@ relearn_traj_model(
 \item{rescale_pred}{Logical indicating whether to rescale the predicted values. Default is TRUE.}
 
 \item{relearn_model}{Logical indicating whether to relearn the model. Default is TRUE.}
+
+\item{family}{The family to use for the glmnet model. Either "binomial" (default) or "gaussian" for linear regression.}
+
+\item{new_interactions}{Logical indicating whether to add new interactions. Default is FALSE.}
+
+\item{max_n_interactions}{The maximum number of interactions to add. Default is NULL.}
+
+\item{use_cv}{Logical indicating whether to use cross-validation for lambda selection. Default is FALSE.}
+
+\item{nfolds}{Number of folds for cross-validation. Default is 10.}
+
+\item{interaction_scale_factor}{The factor to scale the interactions by. Default is 1 (no scaling).}
+
+\item{logist_interactions}{Logical indicating whether to transform interactions to logistic functions. Default is FALSE.}
+
+\item{logist_dinucs}{Logical indicating whether to transform dinucleotides to logistic functions. Default is FALSE.}
 }
 \value{
 The updated trajectory model object.

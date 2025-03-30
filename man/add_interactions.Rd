@@ -16,10 +16,17 @@ add_interactions(
   interactions = NULL,
   ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG",
     "AG", "TA", "CA", "GA", "AA"),
-  force = FALSE
+  force = FALSE,
+  logist_interactions = FALSE,
+  use_cv = FALSE,
+  nfolds = 10,
+  family = "binomial",
+  rescale_pred = FALSE
 )
 }
 \arguments{
+\item{traj_model}{The trajectory model object.}
+
 \item{interaction_threshold}{threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001}
 
 \item{max_motif_n}{maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL}
@@ -28,6 +35,8 @@ add_interactions(
 
 \item{max_n}{maximum number of interactions to consider. If NULL, all interactions will be considered. If set, the interactions will be selected based on correlation with the signal in the training data. Default: (motif models + additional features) * 10}
 
+\item{lambda}{The lambda value to use for relearning. If NULL, the lambda value from the trajectory model is used.}
+
 \item{seed}{random seed for reproducibility.}
 
 \item{interactions}{A precomputed interaction matrix. If provided, the function will not compute the interactions. Default: NULL}
@@ -35,6 +44,16 @@ add_interactions(
 \item{ignore_feats}{A character vector of features to ignore when creating interactions. Default: dinucleotides}
 
 \item{force}{If TRUE, the function will add interactions even if they already exist. Default: FALSE}
+
+\item{logist_interactions}{Logical indicating whether to transform interactions to logistic functions. Default: FALSE}
+
+\item{use_cv}{Logical indicating whether to use cross-validation for lambda selection. Default is FALSE.}
+
+\item{nfolds}{Number of folds for cross-validation. Default is 10.}
+
+\item{family}{The family to use for the glmnet model. Either "binomial" (default) or "gaussian" for linear regression.}
+
+\item{rescale_pred}{Logical indicating whether to rescale the predicted values. Default is TRUE.}
 }
 \value{
 The updated trajectory model with added interactions.
