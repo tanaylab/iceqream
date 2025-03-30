@@ -106,7 +106,7 @@ get_significant_interactions <- function(
     }
 
     inter <- create_interaction_terms(energies,
-        motif_feats = motif_feats, add_feats = add_feats,
+        motif_feats = motif_feats, add_feats = cbind(add_feats, motif_feats),
         additional_features = additional_features, max_motif_n = max_motif_n, max_add_n = max_add_n
     )
 
@@ -134,12 +134,14 @@ get_significant_interactions <- function(
 #' @param interactions A precomputed interaction matrix. If provided, the function will not compute the interactions. Default: NULL
 #' @param ignore_feats A character vector of features to ignore when creating interactions. Default: dinucleotides
 #' @param force If TRUE, the function will add interactions even if they already exist. Default: FALSE
+#' @param logist_interactions Logical indicating whether to transform interactions to logistic functions. Default: FALSE
 #'
 #' @inheritParams regress_trajectory_motifs
+#' @inheritParams relearn_traj_model
 #'
 #' @return The updated trajectory model with added interactions.
 #' @export
-add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE) {
+add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial",  rescale_pred = FALSE) {
     r2_all_before <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
     if (traj_model_has_test(traj_model)) {
         r2_train_before <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
@@ -154,7 +156,7 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
 
     if (has_interactions(traj_model)) {
         if (force) {
-            traj_model@interactions <- matrix(nrow = 0, ncol = 0)
+            traj_model <- remove_interactions(traj_model)
         } else {
             cli::cli_alert_warning("Interactions already exist. Set {.field force} to TRUE to overwrite.")
             return(traj_model)
@@ -176,12 +178,18 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
         traj_model@interactions <- interactions
     }
 
-    logist_inter <- create_logist_features(interactions)
-    traj_model@model_features <- cbind(traj_model@model_features, logist_inter)
+    if (logist_interactions) {
+        logist_inter <- create_logist_features(interactions)
+        traj_model@model_features <- cbind(traj_model@model_features, logist_inter)
+        cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}, out of which {.val {ncol(traj_model@normalized_energies)}}*4 are motif features, {.val {ncol(traj_model@additional_features)}}*4 are additional features and {.val {ncol(traj_model@interactions)}}*4 are interactions.")
+    } else {
+        traj_model@model_features <- cbind(traj_model@model_features, interactions)
+        cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}, out of which {.val {ncol(traj_model@normalized_energies)}}*4 are motif features, {.val {ncol(traj_model@additional_features)}}*4 are additional features and {.val {ncol(traj_model@interactions)}} are interactions.")
+    }
+    traj_model@params$logist_interactions <- logist_interactions
+    
 
-    cli::cli_alert_info("Re-learning the model with the new interactions. Number of features: {.val {ncol(traj_model@model_features)}}, out of which {.val {ncol(traj_model@normalized_energies)}}*4 are motif features, {.val {ncol(traj_model@additional_features)}}*4 are additional features and {.val {ncol(traj_model@interactions)}}*4 are interactions.")
-
-    traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE)
+    traj_model <- relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, logist_interactions = logist_interactions, use_cv = use_cv, nfolds = nfolds, lambda = lambda, family = family, rescale_pred = rescale_pred)
     if (traj_model_has_test(traj_model)) {
         r2_train_after <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
         cli::cli_alert_info("R^2 train before: {.val {r2_train_before}}, after: {.val {r2_train_after}}, change: {.val {r2_train_after - r2_train_before}}")
@@ -193,6 +201,22 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
     }
 
 
+    return(traj_model)
+}
+
+remove_interactions <- function(traj_model) {    
+    if (has_interactions(traj_model)) {
+        if (is.null(traj_model@params$logist_interactions) || !traj_model@params$logist_interactions) {
+            inter_terms <- colnames(traj_model@interactions)
+        } else {
+            inter_terms <- purrr::map(c("low-energy", "high-energy", "higher-energy", "sigmoid"), ~ {
+                paste0(colnames(traj_model@model_features), "_", .x)
+            }) %>% do.call(c, .)
+        }
+        traj_model@model_features <- traj_model@model_features[, !(colnames(traj_model@model_features) %in% inter_terms)]
+        traj_model@interactions <- matrix(nrow = 0, ncol = 0)
+        traj_model@params$logist_interactions <- FALSE
+    }
     return(traj_model)
 }
 
