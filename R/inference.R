@@ -56,10 +56,15 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         cli::cli_alert_info("Computing {.val {nrow(ftv_inter)}} interaction terms")
         interactions <- create_specifc_terms(e_test, ftv_inter)
         interactions <- interactions[, colnames(traj_model@interactions), drop = FALSE]
-        e_test <- cbind(e_test, interactions)
+        if (is.null(traj_model@params$logist_interactions) || !traj_model@params$logist_interactions) {
+            e_test_logist <- cbind(create_logist_features(e_test), interactions)
+        } else {
+            e_test_logist <- create_logist_features(cbind(e_test, interactions))
+        }
+    } else {
+        e_test_logist <- create_logist_features(e_test)
     }
 
-    e_test_logist <- create_logist_features(e_test)
     e_test_logist <- e_test_logist[, colnames(traj_model@model_features), drop = FALSE]
 
     cli::cli_alert_info("Inferring the model on {.val {nrow(e_test_logist)}} intervals")

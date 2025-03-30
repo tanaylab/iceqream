@@ -11,10 +11,18 @@
 #' @param verbose Logical indicating whether to display additional information.
 #' @param rescale_pred Logical indicating whether to rescale the predicted values. Default is TRUE.
 #' @param relearn_model Logical indicating whether to relearn the model. Default is TRUE.
+#' @param family The family to use for the glmnet model. Either "binomial" (default) or "gaussian" for linear regression.
+#' @param new_interactions Logical indicating whether to add new interactions. Default is FALSE.
+#' @param max_n_interactions The maximum number of interactions to add. Default is NULL.
+#' @param use_cv Logical indicating whether to use cross-validation for lambda selection. Default is FALSE.
+#' @param nfolds Number of folds for cross-validation. Default is 10.
+#' @param interaction_scale_factor The factor to scale the interactions by. Default is 1 (no scaling).
+#' @param logist_interactions Logical indicating whether to transform interactions to logistic functions. Default is FALSE.
+#' @param logist_dinucs Logical indicating whether to transform dinucleotides to logistic functions. Default is FALSE.
 #' @return The updated trajectory model object.
 #'
 #' @export
-relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, rescale_pred = TRUE, relearn_model = TRUE) {
+relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, rescale_pred = TRUE, relearn_model = TRUE, family = "binomial", new_interactions = FALSE, max_n_interactions = NULL, use_cv = FALSE, nfolds = 10, interaction_scale_factor = 1, logist_interactions = FALSE, logist_dinucs = FALSE) {
     if (verbose) {
         r2_train_before <- cor(traj_model@predicted_diff_score[traj_model@type == "train"], traj_model@diff_score[traj_model@type == "train"])^2
         r2_test_before <- cor(traj_model@predicted_diff_score[traj_model@type == "test"], traj_model@diff_score[traj_model@type == "test"])^2
@@ -27,6 +35,14 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
     if (new_logist) {
         if (use_additional_features) {
             add_feats <- traj_model@additional_features[rownames(traj_model@normalized_energies), ]
+            if (logist_dinucs) {
+                add_feats <- create_logist_features(add_feats)
+            } else {
+                dinucs <- c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA")
+                dinuc_feats <- traj_model@additional_features[, colnames(traj_model@additional_features) %in% dinucs]
+                other_feats <- create_logist_features(traj_model@additional_features[, !colnames(traj_model@additional_features) %in% dinucs])
+                add_feats <- cbind(other_feats, dinuc_feats)
+            }
             if (use_motifs) {
                 if (has_interactions(traj_model)) {
                     ftv_inter <- feat_to_variable(traj_model, add_type = TRUE) %>%
@@ -34,16 +50,25 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
                         distinct(variable, term1, term2)
                     interactions <- create_specifc_terms(cbind(traj_model@normalized_energies, traj_model@additional_features), ftv_inter)
                     interactions <- interactions[, colnames(traj_model@interactions), drop = FALSE]
+                    interactions <- interactions * interaction_scale_factor
                     traj_model@interactions <- interactions
-                    interactions_logist <- create_logist_features(interactions)
+                    traj_model@params$logist_interactions <- logist_interactions
+                    if (logist_interactions) {
+                        interactions_logist <- create_logist_features(interactions)
+                    } else {
+                        interactions_logist <- interactions
+                    }
+                    traj_model@model_features <- as.matrix(cbind(
+                        create_logist_features(traj_model@normalized_energies),
+                        add_feats,
+                        interactions_logist
+                    ))
                 } else {
-                    interactions_logist <- NULL
+                    traj_model@model_features <- as.matrix(cbind(
+                        create_logist_features(traj_model@normalized_energies),
+                        add_feats
+                    ))
                 }
-                traj_model@model_features <- as.matrix(cbind(
-                    create_logist_features(traj_model@normalized_energies),
-                    create_logist_features(traj_model@additional_features),
-                    interactions_logist
-                ))
             } else {
                 traj_model@model_features <- create_logist_features(traj_model@additional_features)
                 traj_model@motif_models <- list()
@@ -58,26 +83,69 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
         }
     }
 
-    X <- traj_model@model_features
-
-    if (is.null(lambda)) {
-        lambda <- traj_model@params$lambda
+    if (new_interactions) {
+        cli::cli_alert("Adding interactions")
+        return(add_interactions(traj_model, max_n = max_n_interactions, force = TRUE, logist_interactions = logist_interactions, use_cv = use_cv, nfolds = nfolds, family = family, rescale_pred = rescale_pred))
     }
+
+    X <- traj_model@model_features
 
     y <- norm01(traj_model@diff_score)
 
     X_train <- X[traj_model@type == "train", ]
     y_train <- y[traj_model@type == "train"]
 
+    # Ensure data types are correct for glmnet
+    X_train <- as.matrix(X_train)
+    y_train <- as.numeric(y_train)
+
+    lambda <- lambda %||% traj_model@params$lambda
+
     if (relearn_model) {
-        model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+        if (family == "binomial") {
+            family_param <- binomial(link = "logit")
+        } else if (family == "gaussian") {
+            family_param <- gaussian()
+        } else {
+            cli_abort("Family must be either 'binomial' or 'gaussian'")
+        }
+
+        if (use_cv) {
+            cv_model <- glmnet::cv.glmnet(X_train, y_train, family = family_param, alpha = traj_model@params$alpha, nfolds = nfolds, seed = traj_model@params$seed)
+            traj_model@params$cv_stats <- list(
+                lambda.min = cv_model$lambda.min,
+                lambda.1se = cv_model$lambda.1se,
+                cvm = cv_model$cvm,
+                cvsd = cv_model$cvsd,
+                lambda = cv_model$lambda
+            )
+
+            lambda <- cv_model$lambda.min
+            cli::cli_alert("Using lambda: {.val {lambda}}")
+            model <- glmnet::glmnet(X_train, y_train,
+                family = family_param,
+                alpha = traj_model@params$alpha,
+                lambda = lambda,
+                seed = traj_model@params$seed
+            )
+            traj_model@params$lambda <- lambda
+        } else {
+            model <- glmnet::glmnet(X_train, y_train, family = family_param, alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+        }
     } else {
         model <- traj_model@model
     }
 
     model <- strip_glmnet(model)
 
-    pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = traj_model@params$lambda))[, 1]
+    # Ensure X is a matrix for prediction
+    X <- as.matrix(X)
+
+    if (family == "binomial") {
+        pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = lambda))[, 1]
+    } else {
+        pred <- glmnet::predict.glmnet(model, newx = X, type = "response", s = lambda)[, 1]
+    }
 
     if (rescale_pred) {
         pred <- norm01(pred)
@@ -487,3 +555,104 @@ rename_motif_models <- function(traj_model, names_map) {
 has_additional_features <- function(traj_model) {
     return(ncol(traj_model@additional_features) > 0 && nrow(traj_model@additional_features) > 0)
 }
+
+#' Adjust Energy Values in a Trajectory Model
+#'
+#' This function optimizes the energy normalization parameters for each motif in a trajectory model
+#' by testing different combinations of quantile thresholds and minimum energy values. For each motif,
+#' it selects the parameters that maximize the absolute correlation with the differential score.
+#'
+#' @param traj_model The trajectory model object containing the motif models and peak intervals.
+#' @param q A numeric vector of quantile values to test for normalization. Default values range from 1 to 0.95.
+#' @param min_energy A numeric vector of minimum energy values to test. Default values range from -20 to -5.
+#' @param diff_thresh The threshold for the difference in correlation between the current and best parameters. Default is 0.01.
+#' @param sequences Optional character vector of DNA sequences corresponding to the peak intervals.
+#' If NULL, sequences will be extracted from the trajectory model.
+#' @param norm_sequences Optional character vector of DNA sequences for normalization.
+#' If NULL, sequences will be extracted from the trajectory model.
+#'
+#' @return The updated trajectory model object with optimized energy values for each motif.
+#'
+#' @details
+#' The function works by:
+#' 1. Extracting DNA sequences from the peak intervals if not provided
+#' 2. Computing motif energies for all sequences
+#' 3. Testing different combinations of normalization parameters
+#' 4. For each motif, selecting the parameters that maximize correlation with the differential score
+#' 5. Applying the selected parameters to normalize the energies
+#'
+#' @examples
+#' # Create a trajectory model and adjust its energies
+#' traj_model <- create_traj_model(...)
+#' traj_model <- adjust_energies(traj_model)
+#'
+#' # Adjust energies with custom parameters
+#' traj_model <- adjust_energies(
+#'     traj_model,
+#'     q = c(1, 0.99, 0.95),
+#'     min_energy = c(-15, -10, -5)
+#' )
+#'
+#' @inheritParams relearn_traj_model
+#' @export
+adjust_energies <- function(traj_model, q = c(1, 0.999, 0.995, 0.99, 0.98, 0.97, 0.96, 0.95), min_energy = c(-20, -15, -13, -10, -7, -5), diff_thresh = 0.01, sequences = NULL, norm_sequences = NULL, relearn = TRUE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = TRUE) {
+    if (is.null(sequences) || is.null(norm_sequences)) {
+        seqs <- extract_traj_model_sequences(traj_model, traj_model@peak_intervals)
+        sequences <- seqs$sequences
+        norm_sequences <- seqs$norm_sequences
+    }
+
+    mdb <- motifs_to_mdb(traj_model@motif_models)
+    all_energies <- prego::extract_pwm(c(sequences, norm_sequences), dataset = mdb, prior = 0.01)
+    energies <- all_energies[1:length(sequences), ]
+    norm_energies <- all_energies[(length(sequences) + 1):nrow(all_energies), ]
+    rownames(energies) <- traj_model@peak_intervals$peak_name
+    rownames(norm_energies) <- traj_model@normalization_intervals$peak_name
+    energies_train <- energies[traj_model@type == "train", ]
+    y_train <- traj_model@diff_score[traj_model@type == "train"]
+
+    grid_params <- expand.grid(
+        q = q,
+        min_energy = min_energy
+    )
+
+    norm_matrices <- purrr::map(1:nrow(grid_params), function(i) {
+        q <- grid_params$q[i]
+        min_energy <- grid_params$min_energy[i]
+        norm_energy_matrix(energies, norm_energies, min_energy = min_energy, q = q, norm_energy_max = traj_model@params$norm_energy_max)
+    })
+    names(norm_matrices) <- paste0("q.", grid_params$q, "_min_energy.", grid_params$min_energy)
+
+    n_stats <- purrr::imap_dfr(norm_matrices, ~ {
+        tgs_cor(.x[traj_model@type == "train", ], as.matrix(y_train))[, 1] %>%
+            enframe("motif", "cor") %>%
+            mutate(param = .y)
+    })
+
+    current_param <- paste("q.", traj_model@params$energy_norm_quantile %||% 0.999, "_min_energy.", traj_model@params$min_energy %||% -7, sep = "")
+
+    best_per_motif <- n_stats %>%
+        group_by(motif) %>%
+        summarise(
+            diff = max(abs(cor - cor[param == current_param])),
+            best_param = param[which.max(abs(cor))],
+            .groups = "drop"
+        )
+
+    new_energies <- purrr::pmap(best_per_motif, function(motif, diff, best_param) {
+        if (diff > diff_thresh) {
+            norm_matrices[[best_param]][, motif]
+        } else {
+            traj_model@normalized_energies[, motif]
+        }
+    }) %>% do.call(cbind, .)
+    colnames(new_energies) <- best_per_motif$motif
+    new_energies <- new_energies[, colnames(traj_model@normalized_energies)]
+
+    traj_model@normalized_energies <- new_energies
+    if (relearn) {
+        traj_model <- relearn_traj_model(traj_model, new_energies = TRUE, new_logist = TRUE, lambda = lambda, use_additional_features = use_additional_features, use_motifs = TRUE, verbose = verbose)
+    }
+    return(traj_model)
+}
+
