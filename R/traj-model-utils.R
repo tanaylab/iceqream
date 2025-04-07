@@ -19,10 +19,11 @@
 #' @param interaction_scale_factor The factor to scale the interactions by. Default is 1 (no scaling).
 #' @param logist_interactions Logical indicating whether to transform interactions to logistic functions. Default is FALSE.
 #' @param logist_dinucs Logical indicating whether to transform dinucleotides to logistic functions. Default is FALSE.
+#' @param new_score A vector of new scores to use for the model. If NULL, the diff_score is used. Default is NULL. If the vector is named, the names should be the same as the peak names in the trajectory model.
 #' @return The updated trajectory model object.
 #'
 #' @export
-relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, rescale_pred = TRUE, relearn_model = TRUE, family = "binomial", new_interactions = FALSE, max_n_interactions = NULL, use_cv = FALSE, nfolds = 10, interaction_scale_factor = 1, logist_interactions = FALSE, logist_dinucs = FALSE) {
+relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FALSE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = FALSE, rescale_pred = TRUE, relearn_model = TRUE, family = "binomial", new_interactions = FALSE, max_n_interactions = NULL, use_cv = FALSE, nfolds = 10, interaction_scale_factor = 1, logist_interactions = FALSE, logist_dinucs = FALSE, new_score = NULL) {
     if (verbose) {
         r2_train_before <- cor(traj_model@predicted_diff_score[traj_model@type == "train"], traj_model@diff_score[traj_model@type == "train"])^2
         r2_test_before <- cor(traj_model@predicted_diff_score[traj_model@type == "test"], traj_model@diff_score[traj_model@type == "test"])^2
@@ -90,7 +91,18 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
 
     X <- traj_model@model_features
 
-    y <- norm01(traj_model@diff_score)
+    if (is.null(new_score)) {
+        y <- norm01(traj_model@diff_score)
+    } else {
+        if (length(new_score) != nrow(traj_model@peak_intervals)) {
+            cli_abort("The length of new_score must be equal to the number of peaks in the trajectory model.")
+        }
+        if (!is.null(names(new_score))) {
+            new_score <- new_score[traj_model@peak_intervals$peak_name]
+        }
+        y <- new_score
+        traj_model@diff_score <- y
+    }
 
     X_train <- X[traj_model@type == "train", ]
     y_train <- y[traj_model@type == "train"]
@@ -655,4 +667,3 @@ adjust_energies <- function(traj_model, q = c(1, 0.999, 0.995, 0.99, 0.98, 0.97,
     }
     return(traj_model)
 }
-

@@ -21,7 +21,8 @@ relearn_traj_model(
   nfolds = 10,
   interaction_scale_factor = 1,
   logist_interactions = FALSE,
-  logist_dinucs = FALSE
+  logist_dinucs = FALSE,
+  new_score = NULL
 )
 }
 \arguments{
@@ -58,6 +59,8 @@ relearn_traj_model(
 \item{logist_interactions}{Logical indicating whether to transform interactions to logistic functions. Default is FALSE.}
 
 \item{logist_dinucs}{Logical indicating whether to transform dinucleotides to logistic functions. Default is FALSE.}
+
+\item{new_score}{A vector of new scores to use for the model. If NULL, the diff_score is used. Default is NULL. If the vector is named, the names should be the same as the peak names in the trajectory model.}
 }
 \value{
 The updated trajectory model object.
