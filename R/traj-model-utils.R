@@ -667,3 +667,97 @@ adjust_energies <- function(traj_model, q = c(1, 0.999, 0.995, 0.99, 0.98, 0.97,
     }
     return(traj_model)
 }
+
+#' Adjust Motif Sequence Lengths
+#'
+#' This function adjusts the sequence lengths used for motif analysis in a trajectory model.
+#' It creates spatial models for different sequence lengths and combines them to improve
+#' the model's performance.
+#'
+#' @param traj_model The trajectory model object to adjust.
+#' @param seq_lengths A numeric vector of sequence lengths to use for spatial models.
+#'   Default is c(2e3, 1e3, 500, 300, 150, 100).
+#' @param min_diff The minimum difference score threshold for filtering sequences.
+#'   If NULL, all training sequences are used. Default is 0.2.
+#' @param relearn Logical indicating whether to relearn the model after adjusting sequence lengths.
+#'   Default is TRUE.
+#' @param lambda The lambda value to use for relearning. If NULL, the lambda value from
+#'   the trajectory model is used.
+#' @param use_additional_features Logical indicating whether to use additional features.
+#'   Default is TRUE.
+#' @param use_motifs Logical indicating whether to use motif models. Default is TRUE.
+#' @param verbose Logical indicating whether to display additional information.
+#'   Default is TRUE.
+#'
+#' @return The updated trajectory model object with adjusted motif sequence lengths.
+#'
+#' @details
+#' This function works by:
+#' 1. Filtering sequences based on the minimum difference score
+#' 2. Computing partial responses for each motif
+#' 3. Creating spatial models for each sequence length
+#' 4. Inferring energies for each sequence length
+#' 5. Combining all energies and models
+#' 6. Relearning the trajectory model with the combined features
+#'
+#' @export
+adjust_motif_seq_lengths <- function(traj_model, seq_lengths = c(2e3, 1e3, 500, 300, 150, 100), min_diff = 0.2, relearn = TRUE, lambda = NULL, use_additional_features = TRUE, use_motifs = TRUE, verbose = TRUE) {
+    if (!is.null(min_diff)) {
+        diff_filter <- abs(traj_model@diff_score) > min_diff & traj_model@type == "train"
+    } else {
+        diff_filter <- traj_model@type == "train"
+    }
+
+    pr <- compute_partial_response(traj_model)
+    pr <- pr[, names(traj_model@motif_models)]
+    valid_motifs <- colnames(pr)[colSums(pr[diff_filter, ]) != 0]
+    cli::cli_alert("Using {.val {length(valid_motifs)}} motifs for spatial model")
+
+    s_energies <- list()
+    s_models <- list()
+
+    for (s in seq_lengths) {
+        cli::cli_alert("Computing spatial models for motif sequence length {.val {s}}")
+        all_seqs <- prego::intervals_to_seq(gintervals.normalize(traj_model@peak_intervals, s))
+        norm_seqs <- prego::intervals_to_seq(gintervals.normalize(traj_model@normalization_intervals, s))
+        seqs <- all_seqs[diff_filter]
+        norm_seqs <- norm_seqs[diff_filter]
+        prego_models <- plyr::llply(valid_motifs, function(motif) {
+            cli::cli_alert("Relearning spatial model for {.field {motif}}")
+            cli::cli_fmt(m <- prego::regress_pwm(
+                sequences = seqs,
+                response = pr[diff_filter, motif],
+                seed = 60427,
+                match_with_db = FALSE,
+                screen_db = FALSE,
+                multi_kmers = FALSE,
+                motif = traj_model@motif_models[[motif]]$pssm,
+                optimize_pwm = FALSE
+            ))
+            cli::cli_alert_success("Finished relearning spatial model for {.field {motif}}")
+            prego::export_regression_model(m)
+        }, .parallel = getOption("prego.parallel", TRUE))
+        names(prego_models) <- valid_motifs
+
+        s_energies[[as.character(s)]] <- infer_energies_new(all_seqs, norm_seqs, prego_models, min_energy = traj_model@params$min_energy %||% -7, energy_norm_quantile = traj_model@params$energy_norm_quantile %||% 0.999, norm_energy_max = traj_model@params$norm_energy_max)
+        s_models[[as.character(s)]] <- prego_models
+    }
+
+    all_energies <- purrr::imap(s_energies, ~ {
+        e <- .x
+        colnames(e) <- paste0(.y, ".", colnames(e))
+        e
+    }) %>% do.call(cbind, .)
+    all_energies <- cbind(traj_model@normalized_energies, all_energies)
+
+    all_models <- do.call(c, s_models)
+    all_models <- c(traj_model@motif_models, all_models)
+
+    traj_model_new <- traj_model
+    traj_model_new@normalized_energies <- as.matrix(all_energies)
+    traj_model_new@motif_models <- all_models
+
+    traj_model_new <- relearn_traj_model(traj_model_new, new_energies = FALSE, new_logist = TRUE, lambda = lambda, use_additional_features = use_additional_features, use_motifs = TRUE, verbose = verbose)
+
+    return(traj_model_new)
+}
