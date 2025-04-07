@@ -21,7 +21,8 @@ add_interactions(
   use_cv = FALSE,
   nfolds = 10,
   family = "binomial",
-  rescale_pred = FALSE
+  rescale_pred = FALSE,
+  only_sig_motifs = FALSE
 )
 }
 \arguments{
@@ -54,6 +55,8 @@ add_interactions(
 \item{family}{The family to use for the glmnet model. Either "binomial" (default) or "gaussian" for linear regression.}
 
 \item{rescale_pred}{Logical indicating whether to rescale the predicted values. Default is TRUE.}
+
+\item{only_sig_motifs}{Logical indicating whether to only consider significant motifs for interactions. Default: FALSE}
 }
 \value{
 The updated trajectory model with added interactions.
