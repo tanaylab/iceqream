@@ -371,6 +371,9 @@ logist <- function(x, x_0 = 0, L = 1, k = 1) {
 #'
 #' @export
 create_logist_features <- function(features) {
+    if (is.null(nrow(features))) {
+        features <- t(t(features))
+    }
     # remove features that are all NA
     features <- features[, colSums(is.na(features)) != nrow(features), drop = FALSE]
 
