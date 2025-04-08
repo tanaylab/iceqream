@@ -74,11 +74,14 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     pred <- predict_traj_model(traj_model, e_test_logist)
     traj_model@predicted_diff_score <- c(traj_model@predicted_diff_score, pred)
 
-    traj_model@model_features <- as.matrix(rbind(
-        traj_model@model_features,
-        e_test_logist[, colnames(e_test_logist)[colnames(e_test_logist) %in% colnames(traj_model@model_features)]]
-    ))
-    traj_model@normalized_energies <- as.matrix(rbind(traj_model@normalized_energies, e_test[, intersect(colnames(e_test), colnames(traj_model@normalized_energies))]))
+    common_cols <- intersect(colnames(e_test_logist), colnames(traj_model@model_features))
+    e_test_logist <- e_test_logist[, common_cols, drop = FALSE]
+    traj_model@model_features <- as.matrix(rbind(traj_model@model_features[, common_cols, drop = FALSE], e_test_logist))
+
+    common_cols <- intersect(colnames(e_test), colnames(traj_model@normalized_energies))
+    e_test <- e_test[, common_cols, drop = FALSE]
+    traj_model@normalized_energies <- as.matrix(rbind(traj_model@normalized_energies[, common_cols, drop = FALSE], e_test))
+
     if (!is.null(diff_score)) {
         traj_model@diff_score <- c(traj_model@diff_score, diff_score)
         traj_model <- add_traj_model_stats(traj_model)
