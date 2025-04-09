@@ -31,6 +31,10 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
         traj_models <- multi_traj@models
     }
 
+    if (is.null(names(traj_models))) {
+        names(traj_models) <- paste0("model_", seq_along(traj_models))
+    }
+
     if (is.null(names_map)) {
         names_map <- names(models)
         names(names_map) <- names(models)
