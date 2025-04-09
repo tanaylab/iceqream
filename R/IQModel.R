@@ -528,7 +528,11 @@ iq_model.compute_features <- function(model, sequences = NULL, intervals = NULL,
     }
 
     # 1c. Process interaction features
-    int_features <- model@features[sapply(model@features, inherits, "IQInteraction")]
+    int_features <- sapply(model@features, inherits, "IQInteraction")
+    if (length(int_features) > 0) {
+        int_features <- model@features[int_features]
+    }
+
     if (length(int_features) > 0) {
         # Combine all available feature data
         combined_features <- combine_feature_data(features_list, new_data)
