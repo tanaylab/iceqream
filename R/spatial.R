@@ -201,6 +201,11 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
         }
 
         sequences <- prego::intervals_to_seq(intervals)
+
+        seq_l <- stringr::str_length(sequences)
+        if (any(seq_l != size)) {
+            cli_abort("Some sequences are at the edge of the chromosome and therefore cannot be extended to the size {.val {size}}. Please make sure the 'end' column is at least {.val {ceiling(size/2)}}bp from the chromosome end.")
+        }
     }
 
     local_pwm <- prego::compute_local_pwm(sequences, pssm, bidirect = TRUE)
