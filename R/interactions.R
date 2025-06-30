@@ -21,7 +21,7 @@ create_specifc_terms <- function(energies, terms, scale = 1) {
 
 create_features_terms <- function(energies, features, data, scale = 1) {
     interactions <- purrr::map_dfc(features, ~ {
-        inter <- energies[, setdiff(colnames(energies), .x)] * data[, .x]
+        inter <- energies[, setdiff(colnames(energies), .x), drop = FALSE] * data[, .x]
         inter <- t(t(inter) / apply(inter, 2, max, na.rm = TRUE))
         colnames(inter) <- paste0(.x, ":", colnames(inter))
         inter
