@@ -25,6 +25,7 @@
 #' @param score Numeric, optional score to display in the plot title.
 #' @param predicted_score Numeric, optional predicted score to display in the plot title.
 #' @param title Character, optional title for the plot.
+#' @param subtitle Character, optional subtitle for the plot.
 #' @param norm_q Numeric, quantile for normalization. If a vector, should have the same length as atac_names.
 #' @param tracks_q Data frame, pre-computed quantiles for tracks. Should have a 'type' column and a 'q' column.
 #' @param annot_intervals Genomic intervals for annotation (start positions would be used).
@@ -68,6 +69,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           atac_sizes = NULL,
                           line_thresh = 0.9,
                           title = NULL,
+                          subtitle = NULL,
                           score = NULL,
                           predicted_score = NULL,
                           dna = NULL,
@@ -156,6 +158,10 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
         title <- ""
     }
 
+    if (is.null(subtitle)) {
+        subtitle <- ""
+    }
+
     title <- paste0(title, ", ", sprintf("%s:%d-%d", interval$chrom, interval$start, interval$end))
     if (!is.null(score)) {
         title <- paste0(title, ", ", sprintf("Score: %.2f", score))
@@ -164,7 +170,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
         title <- paste0(title, ", ", sprintf("Predicted Score: %.2f", predicted_score))
     }
 
-    p_atac_ext <- p_atac_ext + labs(title = title)
+    p_atac_ext <- p_atac_ext + labs(title = title, subtitle = subtitle)
 
     p_dna <- plot_dna(dna_df, diffs_df, base_size, base_family, rasterize, raster_device = raster_device)
     p_logos <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "probability")
