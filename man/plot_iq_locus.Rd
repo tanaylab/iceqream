@@ -23,6 +23,7 @@ plot_iq_locus(
   atac_sizes = NULL,
   line_thresh = 0.9,
   title = NULL,
+  subtitle = NULL,
   score = NULL,
   predicted_score = NULL,
   dna = NULL,
@@ -94,6 +95,8 @@ plot_iq_locus(
 \item{line_thresh}{Numeric, threshold for drawing vertical lines.}
 
 \item{title}{Character, optional title for the plot.}
+
+\item{subtitle}{Character, optional subtitle for the plot.}
 
 \item{score}{Numeric, optional score to display in the plot title.}
 
