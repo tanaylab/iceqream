@@ -76,7 +76,6 @@ learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2
 
     seqs <- prego::intervals_to_seq(peaks_df, peaks_size)
     norm_seqs <- prego::intervals_to_seq(norm_intervals, peaks_size)
-
     cli_alert_info("Inferring {.val {n_motifs}} prego motifs...")
     reg <- prego::regress_pwm(seqs, score, motif_num = n_motifs, multi_kmers = TRUE, internal_num_folds = 1, screen_db = FALSE, match_with_db = FALSE, seed = seed, sample_for_kmers = sample_for_kmers, sample_frac = sample_fraction, ...)
 
