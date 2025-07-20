@@ -118,10 +118,11 @@ iq_regression <- function(
         if (is.null(atac_diff)) {
             atac_diff <- atac_scores[, 2] - atac_scores[, 1]
         }
+        
         traj_prego <- learn_traj_prego(peak_intervals[train_idxs, ], atac_diff[train_idxs],
             n_motifs = n_prego_motifs, min_diff = prego_min_diff,
             sample_for_kmers = prego_sample_for_kmers,
-            sample_fraction = prego_sample_fraction, energy_norm_quantile = prego_energy_norm_quantile, norm_intervals = norm_intervals, seed = seed, spat_bin_size = prego_spat_bin_size, spat_num_bins = prego_spat_num_bins, peaks_size = peaks_size, symmetrize_spat = symmetrize_spat
+            sample_fraction = prego_sample_fraction, energy_norm_quantile = prego_energy_norm_quantile, norm_intervals = norm_intervals %||% peak_intervals, seed = seed, spat_bin_size = prego_spat_bin_size, spat_num_bins = prego_spat_num_bins, peaks_size = peaks_size, symmetrize_spat = symmetrize_spat
         )
         if (!is.null(output_dir)) {
             out_file <- file.path(output_dir, "prego_model.rds")
