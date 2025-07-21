@@ -82,7 +82,7 @@ compute_partial_response <- function(traj_model, vars = NULL, lambda = 1e-5, rev
         }
         feats <- traj_model@model_features[, variables, drop = FALSE]
 
-        (feats %*% coef(traj_model@model, s = lambda)[variables, , drop = FALSE])[, 1]
+        (feats %*% glmnet::coef.glmnet(traj_model@model, s = lambda)[variables, , drop = FALSE])[, 1]
     }) %>% do.call(cbind, .)
 
     return(as.data.frame(pr))
