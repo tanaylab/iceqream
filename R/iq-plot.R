@@ -740,7 +740,7 @@ compute_diffs <- function(dna_df, line_thresh, width) {
         filter(d > 0) %>%
         filter(d >= quantile(d, line_thresh)) %>%
         mutate(lpos = letter_pos * width - 0.003) %>%
-        mutate(cumw = cumw / max(cumw)) %>%
+        mutate(cumw = cumw / max(cumw, na.rm = TRUE)) %>%
         mutate(grp = cut(cumw, seq(0, 1, 0.02))) %>%
         arrange(grp, desc(d)) %>%
         distinct(grp, .keep_all = TRUE) %>%

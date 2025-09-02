@@ -161,7 +161,7 @@ traj_model_to_pbm_list <- function(
         variables <- f2v %>%
             filter(variable == name) %>%
             pull(feature)
-        coefs <- coef(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
+        coefs <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
         names(coefs) <- gsub(paste0("^", name, "_"), "", names(coefs))
         pbm <- PBM(name = name, pssm = pssm, max_energy = max_energy, min_energy = min_energy, energy_range = energy_range, spat = spat, spat_min = spat_min, spat_max = spat_max, seq_length = seq_length, coefs = coefs, size = traj_model@params$peaks_size)
         validate_pbm(pbm)

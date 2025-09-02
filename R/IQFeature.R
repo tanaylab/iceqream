@@ -84,7 +84,7 @@ traj_model_to_iq_feature_list <- function(traj_model) {
         variables <- f2v %>%
             filter(variable == name) %>%
             pull(feature)
-        coefs <- coef(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
+        coefs <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
         names(coefs) <- gsub(paste0("^", name, "_"), "", names(coefs))
         IQFeature(name = name, coefs = coefs)
     })

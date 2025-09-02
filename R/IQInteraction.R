@@ -218,7 +218,7 @@ traj_model_interactions_to_iq_feature_list <- function(traj_model) {
             pull(feature)
 
         # Extract coefficients for this interaction
-        coefs <- coef(traj_model@model, s = traj_model@params$lambda)[var_features, , drop = TRUE]
+        coefs <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)[var_features, , drop = TRUE]
         names(coefs) <- gsub(paste0("^", var_name, "_"), "", names(coefs))
 
         # Get term information
