@@ -272,7 +272,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
                     pull(feature)
             }
 
-            py <- (model@model_features[, feats, drop = FALSE] %*% coef(model@model, s = model@params$lambda)[feats, , drop = FALSE])[, 1]
+            py <- (model@model_features[, feats, drop = FALSE] %*% glmnet::coef.glmnet(model@model, s = model@params$lambda)[feats, , drop = FALSE])[, 1]
             tibble(!!.x := py)
         })
 
@@ -579,7 +579,7 @@ filter_traj_model_by_beta <- function(traj_model, threshold = 0.005) {
     model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, seed = traj_model@params$seed)
     model <- strip_glmnet(model)
 
-    beta_df <- coef(model)[, 1] %>%
+    beta_df <- glmnet::coef.glmnet(model)[, 1] %>%
         enframe("motif", "beta") %>%
         mutate(beta = abs(beta)) %>%
         filter(motif %in% names(traj_model@motif_models))

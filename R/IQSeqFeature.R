@@ -139,7 +139,7 @@ create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quanti
     variables <- f2v %>%
         filter(variable == feature_name) %>%
         pull(feature)
-    coefs <- coef(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
+    coefs <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
     names(coefs) <- gsub(paste0("^", feature_name, "_"), "", names(coefs))
 
     # Create and return the IQSeqFeature object
@@ -222,7 +222,7 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
         variables <- f2v %>%
             filter(variable == feature_name) %>%
             pull(feature)
-        coefs <- coef(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
+        coefs <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
         names(coefs) <- gsub(paste0("^", feature_name, "_"), "", names(coefs))
 
         # Create and store the IQSeqFeature object
@@ -261,7 +261,7 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
 
         # If GC content coefficients exist in the model, use them
         if (length(variables) > 0) {
-            coefs <- coef(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
+            coefs <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
             names(coefs) <- gsub(paste0("^", feature_name, "_"), "", names(coefs))
         } else {
             # Otherwise create an empty coefficient vector
@@ -401,7 +401,7 @@ create_cg_content_feature <- function(traj_model, quantile = 0.99) {
         pull(feature)
 
     if (length(variables) > 0) {
-        coefs <- coef(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
+        coefs <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)[variables, , drop = TRUE]
         names(coefs) <- gsub(paste0("^", feature_name, "_"), "", names(coefs))
     } else {
         # Create an empty coefficient vector if not present in model

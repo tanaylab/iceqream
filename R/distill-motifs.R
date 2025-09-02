@@ -231,9 +231,9 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 run_prego_on_clust_residuals <- function(model, feats, clust_motifs, sequences, lambda = 1e-5, seed = 60427, spat_num_bins = NULL, spat_bin_size = NULL, kmer_sequence_length = NULL, use_non_linear = FALSE, motif = NULL, optimize_pwm = TRUE, symmetrize_spat = TRUE) {
     if (use_non_linear) {
         feats <- create_logist_features(feats[, clust_motifs, drop = FALSE])
-        partial_y <- (feats %*% coef(model, s = lambda)[colnames(feats), , drop = FALSE])[, 1]
+        partial_y <- (feats %*% glmnet::coef.glmnet(model, s = lambda)[colnames(feats), , drop = FALSE])[, 1]
     } else {
-        partial_y <- (feats[, clust_motifs, drop = FALSE] %*% coef(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
+        partial_y <- (feats[, clust_motifs, drop = FALSE] %*% glmnet::coef.glmnet(model, s = lambda)[clust_motifs, , drop = FALSE])[, 1]
     }
 
     cli::cli_fmt(prego_model <- prego::regress_pwm(sequences = sequences, response = partial_y, seed = seed, match_with_db = FALSE, screen_db = FALSE, multi_kmers = FALSE, spat_num_bins = spat_num_bins, spat_bin_size = spat_bin_size, kmer_sequence_length = kmer_sequence_length, symmetrize_spat = symmetrize_spat, motif = motif, optimize_pwm = optimize_pwm))
