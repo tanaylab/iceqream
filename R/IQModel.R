@@ -83,7 +83,7 @@ create_iq_model <- function(traj_model, func = "logSumExp") {
     pbms <- traj_model_to_pbm_list(traj_model, func = func)
 
     # Extract model parameters
-    intercept <- coef(traj_model@model, s = traj_model@params$lambda)["(Intercept)", ]
+    intercept <- glmnet::coef.glmnet(traj_model@model, s = traj_model@params$lambda)["(Intercept)", ]
     lambda <- traj_model@params$lambda
     alpha <- traj_model@params$alpha
 

@@ -371,7 +371,7 @@ validate_additional_features <- function(additional_features, peak_intervals) {
 
 
 get_model_coefs <- function(model, s = model$lambda) {
-    df <- coef(model, s = s) %>%
+    df <- glmnet::coef.glmnet(model, s = s) %>%
         as.matrix() %>%
         as.data.frame() %>%
         tibble::rownames_to_column("variable")
