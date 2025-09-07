@@ -223,7 +223,7 @@ add_motif_models_to_traj <- function(traj_model, new_motif_models, verbose = TRU
     # Create new logistic features and update model features
     X <- traj_model_new@model_features
     X_new <- create_logist_features(traj_model_new@normalized_energies)
-    X <- cbind(X, X_new)
+    X <- cbind(X, X_new[, !colnames(X_new) %in% colnames(X)])
     traj_model_new@model_features <- X
 
     traj_model_new <- relearn_traj_model(traj_model_new, verbose = verbose)
