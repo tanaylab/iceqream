@@ -248,6 +248,7 @@ add_motif_models_to_traj <- function(traj_model, new_motif_models, verbose = TRU
 remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TRUE) {
     X <- traj_model@model_features
     vars <- names(traj_model@motif_models)
+    motif_models <- motif_models[!is.na(motif_models)]
 
     if (!all(motif_models %in% vars)) {
         cli_abort("Motif{?s} {.val {motif_models[!motif_models %in% vars]}} not found in the trajectory model.")
