@@ -6,7 +6,7 @@
 \usage{
 create_dinuc_features(
   traj_model,
-  quantile = 0.99,
+  quantile = 0.95,
   size = NULL,
   dinucleotides = c("AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT", "GA", "GC", "GG",
     "GT", "TA", "TC", "TG", "TT"),
@@ -18,7 +18,7 @@ create_dinuc_features(
 \arguments{
 \item{traj_model}{A trajectory model object.}
 
-\item{quantile}{The quantile to use for normalization (default is 0.99).}
+\item{quantile}{The quantile to use for normalization (default is 0.95).}
 
 \item{size}{The size of the sequences to use for feature computation.}
 

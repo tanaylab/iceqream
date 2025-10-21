@@ -11,7 +11,7 @@
   compute_func,
   min_value,
   max_value,
-  quantile = 0.99,
+  quantile = 0.95,
   size
 )
 }

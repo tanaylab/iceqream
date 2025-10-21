@@ -18,4 +18,6 @@ A vector of computed and normalized interaction values.
 }
 \description{
 This function computes the value of an IQ interaction feature given the values of its terms.
+It uses the saved normalization factors (inter_max, norm_min, norm_max) from the training data
+to ensure consistent normalization.
 }

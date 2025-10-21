@@ -106,8 +106,12 @@ traj_model_to_iq_feature_list <- function(traj_model) {
 #'
 #' @export
 iq_feature.compute_response <- function(iq, values) {
-    logist_e <- create_logist_features(as.matrix(values))
-    return((logist_e %*% iq@coefs)[, 1])
+    if (length(iq@coefs) == 1) {
+        return(values * iq@coefs)
+    } else {
+        logist_e <- create_logist_features(as.matrix(values))
+        return((logist_e %*% iq@coefs)[, 1])
+    }
 }
 
 

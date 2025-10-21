@@ -21,3 +21,6 @@
 ^example_data$
 ^data-raw$
 ^vignettes/articles/iceqream\.R$
+^\.claude$
+^AGENTS\.md$
+^dev$

@@ -4,7 +4,7 @@
 \alias{create_iq_seq_feature}
 \title{Create an IQSeqFeature from a trajectory model}
 \usage{
-create_iq_seq_feature(traj_model, feature_name, compute_func, quantile = 0.99)
+create_iq_seq_feature(traj_model, feature_name, compute_func, quantile = 0.95)
 }
 \arguments{
 \item{traj_model}{A trajectory model object.}
@@ -13,7 +13,7 @@ create_iq_seq_feature(traj_model, feature_name, compute_func, quantile = 0.99)
 
 \item{compute_func}{The function to compute the feature.}
 
-\item{quantile}{The quantile to use for normalization (default is 0.99).}
+\item{quantile}{The quantile to use for normalization (default is 0.95).}
 }
 \value{
 An IQSeqFeature object.

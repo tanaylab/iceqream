@@ -8,6 +8,10 @@
 #' @slot term2 The name of the second term in the interaction (character).
 #' @slot term1_type The type of the first term (motif, additional, etc.).
 #' @slot term2_type The type of the second term (motif, additional, etc.).
+#' @slot scale Numeric scaling factor applied during trajectory model training.
+#' @slot inter_max The maximum value of the raw interaction (term1 * term2) used for normalization.
+#' @slot norm_min The minimum value used in the norm01 transformation.
+#' @slot norm_max The maximum value used in the norm01 transformation.
 #'
 #' @exportClass IQInteraction
 IQInteraction <- setClass(
@@ -16,7 +20,11 @@ IQInteraction <- setClass(
         term1 = "character",
         term2 = "character",
         term1_type = "character",
-        term2_type = "character"
+        term2_type = "character",
+        scale = "numeric",
+        inter_max = "numeric",
+        norm_min = "numeric",
+        norm_max = "numeric"
     ),
     contains = "IQFeature"
 )
@@ -165,6 +173,8 @@ iq_model.compute_interactions <- function(model, feature_data) {
 #' Compute an IQInteraction
 #'
 #' This function computes the value of an IQ interaction feature given the values of its terms.
+#' It uses the saved normalization factors (inter_max, norm_min, norm_max) from the training data
+#' to ensure consistent normalization.
 #'
 #' @param iq An IQInteraction object.
 #' @param term1_values A vector of values for the first term.
@@ -174,12 +184,19 @@ iq_model.compute_interactions <- function(model, feature_data) {
 #'
 #' @export
 iq_interaction.compute <- function(iq, term1_values, term2_values) {
-    # Compute interaction by multiplying term values
+    # Compute raw interaction by multiplying term values
     inter <- term1_values * term2_values
 
-    # Normalize the interaction
-    inter <- inter / max(inter, na.rm = TRUE)
-    inter <- norm01(inter) * 10
+    # Step 1: Normalize by the saved inter_max
+    inter <- inter / iq@inter_max
+
+    # Step 2: Apply norm01 transformation using saved min and max
+    # Clamp values to the range [norm_min, norm_max] and then normalize
+    inter <- pmin(pmax(inter, iq@norm_min), iq@norm_max)
+    inter <- (inter - iq@norm_min) / (iq@norm_max - iq@norm_min)
+
+    # Step 3: Multiply by scale
+    inter <- inter * iq@scale
 
     return(inter)
 }
@@ -207,6 +224,12 @@ traj_model_interactions_to_iq_feature_list <- function(traj_model) {
     # Create a list to store IQInteraction objects
     iq_interactions <- list()
 
+    # Get all feature data for computing normalization factors
+    all_features <- cbind(traj_model@normalized_energies, traj_model@additional_features)
+
+    # Get scale from trajectory model params
+    scale <- traj_model@params$interaction_scale %||% 1
+
     # Process each interaction variable
     for (i in 1:nrow(f2v_inter)) {
         var_row <- f2v_inter[i, ]
@@ -227,6 +250,39 @@ traj_model_interactions_to_iq_feature_list <- function(traj_model) {
         term1_type <- var_row$term1_type
         term2_type <- var_row$term2_type
 
+        # Compute normalization factors
+        # Replicate the normalization process from create_features_terms
+        if (term1 %in% colnames(all_features) && term2 %in% colnames(all_features)) {
+            # Compute raw interaction
+            raw_inter <- all_features[, term1] * all_features[, term2]
+
+            # Step 1: Get max of raw interaction (used to normalize)
+            inter_max <- suppressWarnings(max(raw_inter, na.rm = TRUE))
+            if (!is.finite(inter_max) || inter_max == 0) {
+                inter_max <- 1
+            }
+
+            # Step 2: Normalize by max
+            normalized_inter <- raw_inter / inter_max
+
+            # Step 3: Extract min and max for norm01 transformation
+            norm_min <- min(normalized_inter, na.rm = TRUE)
+            norm_max <- max(normalized_inter, na.rm = TRUE)
+
+            if (!is.finite(norm_min)) {
+                norm_min <- 0
+            }
+            if (!is.finite(norm_max) || norm_max == norm_min) {
+                norm_max <- norm_min + 1
+            }
+        } else {
+            # Default values if terms are not found
+            inter_max <- 1
+            norm_min <- 0
+            norm_max <- 1
+            cli::cli_warn("Cannot compute normalization factors for interaction {.val {var_name}}: missing terms {.val {setdiff(c(term1, term2), colnames(all_features))}}")
+        }
+
         # Create an IQInteraction object for this interaction
         iq_interactions[[var_name]] <- IQInteraction(
             name = var_name,
@@ -234,7 +290,11 @@ traj_model_interactions_to_iq_feature_list <- function(traj_model) {
             term1 = term1,
             term2 = term2,
             term1_type = term1_type,
-            term2_type = term2_type
+            term2_type = term2_type,
+            scale = scale,
+            inter_max = inter_max,
+            norm_min = norm_min,
+            norm_max = norm_max
         )
     }
 
