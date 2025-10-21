@@ -39,7 +39,7 @@ IQSeqFeature <- setClass(
 #' @exportMethod initialize
 setMethod(
     "initialize", "IQSeqFeature",
-    function(.Object, name, coefs, compute_func, min_value, max_value, quantile = 0.99, size) {
+    function(.Object, name, coefs, compute_func, min_value, max_value, quantile = 0.95, size) {
         .Object@name <- name
         .Object@coefs <- coefs
         .Object@compute_func <- local(compute_func)
@@ -102,23 +102,29 @@ ensure_sequence_size <- function(sequences, size) {
 }
 
 iq_seq_feature.normalize <- function(iq, values) {
-    vals <- values - iq@min_value
-    vals <- vals / iq@max_value
-    vals[vals > 1] <- 1
-    return(vals * 10) # Scaling to 0-10 range
+    lo <- iq@min_value
+    hi <- iq@max_value
+    # two-sided clamp to the stored band
+    vals <- pmin(pmax(values, lo), hi)
+    rng <- hi - lo
+    if (!is.finite(rng) || rng <= 0) {
+        return(rep(0, length(vals)))
+    }
+    ((vals - lo) / rng) * 10
 }
+
 
 #' Create an IQSeqFeature from a trajectory model
 #'
 #' @param traj_model A trajectory model object.
 #' @param feature_name The name of the feature to create.
 #' @param compute_func The function to compute the feature.
-#' @param quantile The quantile to use for normalization (default is 0.99).
+#' @param quantile The quantile to use for normalization (default is 0.95).
 #'
 #' @return An IQSeqFeature object.
 #'
 #' @export
-create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quantile = 0.99) {
+create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quantile = 0.95) {
     # Get the size from the trajectory model
     if (!is.null(traj_model@params$feats_peaks_size)) {
         size <- traj_model@params$feats_peaks_size
@@ -126,13 +132,15 @@ create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quanti
         size <- traj_model@params$peaks_size
     }
 
-    # Compute feature values on normalization intervals
-    norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(traj_model@normalization_intervals, size))
+    # Compute feature values on peak intervals
+    norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(traj_model@peak_intervals, size))
     feature_values <- compute_func(norm_sequences)
 
-    # Calculate min and max values
-    min_value <- min(feature_values, na.rm = TRUE)
-    max_value <- quantile(feature_values, quantile, na.rm = TRUE)
+    # two-sided quantiles
+    q_low <- 1 - quantile
+    q_high <- quantile
+    min_value <- stats::quantile(feature_values, q_low, na.rm = TRUE)
+    max_value <- stats::quantile(feature_values, q_high, na.rm = TRUE)
 
     # Get coefficients
     f2v <- feat_to_variable(traj_model)
@@ -159,7 +167,7 @@ create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quanti
 #' This function creates IQSeqFeature objects for all possible dinucleotides and GC content.
 #'
 #' @param traj_model A trajectory model object.
-#' @param quantile The quantile to use for normalization (default is 0.99).
+#' @param quantile The quantile to use for normalization (default is 0.95).
 #' @param size The size of the sequences to use for feature computation.
 #' @param dinucleotides A vector of dinucleotides to create features for (default is all possible dinucleotides).
 #' @param feat_names A vector of feature names to use for each dinucleotide (default is the dinucleotide itself).
@@ -168,7 +176,7 @@ create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quanti
 #' @return A list of IQSeqFeature objects, one for each dinucleotide and GC content if included.
 #'
 #' @export
-create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
+create_dinuc_features <- function(traj_model, quantile = 0.95, size = NULL,
                                   dinucleotides = c(
                                       "AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT",
                                       "GA", "GC", "GG", "GT", "TA", "TC", "TG", "TT"
@@ -186,11 +194,11 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
     }
     dinuc_to_name <- setNames(feat_names, dinucleotides)
 
-    # Compute dinucleotide distribution for normalization intervals
-    norm_sequences <- prego::intervals_to_seq(traj_model@normalization_intervals, size)
-    dinuc_dist <- prego::calc_sequences_dinucs(norm_sequences)
+    # Compute dinucleotide distribution for peak intervals, as frequencies
+    norm_sequences <- prego::intervals_to_seq(traj_model@peak_intervals, size)
+    dinuc_dist <- prego::calc_sequences_dinucs(norm_sequences) / (size - 1)
 
-    # Compute GC content for normalization intervals if needed
+    # Compute GC content for peak intervals if needed
     if (include_gc) {
         gc_content <- stringr::str_count(norm_sequences, "G|C") / nchar(norm_sequences)
     }
@@ -204,7 +212,7 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
             dinuc <- dinuc
             force(dinuc)
             function(sequences) {
-                dist <- prego::calc_sequences_dinucs(sequences)
+                dist <- prego::calc_sequences_dinucs(sequences) / (size - 1)
                 return(dist[, dinuc, drop = TRUE])
             }
         })
@@ -213,8 +221,10 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
 
         # Calculate min and max values for this dinucleotide
         feature_values <- dinuc_dist[, dinuc, drop = TRUE]
-        min_value <- min(feature_values, na.rm = TRUE)
-        max_value <- quantile(feature_values, quantile, na.rm = TRUE)
+        q_low <- 1 - quantile
+        q_high <- quantile
+        min_value <- stats::quantile(feature_values, q_low, na.rm = TRUE)
+        max_value <- stats::quantile(feature_values, q_high, na.rm = TRUE)
 
         # Get coefficients for this dinucleotide
         feature_name <- dinuc_to_name[[dinuc]]
@@ -249,8 +259,10 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
         environment(compute_gc_func) <- new.env(parent = globalenv())
 
         # Calculate min and max values for GC content
-        min_gc <- min(gc_content, na.rm = TRUE)
-        max_gc <- quantile(gc_content, quantile, na.rm = TRUE)
+        q_low <- 1 - quantile
+        q_high <- quantile
+        min_gc <- stats::quantile(gc_content, q_low, na.rm = TRUE)
+        max_gc <- stats::quantile(gc_content, q_high, na.rm = TRUE)
 
         # Get coefficients for GC content
         feature_name <- "gc_content"
@@ -288,7 +300,7 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
 #' This function creates an IQFeatureGroup object for all dinucleotide features and GC content.
 #'
 #' @param traj_model A trajectory model object.
-#' @param quantile The quantile to use for normalization (default is 0.99).
+#' @param quantile The quantile to use for normalization (default is 0.95).
 #' @param size The size of the sequences to use for feature computation.
 #' @param dinucleotides A vector of dinucleotides to create features for (default is all possible dinucleotides).
 #' @param include_gc Logical indicating whether to include GC content feature (default is TRUE).
@@ -296,7 +308,7 @@ create_dinuc_features <- function(traj_model, quantile = 0.99, size = NULL,
 #' @return An IQFeatureGroup object containing all dinucleotide features and GC content if included.
 #'
 #' @export
-create_dinuc_feature_group <- function(traj_model, quantile = 0.99, size = NULL,
+create_dinuc_feature_group <- function(traj_model, quantile = 0.95, size = NULL,
                                        dinucleotides = c(
                                            "AA", "AC", "AG", "AT", "CA", "CC", "CG", "CT",
                                            "GA", "GC", "GG", "GT", "TA", "TC", "TG", "TT"
@@ -316,10 +328,10 @@ create_dinuc_feature_group <- function(traj_model, quantile = 0.99, size = NULL,
     compute_func <- local({
         include_gc <- include_gc
         feat_names <- names(dinuc_features)
-
+        size <- size
         function(sequences) {
             # Get dinucleotide frequencies
-            dinuc_dist <- prego::calc_sequences_dinucs(sequences)
+            dinuc_dist <- prego::calc_sequences_dinucs(sequences) / (size - 1)
 
             # Add GC content if included
             if (include_gc && "gc_content" %in% feat_names) {
@@ -335,6 +347,7 @@ create_dinuc_feature_group <- function(traj_model, quantile = 0.99, size = NULL,
     environment(compute_func) <- new.env(parent = globalenv())
     environment(compute_func)$include_gc <- include_gc
     environment(compute_func)$feat_names <- names(dinuc_features)
+    environment(compute_func)$size <- size
 
 
     # Create and return the IQFeatureGroup object
@@ -351,12 +364,12 @@ create_dinuc_feature_group <- function(traj_model, quantile = 0.99, size = NULL,
 #' of CG content in DNA sequences. The feature is normalized to be between 0-10.
 #'
 #' @param traj_model A trajectory model object.
-#' @param quantile The quantile to use for normalization (default is 0.99).
+#' @param quantile The quantile to use for normalization (default is 0.95).
 #'
 #' @return An IQSeqFeature object for CG content.
 #'
 #' @export
-create_cg_content_feature <- function(traj_model, quantile = 0.99) {
+create_cg_content_feature <- function(traj_model, quantile = 0.95) {
     # Get the size from the trajectory model
     if (!is.null(traj_model@params$feats_peaks_size)) {
         size <- traj_model@params$feats_peaks_size
@@ -385,13 +398,15 @@ create_cg_content_feature <- function(traj_model, quantile = 0.99) {
     })
     environment(compute_cg_content) <- new.env(parent = globalenv())
 
-    # Compute feature values on normalization intervals
-    norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(traj_model@normalization_intervals, size))
+    # Compute feature values on peak intervals
+    norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(traj_model@peak_intervals, size))
     feature_values <- compute_cg_content(norm_sequences)
 
     # Calculate min and max values
-    min_value <- min(feature_values, na.rm = TRUE)
-    max_value <- quantile(feature_values, quantile, na.rm = TRUE)
+    q_low <- 1 - quantile
+    q_high <- quantile
+    min_value <- stats::quantile(feature_values, q_low, na.rm = TRUE)
+    max_value <- stats::quantile(feature_values, q_high, na.rm = TRUE)
 
     # Get coefficients if they exist in the model
     feature_name <- "cg_cont"

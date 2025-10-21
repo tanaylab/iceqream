@@ -31,5 +31,13 @@ This method defines how an IQInteraction object should be displayed.
 \item{\code{term1_type}}{The type of the first term (motif, additional, etc.).}
 
 \item{\code{term2_type}}{The type of the second term (motif, additional, etc.).}
+
+\item{\code{scale}}{Numeric scaling factor applied during trajectory model training.}
+
+\item{\code{inter_max}}{The maximum value of the raw interaction (term1 * term2) used for normalization.}
+
+\item{\code{norm_min}}{The minimum value used in the norm01 transformation.}
+
+\item{\code{norm_max}}{The maximum value used in the norm01 transformation.}
 }}
 

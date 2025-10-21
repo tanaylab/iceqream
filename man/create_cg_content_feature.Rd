@@ -4,12 +4,12 @@
 \alias{create_cg_content_feature}
 \title{Create CG Content Feature}
 \usage{
-create_cg_content_feature(traj_model, quantile = 0.99)
+create_cg_content_feature(traj_model, quantile = 0.95)
 }
 \arguments{
 \item{traj_model}{A trajectory model object.}
 
-\item{quantile}{The quantile to use for normalization (default is 0.99).}
+\item{quantile}{The quantile to use for normalization (default is 0.95).}
 }
 \value{
 An IQSeqFeature object for CG content.

@@ -17,3 +17,6 @@ data-raw/*.ipynb
 data-raw/*.png
 vignettes/articles/iceqream.R
 .aider*
+.claude
+AGENTS.md
+dev/
