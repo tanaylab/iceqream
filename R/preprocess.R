@@ -1,3 +1,31 @@
+psum <- function(..., na.rm = FALSE) {
+    args <- list(...)
+    k <- length(args)
+    if (k == 0L) {
+        return(numeric(0))
+    }
+
+    L <- max(lengths(args))
+    if (L == 0L) {
+        return(numeric(0))
+    }
+
+    # recycle and coerce once
+    args <- lapply(args, function(a) as.double(rep_len(a, L)))
+    m <- unlist(args, use.names = FALSE)
+    dim(m) <- c(L, k)
+
+    res <- .rowSums(m, L, k, na.rm)
+
+    # restore all-NA rows
+    if (na.rm) {
+        all_na <- rowSums(!is.na(m)) == 0L
+        res[all_na] <- NA_real_
+    }
+
+    res
+}
+
 import_marginal_tracks <- function(files, track_prefix, binsize = 20, overwrite = FALSE, overwrite_marginal = FALSE, parallel = getOption("prego.parallel", TRUE)) {
     gdir.create(track_prefix, showWarnings = FALSE)
     ct_names <- tools::file_path_sans_ext(basename(files))
@@ -24,7 +52,6 @@ import_marginal_tracks <- function(files, track_prefix, binsize = 20, overwrite 
         gtrack.rm(marginal_track, force = TRUE)
     }
     cli::cli_alert("Creating marginal track {.val {marginal_track}}")
-    psum <- misha.ext::psum
     expr <- paste0("psum(", paste0(tracks, collapse = ", "), ", na.rm = TRUE)")
     gtrack.create(expr = expr, track = marginal_track, description = paste("Marginal signal of", paste(ct_names, collapse = ", ")), iterator = binsize)
 
