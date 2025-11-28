@@ -29,6 +29,7 @@ iq_regression <- function(
     norm_intervals = NULL,
     motif_energies = NULL,
     additional_features = NULL,
+    min_tss_distance = 5000,
     add_sequences_features = TRUE,
     max_motif_num = 30,
     traj_prego = NULL,
@@ -91,6 +92,36 @@ iq_regression <- function(
         normalize_bins <- FALSE
     }
 
+    if (!is.null(min_tss_distance)) {
+        validate_misha()
+    }
+    tss_filter <- get_tss_distance_filter(peak_intervals, min_tss_distance)
+    kept_idxs <- which(tss_filter)
+    if (sum(!tss_filter) > 0) {
+        cli::cli_alert_info("Filtering out {.val {sum(!tss_filter)}} peaks that are within {.val {min_tss_distance}}bp of a TSS")
+    }
+    peak_intervals <- peak_intervals[tss_filter, ]
+    if (!is.null(atac_scores)) {
+        atac_scores <- atac_scores[tss_filter, , drop = FALSE]
+    }
+    if (!is.null(atac_diff)) {
+        atac_diff <- atac_diff[tss_filter]
+    }
+    if (!is.null(motif_energies)) {
+        motif_energies <- motif_energies[tss_filter, , drop = FALSE]
+    }
+    if (!is.null(additional_features)) {
+        additional_features <- additional_features[tss_filter, , drop = FALSE]
+    }
+    if (!is.null(train_idxs)) {
+        train_idxs <- match(intersect(train_idxs, kept_idxs), kept_idxs)
+        train_idxs <- train_idxs[!is.na(train_idxs)]
+    }
+    if (!is.null(test_idxs)) {
+        test_idxs <- match(intersect(test_idxs, kept_idxs), kept_idxs)
+        test_idxs <- test_idxs[!is.na(test_idxs)]
+    }
+
     cli::cli_alert_info("Seed: {.val {seed}}")
     set.seed(seed)
     n_intervals <- nrow(peak_intervals)
@@ -118,7 +149,7 @@ iq_regression <- function(
         if (is.null(atac_diff)) {
             atac_diff <- atac_scores[, 2] - atac_scores[, 1]
         }
-        
+
         traj_prego <- learn_traj_prego(peak_intervals[train_idxs, ], atac_diff[train_idxs],
             n_motifs = n_prego_motifs, min_diff = prego_min_diff,
             sample_for_kmers = prego_sample_for_kmers,
@@ -171,6 +202,7 @@ iq_regression <- function(
         max_motif_num = max_motif_num,
         seed = seed,
         min_diff = min_diff,
+        min_tss_distance = min_tss_distance,
         ...
     )
 

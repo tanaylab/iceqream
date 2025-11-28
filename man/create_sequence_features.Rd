@@ -8,7 +8,8 @@ create_sequence_features(
   intervals,
   size = NULL,
   normalize = TRUE,
-  norm_quant = 0.05
+  norm_quant = 0.05,
+  norm_intervals = NULL
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ create_sequence_features(
 \item{normalize}{A logical value indicating whether to normalize the features to the range 0-10.}
 
 \item{norm_quant}{The quantile to use for normalization. Values below this quantile and above 1-quantile are truncated, and the rest are linearly scaled to 0-10.}
+
+\item{norm_intervals}{Optional. A data frame of intervals to use for computing normalization quantiles. If NULL, quantiles are computed from the input intervals.}
 }
 \value{
 A matrix of normalized sequence features including GC content and dinucleotide frequencies.

@@ -12,6 +12,7 @@ iq_regression(
   norm_intervals = NULL,
   motif_energies = NULL,
   additional_features = NULL,
+  min_tss_distance = 5000,
   add_sequences_features = TRUE,
   max_motif_num = 30,
   traj_prego = NULL,
@@ -60,6 +61,9 @@ iq_regression(
 \item{motif_energies}{A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
 
 \item{additional_features}{A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.}
+
+\item{min_tss_distance}{distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
+Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.}
 
 \item{add_sequences_features}{Add CG content and dinuceotide content to the additional features.}
 
@@ -119,8 +123,6 @@ iq_regression(
     \item{\code{n_clust_factor}}{factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1}
     \item{\code{norm_motif_energies}}{A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
     \item{\code{pssm_db}}{a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.}
-    \item{\code{min_tss_distance}}{distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
-Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.}
     \item{\code{normalize_energies}}{whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.}
     \item{\code{min_initial_energy_cor}}{minimal correlation between the motif normalized energy and the ATAC difference.}
     \item{\code{energy_norm_quantile}}{quantile of the energy used for normalization. Default: 1}

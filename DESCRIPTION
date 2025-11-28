@@ -1,6 +1,6 @@
 Package: iceqream
 Title: Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs
-Version: 0.0.3
+Version: 0.0.4
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il", role = c("aut", "cre")),
     person("Akhiad", "Bercovich", , "akhiad.bercovich@weizmann.ac.il", role = "aut"),
