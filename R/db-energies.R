@@ -60,7 +60,7 @@ compute_motif_energies <- function(peak_intervals, db = iceqream::motif_db, norm
 }
 
 validate_motif_energies <- function(motif_energies, peak_intervals, pssm_db = iceqream::motif_db) {
-    if (is.null(motif_energies)){
+    if (is.null(motif_energies)) {
         cli_abort("{.field motif_energies} parameter cannot be NULL. Please use {.code compute_motif_energies} to compute it")
     }
     if (nrow(motif_energies) != nrow(peak_intervals)) {
