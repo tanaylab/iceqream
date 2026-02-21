@@ -104,7 +104,7 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #' @param project_name Character string. The prefix used for track names and project identification.
 #' @param files Optional character vector. Paths to input ATAC-seq signal files, can be in bigWig or tsv format, see \code{misha::gtrack.import} for more details. Required if tracks don't exist.
 #' @param cell_types Optional character vector. Names of cell types to process. If NULL, derived from track names.
-#' @param peaks Data frame or file path. Peak intervals with required columns 'chrom', 'start', and 'end'.
+#' @param peak_intervals Data frame or file path. Peak intervals with required columns 'chrom', 'start', and 'end'.
 #' @param anchor_cell_type Optional character. Cell type to use as reference for normalization. If NULL, the mean of all cell types is used.
 #' @param figures_dir Optional character. Directory path to save normalization plots.
 #' @param peaks_size Numeric. Size to normalize peaks to in base pairs. Default: 500
@@ -128,7 +128,7 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #'     \item atac: Raw ATAC signal matrix
 #'     \item atac_norm: Region-normalized signal matrix
 #'     \item atac_norm_const: Constitutive peak-normalized signal matrix
-#'     \item atac_norm_prob: Probability-normalized signal matrix
+#'     \item atac_norm_prob: Probability-normalized signal matrix. This is the recommended input for the \code{atac_scores} parameter in \code{\link{iq_regression}} and \code{\link{regress_trajectory_motifs}}.
 #'     \item peaks: Data frame of peak information
 #'     \item additional_features: Data frame of additional features (dinucleotide distribution and punctured regional ATAC signal)
 #'     \item params: List of parameters used for normalization
@@ -167,7 +167,8 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #' \code{\link{normalize_regional}}, \code{\link{normalize_const}}, \code{\link{normalize_to_prob}}
 #'
 #' @export
-preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks = NULL, anchor_cell_type = NULL, figures_dir = NULL, peaks_size = 500, binsize = 20, overwrite_tracks = FALSE, overwrite_marginal = FALSE, window_size = 2e4, minimal_quantile = 0.1, const_threshold = -16, const_norm_quant = 1, const_scaling_quant = 1, const_quantile = 0.9, prob1_thresh = NULL, add_tss_dist = TRUE, tss_intervals = "intervs.global.tss", proximal_atac_window_size = 2e4) {
+preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peak_intervals = NULL, anchor_cell_type = NULL, figures_dir = NULL, peaks_size = 500, binsize = 20, overwrite_tracks = FALSE, overwrite_marginal = FALSE, window_size = 2e4, minimal_quantile = 0.1, const_threshold = -16, const_norm_quant = 1, const_scaling_quant = 1, const_quantile = 0.9, prob1_thresh = NULL, add_tss_dist = TRUE, tss_intervals = "intervs.global.tss", proximal_atac_window_size = 2e4) {
+    peaks <- peak_intervals
     track_prefix <- project_name
 
     if (!is.null(files)) {
@@ -188,7 +189,8 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
         if (is.null(files)) {
             cli::cli_abort("{.field files} must be provided if the tracks do not exist.")
         }
-        tracks <- import_marginal_tracks(files, track_prefix, binsize = binsize, overwrite = overwrite_tracks, overwrite_marginal = overwrite_marginal)
+        all_tracks <- import_marginal_tracks(files, track_prefix, binsize = binsize, overwrite = overwrite_tracks, overwrite_marginal = overwrite_marginal)
+        tracks <- setdiff(all_tracks, marginal_track)
     }
 
     # test that the tracks were created
@@ -270,7 +272,8 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
     )
 
     if (!is.null(figures_dir)) {
-        plot_normalization_scatters(obj, anchor_cell_type, figures_dir)
+        plot_anchor <- anchor_cell_type %||% colnames(obj$atac_norm_prob)[1]
+        plot_normalization_scatters(obj, plot_anchor, figures_dir)
     }
 
     return(obj)
@@ -283,6 +286,7 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
 #' @param peaks Intervals set of peaks
 #' @param tracks Tracks containing ATAC signal
 #' @param window_size An integer specifying the size of the window for computing regional ATAC signal. Default is 20,000 bp.
+#' @param spatial_ratio_ext Extension size (in bp) for computing the spatial ratio feature. Default is 1000.
 #'
 #' @return A data frame with additional features: sequence features and regional ATAC signal. The features are normalized to the range 0-10.
 #'
@@ -410,7 +414,7 @@ compute_spatial_ratio <- function(peaks, marginal_track, ext = 1e3) {
 #' }
 #'
 #' @seealso
-#' \code{\link{plot_cell_type_scatter}} for the underlying plotting function,
+#' \code{plot_cell_type_scatter} for the underlying plotting function,
 #' \code{\link{normalize_regional}}, \code{\link{normalize_const}},
 #' \code{\link{normalize_to_prob}} for the normalization methods being visualized
 #'
@@ -712,7 +716,7 @@ normalize_const <- function(peaks, mat, anchor_cell_type = NULL, norm_quant = 1,
 #' 1. Determines threshold for probability = 1 (either directly or from constitutive peaks)
 #' 2. Divides all values by this threshold
 #' 3. Caps values at 1
-#' 4. Applies min-max normalization to ensure full [0,1] range utilization
+#' 4. Applies min-max normalization to ensure full \eqn{[0,1]} range utilization
 #'
 #'
 #' @return A matrix with the same dimensions as the input, containing probability-like

@@ -20,9 +20,9 @@ infer_trajectory_motifs_multi(
 
 \item{atac_scores}{A list of data frames with ATAC-seq scores for each individual trajectory.}
 
-\item{bin_start}{the start of the trajectory. Default: 1}
+\item{bin_start}{the start of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: 1}
 
-\item{bin_end}{the end of the trajectory. Default: the last bin (only used when atac_scores is provided)}
+\item{bin_end}{the end of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: the last bin (only used when atac_scores is provided)}
 
 \item{additional_features}{A list of data frames with additional features for each individual trajectory.}
 }

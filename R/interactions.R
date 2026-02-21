@@ -142,6 +142,7 @@ get_significant_interactions <- function(
 #' @param force If TRUE, the function will add interactions even if they already exist. Default: FALSE
 #' @param logist_interactions Logical indicating whether to transform interactions to logistic functions. Default: FALSE
 #' @param only_sig_motifs Logical indicating whether to only consider significant motifs for interactions. Default: FALSE
+#' @param alpha The elastic net mixing parameter for glmnet. alpha=1 is the lasso penalty, alpha=0 is the ridge penalty. Default: 1
 #'
 #' @inheritParams regress_trajectory_motifs
 #' @inheritParams relearn_traj_model

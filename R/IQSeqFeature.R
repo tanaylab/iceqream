@@ -172,6 +172,7 @@ create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quanti
 #' @param dinucleotides A vector of dinucleotides to create features for (default is all possible dinucleotides).
 #' @param feat_names A vector of feature names to use for each dinucleotide (default is the dinucleotide itself).
 #' @param include_gc Logical indicating whether to include GC content feature (default is TRUE).
+#' @param add_compute_func Logical indicating whether to add a compute function to each IQSeqFeature object (default is TRUE).
 #'
 #' @return A list of IQSeqFeature objects, one for each dinucleotide and GC content if included.
 #'

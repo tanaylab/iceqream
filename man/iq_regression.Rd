@@ -50,7 +50,7 @@ iq_regression(
 \arguments{
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
 
-\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
+\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. When using \code{\link{preprocess_data}}, this should be the \code{atac_norm_prob} element of the returned list. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
 
 \item{atac_diff}{Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.}
 
@@ -73,9 +73,9 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{peaks_size}{size of the peaks to extract sequences from. Default: 500bp}
 
-\item{bin_start}{the start of the trajectory. Default: 1}
+\item{bin_start}{the start of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: 1}
 
-\item{bin_end}{the end of the trajectory. Default: the last bin (only used when atac_scores is provided)}
+\item{bin_end}{the end of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: the last bin (only used when atac_scores is provided)}
 
 \item{seed}{random seed for reproducibility.}
 
@@ -89,9 +89,17 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{min_diff}{minimal ATAC difference for a peak to participate in the initial prego motif inference and in the distillation step (if \code{distill_on_diff} is TRUE).}
 
+\item{prego_min_diff}{minimal ATAC difference for a peak to participate in prego motif inference. Default: same as \code{min_diff}.}
+
 \item{prego_sample_for_kmers}{whether to use a sample of the peaks for kmer screening. Default: TRUE}
 
 \item{prego_sample_fraction}{Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1}
+
+\item{prego_energy_norm_quantile}{quantile of the energy used for normalization in prego motif inference. Default: 1}
+
+\item{prego_spat_bin_size}{size of each spatial bin for prego motif inference. Default: NULL (uses prego default).}
+
+\item{prego_spat_num_bins}{number of spatial bins for prego motif inference. Default: NULL (uses prego default).}
 
 \item{r2_threshold}{minimal R^2 for a feature to be included in the model.}
 
@@ -107,9 +115,11 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
 
+\item{max_n_interactions}{maximum number of interactions to consider. Default: NULL (all interactions).}
+
 \item{n_prego_motifs}{number of prego motifs (de-novo motifs) to consider.}
 
-\item{n_cores}{The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80\% of the available cores. See \code{\link{prego::set_parallel}} for more details.}
+\item{n_cores}{The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80\% of the available cores. See \code{prego::set_parallel()} for more details.}
 
 \item{output_dir}{A directory to save intermediate results. If not NULL, the train and test indices are saved to a CSV file, together with the models at each step (before filtering, after filtering, and after adding interactions). The models are saved as RDS files. If the directory exists, the files are overwritten.}
 
@@ -128,6 +138,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
     \item{\code{energy_norm_quantile}}{quantile of the energy used for normalization. Default: 1}
     \item{\code{norm_energy_max}}{maximum value of the normalized energy. Default: 10}
     \item{\code{distill_on_diff}}{whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.}
+    \item{\code{prego_energy_norm_quantile,prego_spat_bin_size,prego_spat_num_bins}}{parameters for prego motif inference. See \code{prego::regress_pwm} for more details.}
     \item{\code{feature_selection_beta}}{beta parameter used for feature selection.}
     \item{\code{filter_using_r2}}{whether to filter features using R^2.}
     \item{\code{parallel}}{whether to use parallel processing on glmnet.}

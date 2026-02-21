@@ -1,5 +1,6 @@
 #' Regress trajectory motifs of a full manifold (multiple trajectories)
 #'
+#' @param atac_diff_add_mat A named list of numeric matrices. Each element represents a trajectory, containing the ATAC difference and additional features. Names are used as trajectory identifiers.
 #' @param target_traj_motif_num Number of motifs to select for each trajectory. Note that the actual number of motifs can be less or more than this number, depending on the data from other trajectories.
 #' @param initial_min_diff minimal ATAC difference for a peak to participate in the initial prego motif inference.
 #'
@@ -196,8 +197,8 @@ regress_trajectory_motifs_manifold <- function(peak_intervals,
     cli::cli_h2("Distilling trajectory models...")
     traj_model_multi <- distill_traj_model_multi(traj_model_ls, max_motif_num = max_motif_num, min_diff = min_diff, seed = seed, filter_models = FALSE, ...)
 
-    for (model in traj_model_multi@models) {
-        model@params$features_type <- "logistic"
+    for (i in seq_along(traj_model_multi@models)) {
+        traj_model_multi@models[[i]]@params$features_type <- "logistic"
     }
 
     return(traj_model_multi)

@@ -1,6 +1,6 @@
 Package: iceqream
 Title: Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs
-Version: 0.0.4
+Version: 0.0.5
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il", role = c("aut", "cre")),
     person("Akhiad", "Bercovich", , "akhiad.bercovich@weizmann.ac.il", role = "aut"),
@@ -11,19 +11,19 @@ License: MIT + file LICENSE
 Depends:
     R (>= 2.10),
     misha (>= 4.2.0)
-Imports: 
+Imports:
     cli,
     dplyr,
     ggplot2,
     glmnet,
     Matrix,
     matrixStats,
-    misha,
     misha.ext,
     methods,
     prego (>= 0.0.5),
     purrr,
     plyr,
+    readr,
     tgstat,
     tibble,
     tidyr,
@@ -57,7 +57,8 @@ Config/testthat/edition: 3
 Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Config/Needs/website: rmarkdown
 LazyData: true
+LazyDataCompression: xz
 URL: https://tanaylab.github.io/iceqream/

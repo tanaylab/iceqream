@@ -415,7 +415,7 @@ infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals, atac_score
         cli_alert_info("Infering trajectory motifs for model {.val {.y}}")
         infer_trajectory_motifs(.x, peak_intervals, atac_scores = atac_scores[[.y]], bin_start = bin_start, bin_end = bin_end[[.y]], additional_features = additional_features[[.y]], test_energies = e_test)
     })
-    names(new_models) <- names(traj_models)
+    names(new_models_full) <- names(traj_models)
 
     traj_multi@models <- new_models
     traj_multi@models <- purrr::map(traj_multi@models, add_traj_model_stats)

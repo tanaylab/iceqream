@@ -49,6 +49,8 @@ regress_trajectory_motifs_manifold(
 \arguments{
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
 
+\item{atac_diff_add_mat}{A named list of numeric matrices. Each element represents a trajectory, containing the ATAC difference and additional features. Names are used as trajectory identifiers.}
+
 \item{norm_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.}
 
 \item{max_motif_num}{maximum number of motifs to consider. Default: 50}
@@ -68,9 +70,9 @@ regress_trajectory_motifs_manifold(
 \item{min_tss_distance}{distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.}
 
-\item{bin_start}{the start of the trajectory. Default: 1}
+\item{bin_start}{the start of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: 1}
 
-\item{bin_end}{the end of the trajectory. Default: the last bin (only used when atac_scores is provided)}
+\item{bin_end}{the end of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: the last bin (only used when atac_scores is provided)}
 
 \item{min_initial_energy_cor}{minimal correlation between the motif normalized energy and the ATAC difference.}
 

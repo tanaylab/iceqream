@@ -32,7 +32,7 @@ The normalization process:
 \item Determines threshold for probability = 1 (either directly or from constitutive peaks)
 \item Divides all values by this threshold
 \item Caps values at 1
-\item Applies min-max normalization to ensure full \link{0,1} range utilization
+\item Applies min-max normalization to ensure full \eqn{[0,1]} range utilization
 }
 }
 \section{Warning}{

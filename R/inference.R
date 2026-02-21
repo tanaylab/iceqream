@@ -53,12 +53,22 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
     }
 
     if (has_interactions(traj_model)) {
-        ftv_inter <- feat_to_variable(traj_model, add_type = TRUE) %>%
+        ftv_inter <- feat_to_variable(traj_model, add_types = TRUE) %>%
             filter(type == "interaction") %>%
             distinct(variable, term1, term2)
         cli::cli_alert_info("Computing {.val {nrow(ftv_inter)}} interaction terms")
         interactions <- create_specifc_terms(e_test, ftv_inter)
-        interactions <- interactions[, colnames(traj_model@interactions), drop = FALSE]
+        needed_inters <- colnames(traj_model@interactions)
+        interactions <- as.data.frame(interactions)
+        if (!is.null(needed_inters)) {
+            missing_inters <- setdiff(needed_inters, colnames(interactions))
+            if (length(missing_inters) > 0) {
+                cli::cli_abort(
+                    "Missing {.val {length(missing_inters)}} interaction terms during inference. Example missing: {.val {head(missing_inters, 5)}}"
+                )
+            }
+            interactions <- interactions[, needed_inters, drop = FALSE]
+        }
         if (is.null(traj_model@params$logist_interactions) || !traj_model@params$logist_interactions) {
             e_test_logist <- cbind(create_logist_features(e_test), interactions)
         } else {
@@ -68,7 +78,18 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NU
         e_test_logist <- create_logist_features(e_test)
     }
 
-    e_test_logist <- e_test_logist[, colnames(traj_model@model_features), drop = FALSE]
+    model_cols <- colnames(traj_model@model_features)
+    e_test_logist <- as.data.frame(e_test_logist)
+    if (!is.null(model_cols)) {
+        missing_cols <- setdiff(model_cols, colnames(e_test_logist))
+        if (length(missing_cols) > 0) {
+            cli::cli_abort(
+                "Missing {.val {length(missing_cols)}} model feature columns during inference. Example missing: {.val {head(missing_cols, 5)}}"
+            )
+        }
+        e_test_logist <- e_test_logist[, model_cols, drop = FALSE]
+    }
+    e_test_logist <- as.matrix(e_test_logist)
 
     cli::cli_alert_info("Inferring the model on {.val {nrow(e_test_logist)}} intervals")
     pred <- predict_traj_model(traj_model, e_test_logist)
@@ -158,11 +179,34 @@ motifs_to_mdb <- function(ml) {
 }
 
 infer_energies_new <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp", bidirect = TRUE) {
-    mdb <- motifs_to_mdb(motif_list)
+    ml <- purrr::discard(motif_list, is.null)
+    motif_names <- names(ml)
+    mdb <- motifs_to_mdb(ml)
 
     all_energies <- prego::extract_pwm(c(sequences, norm_sequences), dataset = mdb, prior = 0.01)
     energies <- all_energies[1:length(sequences), ]
     norm_energies <- all_energies[(length(sequences) + 1):nrow(all_energies), ]
+
+    if (is.null(dim(energies))) {
+        energies <- matrix(energies, ncol = 1)
+    }
+    if (is.null(dim(norm_energies))) {
+        norm_energies <- matrix(norm_energies, ncol = 1)
+    }
+    if (is.null(colnames(energies)) && !is.null(motif_names) && ncol(energies) == length(motif_names)) {
+        colnames(energies) <- motif_names
+    }
+    if (is.null(colnames(norm_energies)) && !is.null(motif_names) && ncol(norm_energies) == length(motif_names)) {
+        colnames(norm_energies) <- motif_names
+    }
+
+    bad_cols <- colnames(energies)[colSums(is.na(energies)) == nrow(energies)]
+    if (length(bad_cols) > 0) {
+        cli::cli_warn(
+            "Found {.val {length(bad_cols)}} motifs with all-NA energies (e.g. {.val {head(bad_cols, 5)}}). Falling back to compute_pwm."
+        )
+        return(infer_energies(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func, bidirect))
+    }
 
     energies <- norm_energy_matrix(energies, norm_energies, min_energy = min_energy, q = energy_norm_quantile, norm_energy_max = norm_energy_max)
 

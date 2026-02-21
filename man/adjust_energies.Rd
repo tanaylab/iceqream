@@ -33,6 +33,8 @@ If NULL, sequences will be extracted from the trajectory model.}
 \item{norm_sequences}{Optional character vector of DNA sequences for normalization.
 If NULL, sequences will be extracted from the trajectory model.}
 
+\item{relearn}{Logical indicating whether to relearn the model after adjusting energies. Default is TRUE.}
+
 \item{lambda}{The lambda value to use for relearning. If NULL, the lambda value from the trajectory model is used.}
 
 \item{use_additional_features}{A logical value indicating whether to use additional features. Default is TRUE.}
@@ -60,8 +62,7 @@ The function works by:
 }
 }
 \examples{
-# Create a trajectory model and adjust its energies
-traj_model <- create_traj_model(...)
+\dontrun{
 traj_model <- adjust_energies(traj_model)
 
 # Adjust energies with custom parameters
@@ -70,5 +71,6 @@ traj_model <- adjust_energies(
     q = c(1, 0.99, 0.95),
     min_energy = c(-15, -10, -5)
 )
+}
 
 }

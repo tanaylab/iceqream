@@ -6,7 +6,7 @@
 #' Optionally, additional features such as epigenomic features can be provided.
 #'
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.
-#' @param atac_scores Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.
+#' @param atac_scores Optional. A numeric matrix, representing mean ATAC score per bin per peak. When using \code{\link{preprocess_data}}, this should be the \code{atac_norm_prob} element of the returned list. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.
 #' @param atac_diff Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.
 #' @param normalize_bins whether to normalize the ATAC scores to be between 0 and 1. Default: TRUE
 #' @param norm_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.
@@ -18,8 +18,8 @@
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
 #' @param min_tss_distance distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 #' Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.
-#' @param bin_start the start of the trajectory. Default: 1
-#' @param bin_end the end of the trajectory. Default: the last bin (only used when atac_scores is provided)
+#' @param bin_start the start of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: 1
+#' @param bin_end the end of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: the last bin (only used when atac_scores is provided)
 #' @param normalize_energies whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
@@ -30,7 +30,8 @@
 #' @param distill_on_diff whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.
 #' @param prego_sample_for_kmers whether to use a sample of the peaks for kmer screening. Default: TRUE
 #' @param prego_sample_fraction Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1
-#' @param prego_enrgy_norm_quantile,prego_spat_bin_size,prego_spat_num_bins parameters for prego motif inference. See \code{prego::regress_pwm} for more details.
+#' @param prego_min_diff minimal ATAC difference for a peak to participate in prego motif inference. Default: same as \code{min_diff}.
+#' @param prego_energy_norm_quantile,prego_spat_bin_size,prego_spat_num_bins parameters for prego motif inference. See \code{prego::regress_pwm} for more details.
 #' @param seed random seed for reproducibility.
 #' @param feature_selection_beta beta parameter used for feature selection.
 #' @param filter_using_r2 whether to filter features using R^2.
@@ -123,7 +124,9 @@ regress_trajectory_motifs <- function(peak_intervals,
         if (is.null(bin_end)) {
             bin_end <- ncol(atac_scores)
         }
-        validate_atac_scores(atac_scores, bin_start, bin_end)
+        resolved <- validate_atac_scores(atac_scores, bin_start, bin_end)
+        bin_start <- resolved$bin_start
+        bin_end <- resolved$bin_end
         if (normalize_bins) {
             atac_scores[, bin_start] <- norm01(atac_scores[, bin_start])
             atac_scores[, bin_end] <- norm01(atac_scores[, bin_end])
@@ -324,7 +327,22 @@ regress_trajectory_motifs <- function(peak_intervals,
 }
 
 
+resolve_bin_index <- function(bin, atac_scores, param_name) {
+    if (is.character(bin)) {
+        idx <- match(bin, colnames(atac_scores))
+        if (is.na(idx)) {
+            cli_abort("{.field {param_name}} column {.val {bin}} not found in {.code colnames(atac_scores)}")
+        }
+        return(idx)
+    }
+    return(as.integer(bin))
+}
+
 validate_atac_scores <- function(atac_scores, bin_start, bin_end) {
+    # resolve character column names to integer indices
+    bin_start <- resolve_bin_index(bin_start, atac_scores, "bin_start")
+    bin_end <- resolve_bin_index(bin_end, atac_scores, "bin_end")
+
     # validate bin_start and bin_end
     if (bin_start < 1 || bin_start > ncol(atac_scores)) {
         cli_abort("{.field 'bin_start'} must be between 1 and {.code 'ncol(atac_scores)'}", call = parent.frame(1))
@@ -332,9 +350,11 @@ validate_atac_scores <- function(atac_scores, bin_start, bin_end) {
     if (bin_end < 1 || bin_end > ncol(atac_scores)) {
         cli_abort("{.field 'bin_end'} must be between 1 and {.code 'ncol(atac_scores)'}", call = parent.frame(1))
     }
-    if (bin_start >= bin_end) {
-        cli_abort("{.field 'bin_start'} must be smaller than {.field 'bin_end'}", call = parent.frame(1))
+    if (bin_start == bin_end) {
+        cli_abort("{.field 'bin_start'} and {.field 'bin_end'} must refer to different columns", call = parent.frame(1))
     }
+
+    return(list(bin_start = bin_start, bin_end = bin_end))
 }
 
 validate_peak_intervals <- function(peak_intervals, columns = c("chrom", "start", "end")) {
