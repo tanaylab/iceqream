@@ -8,7 +8,7 @@ preprocess_data(
   project_name,
   files = NULL,
   cell_types = NULL,
-  peaks = NULL,
+  peak_intervals = NULL,
   anchor_cell_type = NULL,
   figures_dir = NULL,
   peaks_size = 500,
@@ -34,7 +34,7 @@ preprocess_data(
 
 \item{cell_types}{Optional character vector. Names of cell types to process. If NULL, derived from track names.}
 
-\item{peaks}{Data frame or file path. Peak intervals with required columns 'chrom', 'start', and 'end'.}
+\item{peak_intervals}{Data frame or file path. Peak intervals with required columns 'chrom', 'start', and 'end'.}
 
 \item{anchor_cell_type}{Optional character. Cell type to use as reference for normalization. If NULL, the mean of all cell types is used.}
 
@@ -75,7 +75,7 @@ A list containing:
 \item atac: Raw ATAC signal matrix
 \item atac_norm: Region-normalized signal matrix
 \item atac_norm_const: Constitutive peak-normalized signal matrix
-\item atac_norm_prob: Probability-normalized signal matrix
+\item atac_norm_prob: Probability-normalized signal matrix. This is the recommended input for the \code{atac_scores} parameter in \code{\link{iq_regression}} and \code{\link{regress_trajectory_motifs}}.
 \item peaks: Data frame of peak information
 \item additional_features: Data frame of additional features (dinucleotide distribution and punctured regional ATAC signal)
 \item params: List of parameters used for normalization

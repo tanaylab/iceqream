@@ -46,7 +46,7 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
             }
             if (use_motifs) {
                 if (has_interactions(traj_model)) {
-                    ftv_inter <- feat_to_variable(traj_model, add_type = TRUE) %>%
+                    ftv_inter <- feat_to_variable(traj_model, add_types = TRUE) %>%
                         filter(type == "interaction") %>%
                         distinct(variable, term1, term2)
                     interactions <- create_specifc_terms(cbind(traj_model@normalized_energies, traj_model@additional_features), ftv_inter)
@@ -583,6 +583,7 @@ has_additional_features <- function(traj_model) {
 #' If NULL, sequences will be extracted from the trajectory model.
 #' @param norm_sequences Optional character vector of DNA sequences for normalization.
 #' If NULL, sequences will be extracted from the trajectory model.
+#' @param relearn Logical indicating whether to relearn the model after adjusting energies. Default is TRUE.
 #'
 #' @return The updated trajectory model object with optimized energy values for each motif.
 #'
@@ -595,8 +596,7 @@ has_additional_features <- function(traj_model) {
 #' 5. Applying the selected parameters to normalize the energies
 #'
 #' @examples
-#' # Create a trajectory model and adjust its energies
-#' traj_model <- create_traj_model(...)
+#' \dontrun{
 #' traj_model <- adjust_energies(traj_model)
 #'
 #' # Adjust energies with custom parameters
@@ -605,6 +605,7 @@ has_additional_features <- function(traj_model) {
 #'     q = c(1, 0.99, 0.95),
 #'     min_energy = c(-15, -10, -5)
 #' )
+#' }
 #'
 #' @inheritParams relearn_traj_model
 #' @export

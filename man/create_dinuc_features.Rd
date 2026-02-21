@@ -27,6 +27,8 @@ create_dinuc_features(
 \item{feat_names}{A vector of feature names to use for each dinucleotide (default is the dinucleotide itself).}
 
 \item{include_gc}{Logical indicating whether to include GC content feature (default is TRUE).}
+
+\item{add_compute_func}{Logical indicating whether to add a compute function to each IQSeqFeature object (default is TRUE).}
 }
 \value{
 A list of IQSeqFeature objects, one for each dinucleotide and GC content if included.

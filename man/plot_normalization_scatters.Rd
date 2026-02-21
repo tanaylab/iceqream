@@ -70,7 +70,7 @@ plot_normalization_scatters(
 
 }
 \seealso{
-\code{\link{plot_cell_type_scatter}} for the underlying plotting function,
+\code{plot_cell_type_scatter} for the underlying plotting function,
 \code{\link{normalize_regional}}, \code{\link{normalize_const}},
 \code{\link{normalize_to_prob}} for the normalization methods being visualized
 }

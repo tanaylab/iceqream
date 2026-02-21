@@ -31,6 +31,21 @@
 "motif_db"
 
 
+#' Precomputed Motif Energy Quantiles for Mouse
+#'
+#' A precomputed matrix of motif energy quantiles for the mouse gastrulation dataset,
+#' used for fast normalization of motif energies without requiring access to normalization intervals.
+#'
+#' @format A matrix where rows are motifs and columns are quantile values.
+#'
+#' @seealso \code{\link{compute_motif_energies}} for usage with the \code{db_quantiles} parameter
+#'
+#' @examples
+#' data(mouse_db_quantiles)
+#' dim(mouse_db_quantiles)
+"mouse_db_quantiles"
+
+
 #' SCENIC Motif Clusters
 #'
 #' A data frame containing a representative motif from each SCENIC cluster.

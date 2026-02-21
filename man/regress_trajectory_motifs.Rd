@@ -55,7 +55,7 @@ regress_trajectory_motifs(
 \arguments{
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
 
-\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
+\item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. When using \code{\link{preprocess_data}}, this should be the \code{atac_norm_prob} element of the returned list. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
 
 \item{atac_diff}{Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.}
 
@@ -78,9 +78,9 @@ regress_trajectory_motifs(
 \item{min_tss_distance}{distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.}
 
-\item{bin_start}{the start of the trajectory. Default: 1}
+\item{bin_start}{the start of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: 1}
 
-\item{bin_end}{the end of the trajectory. Default: the last bin (only used when atac_scores is provided)}
+\item{bin_end}{the end of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: the last bin (only used when atac_scores is provided)}
 
 \item{min_initial_energy_cor}{minimal correlation between the motif normalized energy and the ATAC difference.}
 
@@ -98,9 +98,13 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{distill_on_diff}{whether to distill motifs based on differential accessibility. If FALSE, all peaks will be used for distillation, if TRUE - only peaks with differential accessibility >= min_diff will be used.}
 
+\item{prego_min_diff}{minimal ATAC difference for a peak to participate in prego motif inference. Default: same as \code{min_diff}.}
+
 \item{prego_sample_for_kmers}{whether to use a sample of the peaks for kmer screening. Default: TRUE}
 
 \item{prego_sample_fraction}{Fraction of peaks to sample for prego motif inference. A smaller number would be faster but might lead to over-fitting. Default: 0.1}
+
+\item{prego_energy_norm_quantile, prego_spat_bin_size, prego_spat_num_bins}{parameters for prego motif inference. See \code{prego::regress_pwm} for more details.}
 
 \item{seed}{random seed for reproducibility.}
 
@@ -145,8 +149,6 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{max_interaction_n}{maximum number of interactions to consider.}
 
 \item{symmetrize_spat}{if TRUE, the spatial model would be symmetrized around the center bin. Default: TRUE.}
-
-\item{prego_enrgy_norm_quantile, prego_spat_bin_size, prego_spat_num_bins}{parameters for prego motif inference. See \code{prego::regress_pwm} for more details.}
 }
 \value{
 An instance of \code{TrajectoryModel} containing model information and results:

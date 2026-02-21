@@ -38,6 +38,8 @@ add_interactions(
 
 \item{lambda}{The lambda value to use for relearning. If NULL, the lambda value from the trajectory model is used.}
 
+\item{alpha}{The elastic net mixing parameter for glmnet. alpha=1 is the lasso penalty, alpha=0 is the ridge penalty. Default: 1}
+
 \item{seed}{random seed for reproducibility.}
 
 \item{interactions}{A precomputed interaction matrix. If provided, the function will not compute the interactions. Default: NULL}
