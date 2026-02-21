@@ -5,13 +5,19 @@
 #' @param frac_train  A numeric value indicating the fraction of intervals to use for training (default is 0.8).
 #' @param filter_model A logical value indicating whether to filter the model (default is TRUE).
 #' @param filter_sample_frac The fraction of samples to use for computing the r2 without each model at the filtering step. When NULL, all samples are used.
-#' @param n_cores The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80% of the available cores. See \code{\link{prego::set_parallel}} for more details.
+#' @param n_cores The number of cores to use for parallel processing. When NULL, the number of threads is automatically determined as 80% of the available cores. See \code{prego::set_parallel()} for more details.
 #' @param add_sequences_features Add CG content and dinuceotide content to the additional features.
 #' @param train_idxs A vector of indices to use for training. If NULL, the training set is randomly selected.
 #' @param test_idxs A vector of indices to use for testing. If NULL, the testing set is the complement of the training set.
 #' @param output_dir A directory to save intermediate results. If not NULL, the train and test indices are saved to a CSV file, together with the models at each step (before filtering, after filtering, and after adding interactions). The models are saved as RDS files. If the directory exists, the files are overwritten.
 #' @param plot_report A logical value indicating whether to plot the model report. Default is TRUE.
 #' @param rename_motifs A logical value indicating whether to rename the motifs based on the HOMER database. Default is TRUE.
+#' @param atac_scores Optional. A numeric matrix, representing mean ATAC score per bin per peak. When using \code{\link{preprocess_data}}, this should be the \code{atac_norm_prob} element of the returned list. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.
+#' @param prego_min_diff minimal ATAC difference for a peak to participate in prego motif inference. Default: same as \code{min_diff}.
+#' @param prego_energy_norm_quantile quantile of the energy used for normalization in prego motif inference. Default: 1
+#' @param prego_spat_bin_size size of each spatial bin for prego motif inference. Default: NULL (uses prego default).
+#' @param prego_spat_num_bins number of spatial bins for prego motif inference. Default: NULL (uses prego default).
+#' @param max_n_interactions maximum number of interactions to consider. Default: NULL (all interactions).
 #'
 #' @return An instance of \code{TrajectoryModel} with the final model.
 #'
@@ -150,6 +156,7 @@ iq_regression <- function(
             atac_diff <- atac_scores[, 2] - atac_scores[, 1]
         }
 
+        symmetrize_spat <- list(...)$symmetrize_spat %||% TRUE
         traj_prego <- learn_traj_prego(peak_intervals[train_idxs, ], atac_diff[train_idxs],
             n_motifs = n_prego_motifs, min_diff = prego_min_diff,
             sample_for_kmers = prego_sample_for_kmers,
@@ -180,7 +187,7 @@ iq_regression <- function(
             readr::write_rds(traj_model_all, out_file)
 
             if (plot_report) {
-                plot_traj_model_report(traj_model_all, file = file.path(output_dir, gsub("\\.rds$", ".pdf", file)))
+                plot_traj_model_report(traj_model_all, filename = file.path(output_dir, gsub("\\.rds$", ".pdf", file)))
             }
         }
         traj_model_all

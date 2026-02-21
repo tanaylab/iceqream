@@ -218,6 +218,30 @@ norm_energy_matrix_old <- function(x, dataset_x, min_energy = -7, q = 1, norm_en
 #'
 #' @export
 norm_energy_matrix <- function(x, dataset_x = x, min_energy = -7, q = 1, norm_energy_max = 10) {
+    # Coerce vectors/data.frames to matrices for safe subsetting
+    if (!is.matrix(x)) {
+        x <- as.matrix(x)
+    }
+    if (!is.matrix(dataset_x)) {
+        dataset_x <- as.matrix(dataset_x)
+    }
+
+    # Fill missing column names to allow alignment
+    if (is.null(colnames(x)) && !is.null(colnames(dataset_x))) {
+        colnames(x) <- colnames(dataset_x)
+    }
+    if (is.null(colnames(dataset_x)) && !is.null(colnames(x))) {
+        colnames(dataset_x) <- colnames(x)
+    }
+    if (is.null(colnames(x)) && is.null(colnames(dataset_x))) {
+        if (ncol(x) != ncol(dataset_x)) {
+            stop("Input matrices have different column counts and no column names.")
+        }
+        default_cols <- paste0("V", seq_len(ncol(x)))
+        colnames(x) <- default_cols
+        colnames(dataset_x) <- default_cols
+    }
+
     # Check for missing columns
     not_in_x <- setdiff(colnames(dataset_x), colnames(x))
     if (length(not_in_x) > 0) {

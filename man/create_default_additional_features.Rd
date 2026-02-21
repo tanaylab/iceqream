@@ -23,6 +23,8 @@ create_default_additional_features(
 \item{normalize}{A logical value indicating whether to normalize the features to the range 0-10.}
 
 \item{norm_quant}{The quantile to use for normalization. Values below this quantile and above 1-quantile are truncated, and the rest are linearly scaled to 0-10.}
+
+\item{spatial_ratio_ext}{Extension size (in bp) for computing the spatial ratio feature. Default is 1000.}
 }
 \value{
 A data frame with additional features: sequence features and regional ATAC signal. The features are normalized to the range 0-10.

@@ -7,16 +7,17 @@
 #' @importFrom tidyr gather pivot_wider pivot_longer unite separate
 #' @importFrom glue glue
 #' @importFrom zoo rollmean
-#' @importFrom tibble tibble deframe enframe column_to_rownames rownames_to_column
+#' @importFrom tibble tibble deframe enframe column_to_rownames rownames_to_column as_tibble
 #' @importFrom stats ks.test lm
 #' @importFrom purrr `%||%` map_dfr imap_dfr map
 #' @importFrom Matrix t colSums rowSums rowMeans colMeans
-#' @importFrom methods new slotNames show initialize
-#' @importFrom stats binomial coef cutree hclust quantile
+#' @importFrom methods new slotNames show initialize .hasSlot
+#' @importFrom stats binomial coef cutree hclust quantile gaussian
 #' @importFrom utils head
 #' @importFrom grDevices png pdf dev.off
-#' @importFrom misha gextract gvtrack.create gintervals.all
+#' @importFrom misha gextract gvtrack.create gintervals.all gvtrack.iterator gdir.create gtrack.exists gtrack.rm gtrack.import gtrack.create gdb.reload gtrack.ls gintervals.canonic
 #' @importFrom misha.ext gintervals.neighbors1 gintervals.normalize gintervals.expand
+#' @importFrom readr write_csv write_rds
 #' @import ggplot2
 ## usethis namespace: start
 #' @importFrom ComplexHeatmap %v%
