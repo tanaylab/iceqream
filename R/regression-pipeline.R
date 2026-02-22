@@ -171,9 +171,19 @@ iq_regression <- function(
 
 
     infer_and_save <- function(traj_model, file = NULL) {
+        # Compute test diff_score with correct bin selection and normalization
+        test_atac <- as.matrix(atac_scores[test_idxs, , drop = FALSE])
+        test_bin_start <- bin_start
+        test_bin_end <- bin_end %||% ncol(test_atac)
+        if (normalize_bins) {
+            test_atac[, test_bin_start] <- norm01(test_atac[, test_bin_start])
+            test_atac[, test_bin_end] <- norm01(test_atac[, test_bin_end])
+        }
+        test_diff <- test_atac[, test_bin_end] - test_atac[, test_bin_start]
+
         traj_model_all <- infer_trajectory_motifs(traj_model, peak_intervals[test_idxs, ],
             additional_features = additional_features[test_idxs, ],
-            atac_scores = atac_scores[test_idxs, ]
+            diff_score = test_diff
         )
         cli::cli_text("\n")
         cli::cli_text("Number of motifs: {.val {length(traj_model_all@motif_models)}}")
