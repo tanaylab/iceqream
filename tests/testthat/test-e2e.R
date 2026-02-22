@@ -171,3 +171,72 @@ test_that("iq_regression produces valid TrajectoryModel on gastrulation data", {
     expect_equal(nrow(pbm_result), 3)
     expect_equal(ncol(pbm_result), length(pbm_list))
 })
+
+# =============================================================================
+# Test custom bin_start/bin_end: verifies test diff_score uses correct bins
+# =============================================================================
+test_that("iq_regression with custom bin_start/bin_end computes test diff correctly", {
+    skip_on_cran()
+    skip_if_not_installed("prego")
+    skip_if_not_installed("misha")
+    skip_if_not_installed("misha.ext")
+
+    genome_root <- Sys.getenv("ICEQREAM_GENOME_ROOT", unset = "/home/aviezerl/mm10")
+    skip_if(!dir.exists(genome_root), paste("misha genome not found at", genome_root))
+
+    data_dir <- get_vignette_data()
+    skip_if(is.null(data_dir), "Could not download vignette data")
+
+    peak_intervals <- readr::read_rds(file.path(data_dir, "peak_intervals.rds"))
+    atac_scores <- readr::read_rds(file.path(data_dir, "atac_scores.rds"))
+    additional_features <- readr::read_rds(file.path(data_dir, "additional_features.rds"))
+    normalization_intervals <- readr::read_tsv(
+        file.path(data_dir, "gastrulation_intervals.tsv"),
+        show_col_types = FALSE
+    )
+    motif_energies <- readr::read_rds(file.path(data_dir, "motif_energies.rds"))
+
+    misha::gsetroot(genome_root)
+
+    # Use bin1 -> bin2 (not default bin1 -> bin4) to exercise custom bin forwarding
+    traj_model <- iq_regression(
+        peak_intervals = peak_intervals,
+        atac_scores = atac_scores,
+        motif_energies = motif_energies,
+        normalize_energies = FALSE,
+        additional_features = additional_features,
+        norm_intervals = normalization_intervals,
+        seed = 60427,
+        n_prego_motifs = 0,
+        frac_train = 0.8,
+        max_motif_num = 10,
+        bin_start = 1,
+        bin_end = 2,
+        plot_report = FALSE,
+        rename_motifs = FALSE
+    )
+
+    expect_s4_class(traj_model, "TrajectoryModel")
+
+    test_idx <- which(traj_model@type == "test")
+    train_idx <- which(traj_model@type == "train")
+
+    # Test diff_score should be the bin2 - bin1 difference (after normalization),
+    # not the default bin4 - bin1
+    r2_test <- cor(
+        traj_model@diff_score[test_idx],
+        traj_model@predicted_diff_score[test_idx],
+        use = "pairwise.complete.obs"
+    )^2
+    r2_train <- cor(
+        traj_model@diff_score[train_idx],
+        traj_model@predicted_diff_score[train_idx],
+        use = "pairwise.complete.obs"
+    )^2
+
+    # Test R² should be in a reasonable range relative to train R²
+    # (with wrong bins, test R² would be near 0)
+    expect_gt(r2_test, r2_train * 0.3,
+        label = "Test R² should be comparable to train R² when using correct bins"
+    )
+})
