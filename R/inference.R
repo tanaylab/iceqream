@@ -12,7 +12,8 @@
 #' @return a `TrajectoryModel` object which contains both the original ('train') peaks and the newly inferred ('test') peaks. The field `@type` indicates whether a peak is a 'train' or 'test' peak. R^2 statistics are computed at `object@params$stats`.
 #'
 #' @export
-infer_trajectory_motifs <- function(traj_model, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL, diff_score = NULL, sequences = NULL, norm_sequences = NULL) {
+infer_trajectory_motifs <- function(traj_model, peak_intervals = NULL, peaks = NULL, atac_scores = NULL, bin_start = 1, bin_end = ncol(atac_scores), additional_features = NULL, test_energies = NULL, diff_score = NULL, sequences = NULL, norm_sequences = NULL) {
+    peak_intervals <- peak_intervals %||% peaks
     validate_traj_model(traj_model)
     if (has_additional_features(traj_model)) {
         validate_additional_features(additional_features, peak_intervals)

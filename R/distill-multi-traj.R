@@ -388,7 +388,8 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 #'
 #' @inheritParams infer_trajectory_motifs
 #' @export
-infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals, atac_scores = NULL, bin_start = 1, bin_end = purrr::map(atac_scores, ncol), additional_features = NULL) {
+infer_trajectory_motifs_multi <- function(traj_multi, peak_intervals = NULL, peaks = NULL, atac_scores = NULL, bin_start = 1, bin_end = purrr::map(atac_scores, ncol), additional_features = NULL) {
+    peak_intervals <- peak_intervals %||% peaks
     validate_traj_model_multi(traj_multi)
 
     if (!is.list(atac_scores)) {

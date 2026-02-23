@@ -5,7 +5,8 @@
 \title{Learn 'prego' models for ATAC difference of a trajectory}
 \usage{
 learn_traj_prego(
-  peak_intervals,
+  peak_intervals = NULL,
+  peaks = NULL,
   atac_diff,
   n_motifs,
   min_diff = 0.2,
@@ -24,6 +25,8 @@ learn_traj_prego(
 }
 \arguments{
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive and therefore shouldn't be used in the regression. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.}
+
+\item{peaks}{An alias for \code{peak_intervals}.}
 
 \item{atac_diff}{A numeric vector, indicating the ATAC difference of each peak}
 

@@ -105,6 +105,7 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #' @param files Optional character vector. Paths to input ATAC-seq signal files, can be in bigWig or tsv format, see \code{misha::gtrack.import} for more details. Required if tracks don't exist.
 #' @param cell_types Optional character vector. Names of cell types to process. If NULL, derived from track names.
 #' @param peak_intervals Data frame or file path. Peak intervals with required columns 'chrom', 'start', and 'end'.
+#' @param peaks An alias for \code{peak_intervals}.
 #' @param anchor_cell_type Optional character. Cell type to use as reference for normalization. If NULL, the mean of all cell types is used.
 #' @param figures_dir Optional character. Directory path to save normalization plots.
 #' @param peaks_size Numeric. Size to normalize peaks to in base pairs. Default: 500
@@ -167,8 +168,8 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #' \code{\link{normalize_regional}}, \code{\link{normalize_const}}, \code{\link{normalize_to_prob}}
 #'
 #' @export
-preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peak_intervals = NULL, anchor_cell_type = NULL, figures_dir = NULL, peaks_size = 500, binsize = 20, overwrite_tracks = FALSE, overwrite_marginal = FALSE, window_size = 2e4, minimal_quantile = 0.1, const_threshold = -16, const_norm_quant = 1, const_scaling_quant = 1, const_quantile = 0.9, prob1_thresh = NULL, add_tss_dist = TRUE, tss_intervals = "intervs.global.tss", proximal_atac_window_size = 2e4) {
-    peaks <- peak_intervals
+preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peak_intervals = NULL, peaks = NULL, anchor_cell_type = NULL, figures_dir = NULL, peaks_size = 500, binsize = 20, overwrite_tracks = FALSE, overwrite_marginal = FALSE, window_size = 2e4, minimal_quantile = 0.1, const_threshold = -16, const_norm_quant = 1, const_scaling_quant = 1, const_quantile = 0.9, prob1_thresh = NULL, add_tss_dist = TRUE, tss_intervals = "intervs.global.tss", proximal_atac_window_size = 2e4) {
+    peaks <- peak_intervals %||% peaks
     track_prefix <- project_name
 
     if (!is.null(files)) {

@@ -6,7 +6,8 @@
 \usage{
 infer_trajectory_motifs(
   traj_model,
-  peak_intervals,
+  peak_intervals = NULL,
+  peaks = NULL,
   atac_scores = NULL,
   bin_start = 1,
   bin_end = ncol(atac_scores),
@@ -21,6 +22,8 @@ infer_trajectory_motifs(
 \item{traj_model}{A trajectory model object, as returned by \code{regress_trajectory_motifs}}
 
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
+
+\item{peaks}{An alias for \code{peak_intervals}.}
 
 \item{atac_scores}{Optional. A numeric matrix, representing mean ATAC score per bin per peak. When using \code{\link{preprocess_data}}, this should be the \code{atac_norm_prob} element of the returned list. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.}
 

@@ -9,6 +9,7 @@ preprocess_data(
   files = NULL,
   cell_types = NULL,
   peak_intervals = NULL,
+  peaks = NULL,
   anchor_cell_type = NULL,
   figures_dir = NULL,
   peaks_size = 500,
@@ -35,6 +36,8 @@ preprocess_data(
 \item{cell_types}{Optional character vector. Names of cell types to process. If NULL, derived from track names.}
 
 \item{peak_intervals}{Data frame or file path. Peak intervals with required columns 'chrom', 'start', and 'end'.}
+
+\item{peaks}{An alias for \code{peak_intervals}.}
 
 \item{anchor_cell_type}{Optional character. Cell type to use as reference for normalization. If NULL, the mean of all cell types is used.}
 
