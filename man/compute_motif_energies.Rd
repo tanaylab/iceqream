@@ -5,7 +5,8 @@
 \title{Compute Motif Energies}
 \usage{
 compute_motif_energies(
-  peak_intervals,
+  peak_intervals = NULL,
+  peaks = NULL,
   db = iceqream::motif_db,
   normalization_intervals = peak_intervals,
   prior = 0.01,
@@ -18,6 +19,8 @@ compute_motif_energies(
 }
 \arguments{
 \item{peak_intervals}{A data frame containing the peak intervals with columns: chrom, start, and end. If an additional column 'peak_name' is present, it will be used as row names in the output matrix.}
+
+\item{peaks}{An alias for \code{peak_intervals}.}
 
 \item{db}{A motif database to use for extracting motif energies. Default is \code{iceqream::motif_db}.}
 

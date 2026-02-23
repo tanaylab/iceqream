@@ -28,7 +28,8 @@
 #' @inherit regress_trajectory_motifs return
 #' @export
 iq_regression <- function(
-    peak_intervals,
+    peak_intervals = NULL,
+    peaks = NULL,
     atac_scores = NULL,
     atac_diff = NULL,
     normalize_bins = TRUE,
@@ -68,6 +69,8 @@ iq_regression <- function(
     plot_report = TRUE,
     rename_motifs = TRUE,
     ...) {
+    peak_intervals <- peak_intervals %||% peaks
+
     if (!is.null(n_cores)) {
         cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
         if (!is.null(getOption("prego.parallel.nc"))) {

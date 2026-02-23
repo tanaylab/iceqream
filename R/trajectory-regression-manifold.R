@@ -9,7 +9,8 @@
 #' @inheritParams regress_trajectory_motifs
 #' @inheritDotParams distill_traj_model_multi
 #' @export
-regress_trajectory_motifs_manifold <- function(peak_intervals,
+regress_trajectory_motifs_manifold <- function(peak_intervals = NULL,
+                                               peaks = NULL,
                                                atac_diff_add_mat,
                                                norm_intervals = NULL,
                                                max_motif_num = 120,
@@ -50,6 +51,7 @@ regress_trajectory_motifs_manifold <- function(peak_intervals,
                                                ...) {
     withr::local_options(list(gmax.data.size = 1e9))
 
+    peak_intervals <- peak_intervals %||% peaks
 
     validate_peak_intervals(peak_intervals)
     validate_additional_features(additional_features, peak_intervals)

@@ -6,7 +6,8 @@
 \usage{
 infer_trajectory_motifs_multi(
   traj_multi,
-  peak_intervals,
+  peak_intervals = NULL,
+  peaks = NULL,
   atac_scores = NULL,
   bin_start = 1,
   bin_end = purrr::map(atac_scores, ncol),
@@ -17,6 +18,8 @@ infer_trajectory_motifs_multi(
 \item{traj_multi}{A TrajectoryModelMulti object.}
 
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
+
+\item{peaks}{An alias for \code{peak_intervals}.}
 
 \item{atac_scores}{A list of data frames with ATAC-seq scores for each individual trajectory.}
 

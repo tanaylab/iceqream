@@ -1,6 +1,7 @@
 #' Learn 'prego' models for ATAC difference of a trajectory
 #'
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive and therefore shouldn't be used in the regression. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
+#' @param peaks An alias for \code{peak_intervals}.
 #' @param atac_diff A numeric vector, indicating the ATAC difference of each peak
 #' @param n_motifs Number of motifs to learn. Should be at least 2
 #' @param min_diff Minimum ATAC difference to include a peak in the training
@@ -17,8 +18,9 @@
 #' @param ... Additional arguments to be passed to \code{prego::regress_pwm}
 #'
 #' @export
-learn_traj_prego <- function(peak_intervals, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, sample_for_kmers = FALSE, sample_fraction = 0.1, sequences = NULL, seed = NULL, peaks_size = 300, additional_features = NULL, norm_intervals = peak_intervals, ...) {
+learn_traj_prego <- function(peak_intervals = NULL, peaks = NULL, atac_diff, n_motifs, min_diff = 0.2, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, sample_for_kmers = FALSE, sample_fraction = 0.1, sequences = NULL, seed = NULL, peaks_size = 300, additional_features = NULL, norm_intervals = peak_intervals, ...) {
     withr::local_options(list(gmax.data.size = 1e9))
+    peak_intervals <- peak_intervals %||% peaks
     if (length(atac_diff) != nrow(peak_intervals)) {
         if (is.null(atac_diff) || is.null(peak_intervals)) {
             cli_abort("Both {.field {atac_diff}} and {.field {peak_intervals}} must be provided")
