@@ -4,6 +4,7 @@
 #' Optionally, it can normalize the computed motif energies using additional normalization intervals.
 #'
 #' @param peak_intervals A data frame containing the peak intervals with columns: chrom, start, and end. If an additional column 'peak_name' is present, it will be used as row names in the output matrix.
+#' @param peaks An alias for \code{peak_intervals}.
 #' @param db A motif database to use for extracting motif energies. Default is `iceqream::motif_db`.
 #' @param normalization_intervals A data frame containing intervals for normalization. Default is `peak_intervals`.
 #' @param normalize A logical value indicating whether to normalize the motif energies. Default is TRUE.
@@ -17,7 +18,8 @@
 #'
 #'
 #' @export
-compute_motif_energies <- function(peak_intervals, db = iceqream::motif_db, normalization_intervals = peak_intervals, prior = 0.01, normalize = TRUE, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, db_quantiles = NULL) {
+compute_motif_energies <- function(peak_intervals = NULL, peaks = NULL, db = iceqream::motif_db, normalization_intervals = peak_intervals, prior = 0.01, normalize = TRUE, energy_norm_quantile = 1, norm_energy_max = 10, min_energy = -7, db_quantiles = NULL) {
+    peak_intervals <- peak_intervals %||% peaks
     n_motifs <- length(unique(db$motif))
     n_peaks <- nrow(peak_intervals)
     cli_alert("Computing motif energies for {.val {n_peaks}} intervals using {.val {n_motifs}} motifs. This might take a while. You can set the number of cores to use with {.code prego::set_parallel()}")

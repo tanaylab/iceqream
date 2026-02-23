@@ -6,6 +6,7 @@
 #' Optionally, additional features such as epigenomic features can be provided.
 #'
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.
+#' @param peaks An alias for \code{peak_intervals}.
 #' @param atac_scores Optional. A numeric matrix, representing mean ATAC score per bin per peak. When using \code{\link{preprocess_data}}, this should be the \code{atac_norm_prob} element of the returned list. Rows: peaks, columns: bins. By default iceqream would regress the last column minus the first column. If you want to regress something else, please either change bin_start or bin_end, or provide \code{atac_diff} instead. If \code{normalize_bins} is TRUE, the scores will be normalized to be between 0 and 1.
 #' @param atac_diff Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.
 #' @param normalize_bins whether to normalize the ATAC scores to be between 0 and 1. Default: TRUE
@@ -64,7 +65,8 @@
 #' @inheritParams add_interactions
 #' @inheritParams prego::regress_pwm
 #' @export
-regress_trajectory_motifs <- function(peak_intervals,
+regress_trajectory_motifs <- function(peak_intervals = NULL,
+                                      peaks = NULL,
                                       atac_scores = NULL,
                                       atac_diff = NULL,
                                       normalize_bins = TRUE,
@@ -110,6 +112,7 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       max_interaction_n = NULL,
                                       symmetrize_spat = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
+    peak_intervals <- peak_intervals %||% peaks
 
     if (is.null(atac_scores) && is.null(atac_diff)) {
         cli_abort("Either 'atac_scores' or 'atac_diff' must be provided.")

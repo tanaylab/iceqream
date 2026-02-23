@@ -5,7 +5,8 @@
 \title{Regress trajectory motifs of a full manifold (multiple trajectories)}
 \usage{
 regress_trajectory_motifs_manifold(
-  peak_intervals,
+  peak_intervals = NULL,
+  peaks = NULL,
   atac_diff_add_mat,
   norm_intervals = NULL,
   max_motif_num = 120,
@@ -48,6 +49,8 @@ regress_trajectory_motifs_manifold(
 }
 \arguments{
 \item{peak_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak.}
+
+\item{peaks}{An alias for \code{peak_intervals}.}
 
 \item{atac_diff_add_mat}{A named list of numeric matrices. Each element represents a trajectory, containing the ATAC difference and additional features. Names are used as trajectory identifiers.}
 
