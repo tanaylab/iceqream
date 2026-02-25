@@ -1,0 +1,107 @@
+{% set name = "iceqream" %}
+{% set version = environ.get("PACKAGE_VERSION", "0.0.5") %}
+
+package:
+  name: r-{{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  skip: true  # [win or osx]
+  rpaths:
+    - lib/R/lib/
+    - lib/
+
+requirements:
+  host:
+    - r-base {{ r_base }}.*
+    - r-cli
+    - r-dplyr
+    - r-ggplot2
+    - r-glmnet
+    - r-matrix
+    - r-matrixstats
+    - r-misha
+    - r-misha.ext
+    - r-prego >=0.0.5
+    - r-purrr
+    - r-plyr
+    - r-readr
+    - r-tgstat
+    - r-tibble
+    - r-tidyr
+    - r-withr
+    - r-patchwork
+    - r-rlang
+    - bioconductor-complexheatmap
+    - r-zoo
+    - r-glue
+    - r-scales
+    - r-stringi
+    - r-scattermore
+    - r-magrittr
+    - r-ggrastr
+    - r-ggsci
+    - r-ggseqlogo
+    - r-stringr
+    - r-circlize
+    - r-chameleon
+    - r-ggtext
+  run:
+    - r-base {{ r_base }}.*
+    - r-cli
+    - r-dplyr
+    - r-ggplot2
+    - r-glmnet
+    - r-matrix
+    - r-matrixstats
+    - r-misha
+    - r-misha.ext
+    - r-prego >=0.0.5
+    - r-purrr
+    - r-plyr
+    - r-readr
+    - r-tgstat
+    - r-tibble
+    - r-tidyr
+    - r-withr
+    - r-patchwork
+    - r-rlang
+    - bioconductor-complexheatmap
+    - r-zoo
+    - r-glue
+    - r-scales
+    - r-stringi
+    - r-scattermore
+    - r-magrittr
+    - r-ggrastr
+    - r-ggsci
+    - r-ggseqlogo
+    - r-stringr
+    - r-circlize
+    - r-chameleon
+    - r-ggtext
+
+test:
+  commands:
+    - $R -e "library('iceqream')"
+
+about:
+  home: https://github.com/tanaylab/iceqream
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs
+  description: |
+    A package for regressing accessibility from sequences using physical
+    models of TF binding. It models TF effective concentrations as latent
+    variables that activate or repress regulatory elements.
+  dev_url: https://github.com/tanaylab/iceqream
+  doc_url: https://tanaylab.github.io/iceqream/
+
+extra:
+  recipe-maintainers:
+    - aviezerl

@@ -23,5 +23,6 @@
 ^vignettes/articles/iceqream\.R$
 ^\.a5c$
 ^\.claude$
+^conda-recipe$
 ^AGENTS\.md$
 ^dev$
