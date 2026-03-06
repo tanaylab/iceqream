@@ -20,10 +20,8 @@ is appended with suffixes "_early", "_linear", or "_late" to differentiate betwe
 The resulting matrix combines all transformed features.
 }
 \examples{
-# Create a sample matrix
 sample_features <- matrix(rnorm(100), ncol = 5)
-transformed_features <- create_logist_features(sample_features)
-head(transformed_features)
+create_logist_features(sample_features)
 
 }
 \seealso{

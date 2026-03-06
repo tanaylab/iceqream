@@ -157,7 +157,9 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
 
     min_energy <- -7
 
-    validate_misha()
+    if (!is.null(min_tss_distance)) {
+        validate_misha()
+    }
 
     # filter peaks that are too close to TSS
     enhancers_filter <- get_tss_distance_filter(peak_intervals, min_tss_distance)

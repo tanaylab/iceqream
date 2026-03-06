@@ -208,7 +208,7 @@ create_features_to_compute <- function(iq_features, missing_features) {
     interaction_features <- list()
     regular_features <- list()
 
-    for (i in 1:length(iq_features)) {
+    for (i in seq_along(iq_features)) {
         feat <- iq_features[[i]]
         feat_name <- names(iq_features)[i]
 
