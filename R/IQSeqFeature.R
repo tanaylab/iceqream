@@ -133,7 +133,7 @@ create_iq_seq_feature <- function(traj_model, feature_name, compute_func, quanti
     }
 
     # Compute feature values on peak intervals
-    norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(traj_model@peak_intervals, size))
+    norm_sequences <- prego::intervals_to_seq(gintervals.normalize(traj_model@peak_intervals, size))
     feature_values <- compute_func(norm_sequences)
 
     # two-sided quantiles
@@ -400,7 +400,7 @@ create_cg_content_feature <- function(traj_model, quantile = 0.95) {
     environment(compute_cg_content) <- new.env(parent = globalenv())
 
     # Compute feature values on peak intervals
-    norm_sequences <- prego::intervals_to_seq(misha.ext::gintervals.normalize(traj_model@peak_intervals, size))
+    norm_sequences <- prego::intervals_to_seq(gintervals.normalize(traj_model@peak_intervals, size))
     feature_values <- compute_cg_content(norm_sequences)
 
     # Calculate min and max values

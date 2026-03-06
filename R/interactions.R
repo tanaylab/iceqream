@@ -9,11 +9,13 @@ n_interactions <- function(traj_model) {
     ncol(traj_model@interactions)
 }
 
-create_specifc_terms <- function(energies, terms, scale = 1) {
+create_specific_terms <- function(energies, terms, scale = 1) {
     term1_matrix <- energies[, terms$term1]
     term2_matrix <- energies[, terms$term2]
     inter <- term1_matrix * term2_matrix
-    inter <- t(t(inter) / apply(inter, 2, max, na.rm = TRUE))
+    max_vals <- apply(inter, 2, max, na.rm = TRUE)
+    max_vals[max_vals == 0] <- 1
+    inter <- t(t(inter) / max_vals)
     inter <- apply(inter, 2, norm01) * scale
     colnames(inter) <- terms$variable
     return(inter)
@@ -22,7 +24,9 @@ create_specifc_terms <- function(energies, terms, scale = 1) {
 create_features_terms <- function(energies, features, data, scale = 1) {
     interactions <- purrr::map_dfc(features, ~ {
         inter <- energies[, setdiff(colnames(energies), .x), drop = FALSE] * data[, .x]
-        inter <- t(t(inter) / apply(inter, 2, max, na.rm = TRUE))
+        max_vals <- apply(inter, 2, max, na.rm = TRUE)
+        max_vals[max_vals == 0] <- 1
+        inter <- t(t(inter) / max_vals)
         colnames(inter) <- paste0(.x, ":", colnames(inter))
         inter
     })
@@ -77,10 +81,11 @@ create_interaction_terms <- function(energies, motif_feats = NULL, add_feats = N
 }
 
 get_significant_interactions <- function(
-    energies, y, interaction_threshold, max_motif_n = NULL, max_add_n = NULL,
-    max_n = NULL,
-    additional_features = NULL, lambda = 1e-5, alpha = 1, seed = 60427,
-    ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), idxs = NULL, only_sig_motifs = FALSE) {
+  energies, y, interaction_threshold, max_motif_n = NULL, max_add_n = NULL,
+  max_n = NULL,
+  additional_features = NULL, lambda = 1e-5, alpha = 1, seed = 60427,
+  ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), idxs = NULL, only_sig_motifs = FALSE
+) {
     if (is.null(idxs)) {
         idxs <- seq_len(nrow(energies))
     }
@@ -228,112 +233,3 @@ remove_interactions <- function(traj_model) {
     return(traj_model)
 }
 
-add_interactions_multi_traj <- function(mm, add_to_full = TRUE, max_motif_n = 30, max_inter_n = max_motif_n * 10, max_add_n = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA")) {
-    if (add_to_full) {
-        models <- mm@models_full
-    } else {
-        models <- mm@models
-    }
-    energies <- mm@models_full[[1]]@normalized_energies
-    y_mat <- purrr::map(models, ~ .x@diff_score) %>%
-        do.call(cbind, .) %>%
-        as.matrix()
-    train_idxs <- which(mm@models_full[[1]]@type == "train")
-
-    select_top <- function(mat, n) {
-        n <- min(n, ncol(mat))
-        cm <- tgs_cor(mat[train_idxs, , drop = FALSE], y_mat[train_idxs, , drop = FALSE])
-        chosen <- apply(abs(cm), 2, function(x) names(sort(x, decreasing = TRUE)[1:n]))
-        return(chosen)
-    }
-
-    max_motif_n <- max_motif_n %||% ncol(energies)
-    chosen <- select_top(energies, max_motif_n)
-    cli::cli_alert_info("{.val {nrow(chosen)}} motifs selected for interactions in each model.")
-
-    if (has_additional_features(mm@models_full[[1]])) {
-        additional_features <- as.matrix(mm@models_full[[1]]@additional_features)
-        additional_features <- additional_features[, setdiff(colnames(additional_features), ignore_feats)]
-        max_add_n <- max_add_n %||% ncol(additional_features)
-        chosen_add <- select_top(additional_features, max_add_n)
-        cli::cli_alert_info("{.val {nrow(chosen_add)}} additional features selected for interactions in each model.")
-    } else {
-        additional_features <- NULL
-        chosen_add <- NULL
-    }
-
-    cli::cli_alert("Creating interactions between motifs.")
-
-    traj_inter <- purrr::map(names(models), ~ {
-        cli::cli_alert_info("Creating interactions for model {.val {.x}}.")
-        motifs <- chosen[, .x]
-        create_features_terms(energies[, motifs], motifs, energies[, motifs])
-    })
-
-    cli::cli_alert_info("{.val {ncol(traj_inter[[1]])}} interactions created between motifs.")
-
-    if (!is.null(additional_features)) {
-        cli::cli_alert("Creating interactions between additional features and motifs.")
-        traj_inter_add <- purrr::map(names(models), ~ {
-            cli::cli_alert_info("Creating interactions for model {.val {.x}}.")
-            motifs <- chosen[, .x]
-            add_feats <- chosen_add[, .x]
-            create_features_terms(energies[, motifs], add_feats, additional_features)
-        })
-
-        cli::cli_alert_info("{.val {ncol(traj_inter_add[[1]])}} interactions created between additional features and motifs.")
-        traj_inter <- purrr::map2(traj_inter, traj_inter_add, ~ cbind(.x, .y))
-    }
-
-    if (!is.null(max_inter_n)) {
-        cli::cli_alert("Selecting top interactions based on correlation with the signal.")
-        traj_inter <- purrr::imap(traj_inter, ~ {
-            n <- min(max_inter_n, ncol(.x))
-            cm <- tgs_cor(.x[train_idxs, , drop = FALSE], y_mat[train_idxs, .y, drop = FALSE])[, 1]
-            chosen <- names(sort(abs(cm), decreasing = TRUE)[1:n])
-            .x[, chosen]
-        })
-        names(traj_inter) <- names(models)
-
-        cli::cli_alert_info("{.val {ncol(traj_inter[[1]])}} interactions selected based on correlation with the signal.")
-    }
-
-    models_inter <- purrr::imap(models, ~ {
-        cli::cli_h3("Adding interactions to model {.val {.y}}.")
-        add_interactions(.x, interactions = traj_inter[[.y]])
-    })
-
-    if (add_to_full) {
-        mm@models_full <- models_inter
-    } else {
-        mm@models <- models_inter
-    }
-
-    stats_df <- purrr::imap_dfr(models_inter, ~ {
-        tibble(
-            model = .y,
-            r2_all = .x@params$stats$r2_all,
-            r2_train = .x@params$stats$r2_train,
-            r2_test = .x@params$stats$r2_test,
-            n_motifs = ncol(.x@normalized_energies),
-            n_features = ncol(.x@model_features),
-            type = "interactions"
-        )
-    })
-
-    stats_no_inter <- purrr::imap_dfr(models, ~ {
-        tibble(
-            model = .y,
-            r2_all = .x@params$stats$r2_all,
-            r2_train = .x@params$stats$r2_train,
-            r2_test = .x@params$stats$r2_test,
-            n_features = ncol(.x@model_features),
-            n_motifs = ncol(.x@normalized_energies),
-            type = "no interactions"
-        )
-    })
-
-    mm@stats <- dplyr::bind_rows(stats_df, stats_no_inter, mm@stats)
-
-    return(mm)
-}

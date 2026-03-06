@@ -72,18 +72,19 @@ compute_partial_response <- function(traj_model, vars = NULL, lambda = 1e-5, rev
         f2v <- f2v %>% filter(variable %in% vars)
     }
 
-    pr <- plyr::dlply(f2v, "variable", function(x) {
-        if (reverse) {
-            variables <- f2v_all %>%
-                filter(feature != x$feature) %>%
-                pull(feature)
-        } else {
-            variables <- x$feature
-        }
-        feats <- traj_model@model_features[, variables, drop = FALSE]
+    pr <- split(f2v, f2v$variable) %>%
+        purrr::map(function(x) {
+            if (reverse) {
+                variables <- f2v_all %>%
+                    filter(feature != x$feature) %>%
+                    pull(feature)
+            } else {
+                variables <- x$feature
+            }
+            feats <- traj_model@model_features[, variables, drop = FALSE]
 
-        (feats %*% glmnet::coef.glmnet(traj_model@model, s = lambda)[variables, , drop = FALSE])[, 1]
-    }) %>% do.call(cbind, .)
+            (feats %*% glmnet::coef.glmnet(traj_model@model, s = lambda)[variables, , drop = FALSE])[, 1]
+        }) %>% do.call(cbind, .)
 
     return(as.data.frame(pr))
 }

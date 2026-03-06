@@ -231,7 +231,7 @@ traj_model_interactions_to_iq_feature_list <- function(traj_model) {
     scale <- traj_model@params$interaction_scale %||% 1
 
     # Process each interaction variable
-    for (i in 1:nrow(f2v_inter)) {
+    for (i in seq_len(nrow(f2v_inter))) {
         var_row <- f2v_inter[i, ]
         var_name <- var_row$variable
 

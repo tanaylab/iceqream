@@ -11,11 +11,8 @@
 #' @return A numeric vector with values normalized to the 0-1 range. If `x` is a matrix, the function returns a matrix with columns normalized to the 0-1 range.
 #'
 #' @examples
-#' # Generate random values
 #' x <- rnorm(100)
-#' range(x)
 #' normed_x <- norm01(x)
-#' range(normed_x) # This should show values between 0 and 1
 #'
 #' @export
 norm01 <- function(x) {
@@ -46,8 +43,6 @@ norm01 <- function(x) {
 #' x <- rnorm(100)
 #' normed_x <- norm0q(x)
 #'
-#' range(normed_x) # This should show values between 0 and 1
-#'
 #' @export
 norm0q <- function(x, quant = 0.99) {
     x <- x - min(x, na.rm = TRUE)
@@ -73,13 +68,8 @@ norm0q <- function(x, quant = 0.99) {
 #' on the scale factors from `orig_x`.
 #'
 #' @examples
-#' # Generate random values and normalize
 #' orig_x <- rnorm(100)
-#' normed_x <- norm01(orig_x)
-#' # Rescale normalized values back to original range
-#' rescaled_x <- rescale(normed_x, orig_x)
-#' range(rescaled_x) # This should closely match the range of orig_x
-#' range(orig_x)
+#' rescaled_x <- rescale(norm01(orig_x), orig_x)
 #'
 #' @export
 rescale <- function(x, orig_x) {
@@ -89,7 +79,6 @@ rescale <- function(x, orig_x) {
     x <- x + norm_factors[1]
     return(x)
 }
-
 
 
 #' Normalize Energy Values of a Vector
@@ -123,37 +112,14 @@ norm_energy <- function(x, min_energy = -7, q = 1) {
     return(y)
 }
 
-norm_energy_dataset_old <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
-    dataset_x <- exp(1)^dataset_x
-    max_x <- quantile(dataset_x, q, na.rm = TRUE)
-    x <- exp(1)^x
-    y <- log2(x / max_x)
-    y[y > 0] <- 0
-    y[y < min_energy] <- min_energy
-    y <- y - min_energy
-
-    # y <- norm01(y) * norm_energy_max
-    # Process dataset_x in the same way
-    dataset_y <- log2(dataset_x / max_x)
-    dataset_y[dataset_y > 0] <- 0
-    dataset_y[dataset_y < min_energy] <- min_energy
-    dataset_y <- dataset_y - min_energy
-
-    # Calculate min and max of dataset_y for scaling
-    min_dataset_y <- min(dataset_y, na.rm = TRUE)
-    max_dataset_y <- max(dataset_y, na.rm = TRUE)
-
-    # Ensure y is not less than min_dataset_y
-    y <- pmax(y, min_dataset_y)
-
-    # Scale y using both min and max of dataset_y, ensuring non-negative output
-    y <- (y - min_dataset_y) / (max_dataset_y - min_dataset_y) * norm_energy_max
-
-    # Ensure output is non-negative (in case of numerical precision issues)
-    y <- pmax(y, 0)
-    return(y)
-}
-
+#' Normalize energy values using a reference dataset
+#' @param x Numeric vector of energy values to normalize
+#' @param dataset_x Numeric vector of reference energy values
+#' @param min_energy Minimum energy value (default: -7)
+#' @param q Quantile for normalization (default: 1)
+#' @param norm_energy_max Maximum normalized energy value (default: 10)
+#' @return Normalized energy values
+#' @export
 norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
     # Convert input from natural log to log2
     x_log2 <- x / log(2)
@@ -179,26 +145,6 @@ norm_energy_dataset <- function(x, dataset_x, min_energy = -7, q = 1, norm_energ
 }
 
 
-
-norm_energy_matrix_old <- function(x, dataset_x, min_energy = -7, q = 1, norm_energy_max = 10) {
-    not_in_x <- colnames(dataset_x)[!(colnames(dataset_x) %in% colnames(x))]
-    if (length(not_in_x) > 0) {
-        cli_abort("The following columns are missing in the input matrix: {.val {not_in_x}}")
-    }
-    dataset_x <- dataset_x[, colnames(x)]
-    dataset_x <- exp(1)^dataset_x
-    max_x <- matrixStats::colQuantiles(dataset_x, probs = q, na.rm = TRUE)
-    x <- exp(1)^x
-    y <- log2(t(t(x) / max_x))
-    y[y > 0] <- 0
-    y[y < min_energy] <- min_energy
-    y <- y - min_energy
-
-    y <- norm01(y) * norm_energy_max
-    colnames(y) <- colnames(x)
-    return(y)
-}
-
 #' Normalize Energy Matrix
 #'
 #' This function normalizes an energy matrix by applying logarithmic transformation and scaling.
@@ -212,9 +158,8 @@ norm_energy_matrix_old <- function(x, dataset_x, min_energy = -7, q = 1, norm_en
 #' @return A normalized energy matrix with the same dimensions as the input matrix.
 #'
 #' @examples
-#' # Example usage:
 #' data <- matrix(rnorm(100), nrow = 10)
-#' normalized_data <- norm_energy_matrix(data, data, min_energy = -7, q = 1, norm_energy_max = 10)
+#' norm_energy_matrix(data, data)
 #'
 #' @export
 norm_energy_matrix <- function(x, dataset_x = x, min_energy = -7, q = 1, norm_energy_max = 10) {
@@ -335,42 +280,12 @@ normalize_with_db_quantiles <- function(motif_energies, db_quantiles, energy_nor
 #'
 #' @examples
 #' x_vals <- seq(0, 10, by = 0.1)
-#'
-#' # Calculate the features for each scenario
-#' features_low_energy <- logist(x_vals, x_0 = 0, L = 2, k = 0.5) - 1
-#' features_high_energy <- logist(x_vals, x_0 = 10, L = 2, k = 0.5)
-#' features_sigmoid <- logist(x_vals - 5, x_0 = 0, L = 1, k = 1)
-#' features_higher_energy <- logist(x_vals, x_0 = 10, L = 2, k = 1)
-#' features_early2 <- logist(x_vals, x_0 = 0, L = 2, k = 1) - 1
-#'
-#' # Base plot setup
-#' plot(x_vals, features_low_energy * 10,
-#'     type = "l", col = "blue",
-#'     main = "Variations of the Logistic Function",
-#'     xlab = "x", ylab = "y", ylim = c(0, 10), lwd = 2
-#' )
-#'
-#' # Adding other variations
-#' lines(x_vals, features_high_energy * 10, col = "orange", lwd = 2)
-#' lines(x_vals, features_sigmoid * 10, col = "purple", lwd = 2)
-#' lines(x_vals, features_higher_energy * 10, col = "brown", lwd = 2)
-#' lines(x_vals, features_early2 * 10, col = "green", lwd = 2)
-#' lines(x_vals, x_vals, col = "black", lwd = 2, lty = 2)
-#'
-#' legend("bottomright",
-#'     legend = c("Low Energy", "High Energy", "Sigmoid", "Higher Energy", "Early 2", "Linear"),
-#'     col = c("blue", "orange", "purple", "brown", "green", "black"),
-#'     lty = 1,
-#'     lwd = 2
-#' )
+#' logist(x_vals, x_0 = 0, L = 2, k = 0.5)
 #'
 #' @export
 logist <- function(x, x_0 = 0, L = 1, k = 1) {
     L / (1 + exp(-k * (x - x_0)))
 }
-
-
-
 
 
 #' Create Logistic Features
@@ -388,10 +303,8 @@ logist <- function(x, x_0 = 0, L = 1, k = 1) {
 #' @seealso \code{\link{logist}} for the logistic transformation function.
 #'
 #' @examples
-#' # Create a sample matrix
 #' sample_features <- matrix(rnorm(100), ncol = 5)
-#' transformed_features <- create_logist_features(sample_features)
-#' head(transformed_features)
+#' create_logist_features(sample_features)
 #'
 #' @export
 create_logist_features <- function(features) {
@@ -422,6 +335,54 @@ create_logist_features <- function(features) {
     features <- features[, order(colnames(features))]
 
     return(features)
+}
+
+#' Homogenize a list of PSSM models
+#'
+#' This function adjusts each PSSM model in the input list so that the GC content is not higher
+#' than the AT content. If a model's GC content is higher than its AT content, the function applies
+#' a reverse complement to the model using the prego pssm_rc function.
+#'
+#' @param models A list of PSSM models. Each model should be a list with a pssm element, which
+#'               is a data frame containing columns 'A', 'C', 'G', 'T', and 'pos'.
+#' @return A list of homogenized PSSM models.
+#'
+#' @examples
+#' # Create simulated data
+#' pssm1 <- data.frame(
+#'     pos = 1:4,
+#'     A = c(0.1, 0.2, 0.3, 0.4),
+#'     C = c(0.3, 0.3, 0.2, 0.1),
+#'     G = c(0.3, 0.3, 0.3, 0.3),
+#'     T = c(0.3, 0.2, 0.2, 0.2)
+#' )
+#' pssm2 <- data.frame(
+#'     pos = 1:4,
+#'     A = c(0.1, 0.2, 0.3, 0.4),
+#'     C = c(0.1, 0.1, 0.1, 0.1),
+#'     G = c(0.2, 0.2, 0.2, 0.2),
+#'     T = c(0.6, 0.5, 0.4, 0.3)
+#' )
+#'
+#' models <- list(list(pssm = pssm1), list(pssm = pssm2))
+#'
+#' # Homogenize the models
+#' homogenized_models <- homogenize_pssm_models(models)
+#'
+#' @export
+homogenize_pssm_models <- function(models) {
+    models <- models %>%
+        purrr::map(homogenize_model)
+
+    return(models)
+}
+
+homogenize_model <- function(model) {
+    # if T is higher than A reverse complement the model
+    if (sum(model$pssm$T) > sum(model$pssm$A)) {
+        model$pssm <- prego::pssm_rc(model$pssm)
+    }
+    return(model)
 }
 
 inverse_logist_by_type <- function(y, type) {

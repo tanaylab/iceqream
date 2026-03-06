@@ -224,7 +224,6 @@ plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = past
 }
 
 
-
 #' Plot a report of trajectory motifs
 #'
 #' @param traj_model Trajectory model object. Please run \code{regress_trajectory_motifs} first.
@@ -366,8 +365,8 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
         }
         cli_alert_info("Saving plot...")
         dev(filename, width = width, height = height, ...)
+        on.exit(dev.off(), add = TRUE)
         print(p)
-        dev.off()
         cli_alert_success("Plot saved to {.file {filename}}")
         invisible(p)
     } else {
@@ -456,14 +455,13 @@ plot_traj_model_clusters_report <- function(traj_model, dir, k = 10, spatial_fre
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 
     png(file.path(dir, "heatmap.png"), width = 2000, height = 1000)
+    on.exit(dev.off(), add = TRUE)
     if (length(traj_model@features_r2) > 0) {
         ha <- ComplexHeatmap::rowAnnotation(r2 = ComplexHeatmap::anno_points(traj_model@features_r2[rownames(cm)]), width = grid::unit(3, "cm"))
         hm <- ComplexHeatmap::draw(hm + ha, heatmap_legend_side = "left")
     } else {
         hm <- ComplexHeatmap::draw(hm, heatmap_legend_side = "left")
     }
-
-    dev.off()
 
     clust_df <- ComplexHeatmap::row_order(hm) %>%
         purrr::imap_dfr(~ tibble(ord = .x, clust = .y)) %>%
