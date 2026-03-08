@@ -149,10 +149,14 @@ extract_traj_model_sequences <- function(traj_model, peak_intervals) {
 calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp", sequences = NULL, norm_sequences = NULL, bidirect = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
 
-    if (is.null(sequences) || is.null(norm_sequences)) {
+    if (is.null(sequences) && is.null(norm_sequences)) {
         seqs <- extract_traj_model_sequences(traj_model, peak_intervals)
         sequences <- seqs$sequences
         norm_sequences <- seqs$norm_sequences
+    } else if (!is.null(sequences) && is.null(norm_sequences)) {
+        cli_abort("If sequences are provided, norm_sequences should also be provided.")
+    } else if (is.null(sequences) && !is.null(norm_sequences)) {
+        cli_abort("If norm_sequences are provided, sequences should also be provided.")
     }
 
     cli_alert_info("Computing motif energies for {.val {nrow(peak_intervals)}} intervals and {.val {nrow(traj_model@normalization_intervals)}} normalization intervals")
