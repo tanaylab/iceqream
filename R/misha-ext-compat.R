@@ -8,7 +8,6 @@ intervs_to_mat <- function(intervs) {
     # Usually gextract returns chrom, start, end, intervalID as first 4 columns
     # We drop them and convert the rest to a matrix
     mat <- as.matrix(intervs[, -(1:4), drop = FALSE])
-    rownames(mat) <- NULL
     return(mat)
 }
 

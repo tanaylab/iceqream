@@ -455,7 +455,7 @@ plot_traj_model_multi_clust <- function(traj_models, clust_map, prego_distilled,
         if (nrow(x) > 1) {
             cli::cli_alert("Plotting cluster {.val {x$clust_name[1]}}, intra_cor = {.val {x$intra_cor[1]}}, n = {.val {x$n[1]}}")
             png(file.path(out_dir, paste0(x$clust_name[1], ".cor_", round(x$intra_cor[1], digits = 3), ".n_", x$n[1], ".png")), width = 500, height = 150 * nrow(x))
-            on.exit(dev.off(), add = TRUE)
+
             p <- clust_map %>%
                 filter(clust == i) %>%
                 as.data.frame() %>%
@@ -473,6 +473,7 @@ plot_traj_model_multi_clust <- function(traj_models, clust_map, prego_distilled,
                 theme = theme(plot.title = element_text(size = 10))
             )
             print(p)
+            dev.off()
         }
     }
 }
