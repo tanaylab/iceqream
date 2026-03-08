@@ -83,12 +83,13 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 
     if (!is.null(peaks_size)) {
         cli::cli_alert("Normalizing peaks to {.val {peaks_size}}bp")
-        peaks <- misha.ext::gintervals.normalize(peaks, peaks_size)
+        peaks <- gintervals.normalize(peaks, peaks_size)
     }
 
-    if (nrow(peaks) != nrow(gintervals.canonic(peaks))) {
+    peaks_canonic <- gintervals.canonic(peaks)
+    if (nrow(peaks) != nrow(peaks_canonic)) {
         cli::cli_alert_warning("There are overlapping peaks. Removing duplicates.")
-        peaks <- gintervals.canonic(peaks)
+        peaks <- peaks_canonic
         cli::cli_alert_info("# Peaks after removing duplicates: {.val {nrow(peaks)}}")
     }
     return(peaks)
@@ -169,6 +170,7 @@ load_peaks <- function(peaks, peaks_size = NULL) {
 #'
 #' @export
 preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peak_intervals = NULL, peaks = NULL, anchor_cell_type = NULL, figures_dir = NULL, peaks_size = 500, binsize = 20, overwrite_tracks = FALSE, overwrite_marginal = FALSE, window_size = 2e4, minimal_quantile = 0.1, const_threshold = -16, const_norm_quant = 1, const_scaling_quant = 1, const_quantile = 0.9, prob1_thresh = NULL, add_tss_dist = TRUE, tss_intervals = "intervs.global.tss", proximal_atac_window_size = 2e4) {
+    validate_misha()
     peaks <- peak_intervals %||% peaks
     track_prefix <- project_name
 
@@ -209,11 +211,12 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peak_
 
     cli::cli_alert("Loading ATAC data")
     purrr::walk2(tracks, ct_names, ~ gvtrack.create(.y, .x, func = "sum"))
+    on.exit(purrr::walk(ct_names, gvtrack.rm), add = TRUE)
     atac_data <- gextract(ct_names, iterator = peaks, intervals = peaks) %>%
         arrange(intervalID) %>%
         select(-intervalID)
 
-    atac_mat <- misha.ext::intervs_to_mat(atac_data)
+    atac_mat <- intervs_to_mat(atac_data)
     atac_mat[is.na(atac_mat)] <- 0
 
     cli::cli_alert("Normalizing regional effect using a punctured window of {.val {window_size}}bp. Minimal quantile: {.val {minimal_quantile}}")
@@ -238,11 +241,11 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peak_
 
     prob1_thresh <- prob1_thresh %||% quantile(norm_mat_const[peaks$const, ], const_quantile)
 
-    norm_mat_p <- normalize_to_prob(peaks, norm_mat_const, prob1_thresh = NULL, const_quantile = const_quantile)
+    norm_mat_p <- normalize_to_prob(peaks, norm_mat_const, prob1_thresh = prob1_thresh, const_quantile = const_quantile)
 
     if (add_tss_dist) {
         peaks <- peaks %>%
-            misha.ext::gintervals.neighbors1(tss_intervals) %>%
+            gintervals.neighbors(tss_intervals, maxneighbors = 1) %>%
             select(chrom:const, tss_dist = dist)
     }
 
@@ -329,11 +332,13 @@ proximal_atac_punctured <- function(tracks, intervals, window_size = 2e4) {
     vtracks <- paste0("vt", seq_along(tracks))
     vtracks_prox <- paste0("vt_prox", seq_along(tracks))
     purrr::walk2(vtracks, tracks, ~ gvtrack.create(.x, .y, func = "sum"))
+    on.exit(purrr::walk(vtracks, gvtrack.rm), add = TRUE)
     purrr::walk2(vtracks_prox, tracks, ~ {
         gvtrack.create(.x, .y, func = "sum")
         gvtrack.iterator(.x, sshift = -window_size / 2, eshift = window_size / 2)
     })
-    centers <- misha.ext::gintervals.centers(intervals)
+    on.exit(purrr::walk(vtracks_prox, gvtrack.rm), add = TRUE)
+    centers <- gintervals.centers(intervals)
 
     expr_intervs <- glue::glue("psum({tracks}, na.rm=TRUE)", tracks = paste(vtracks, collapse = ", "))
     expr_prox <- glue::glue("psum({vtracks_prox}, na.rm=TRUE)", vtracks_prox = paste(vtracks_prox, collapse = ", "))
@@ -342,22 +347,6 @@ proximal_atac_punctured <- function(tracks, intervals, window_size = 2e4) {
         arrange(intervalID) %>%
         pull(punc)
     return(res)
-}
-
-compute_spatial_ratio <- function(peaks, marginal_track, ext = 1e3) {
-    gvtrack.create("marginal", marginal_track, func = "sum")
-    peaks_size <- peaks$end[1] - peaks$start[1]
-    gvtrack.iterator("marginal", sshift = -peaks_size, eshift = peaks_size)
-    gvtrack.create("marginal_ext", marginal_track, func = "sum")
-    gvtrack.iterator("marginal_ext", sshift = -ext, eshift = ext)
-    centers <- misha.ext::gintervals.centers(peaks)
-    spat_ratio_df <- gextract("marginal / marginal_ext",
-        intervals = centers, iterator = centers,
-        colnames = "spatial_ratio"
-    ) %>%
-        arrange(intervalID) %>%
-        select(-intervalID)
-    return(spat_ratio_df$spatial_ratio)
 }
 
 #' Generate and save normalization visualization plots
@@ -528,7 +517,7 @@ plot_cell_type_normalization_scatter <- function(obj, cell_type1, cell_type2, pe
 
 plot_cell_type_scatter <- function(mat, anchor_cell_type, const_peaks = NULL, filename = NULL, width = NULL, height = NULL, ylab = "ATAC signal (log2)", prob1_thresh = NULL) {
     p <- mat %>%
-        misha.ext::mat_to_intervs() %>%
+        mat_to_intervs() %>%
         mutate(const = ifelse(const_peaks, "const", "variable")) %>%
         gather("type", "val", -(chrom:end), -!!sym(anchor_cell_type), -const) %>%
         ggplot(aes(x = !!sym(anchor_cell_type), y = val, color = const)) +
@@ -604,10 +593,12 @@ plot_cell_type_scatter <- function(mat, anchor_cell_type, const_peaks = NULL, fi
 #' @export
 normalize_regional <- function(peaks, mat, marginal_track, window_size = 2e4, minimal_quantile = 0.1) {
     gvtrack.create("marginal", marginal_track, func = "sum")
+    on.exit(gvtrack.rm("marginal"), add = TRUE)
     gvtrack.create("marginal_20k", marginal_track, func = "sum")
+    on.exit(gvtrack.rm("marginal_20k"), add = TRUE)
     gvtrack.iterator("marginal_20k", sshift = -window_size / 2, eshift = window_size / 2)
 
-    peaks_metadata <- misha.ext::gextract.left_join(
+    peaks_metadata <- gextract.left_join(
         c("ifelse(is.na(marginal), 0, marginal)", "ifelse(is.na(marginal_20k), 0, marginal_20k)"),
         colnames = c("marginal", "marginal_20k"),
         intervals = peaks,

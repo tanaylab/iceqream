@@ -30,6 +30,34 @@ PBM <- setClass(
     contains = "IQFeature"
 )
 
+setValidity("PBM", function(object) {
+    errors <- character()
+    if (nrow(object@pssm) == 0) {
+        errors <- c(errors, "@pssm must have at least one row")
+    }
+    if (ncol(object@pssm) < 4) {
+        errors <- c(errors, "@pssm must have at least 4 columns (A, C, G, T)")
+    }
+    if (length(object@max_energy) != 1) {
+        errors <- c(errors, "@max_energy must be a single numeric value")
+    }
+    if (length(object@min_energy) != 1) {
+        errors <- c(errors, "@min_energy must be a single numeric value")
+    }
+    if (length(object@energy_range) != 2) {
+        errors <- c(errors, "@energy_range must be a numeric vector of length 2")
+    }
+    if (length(object@size) != 1 || (length(object@size) == 1 && object@size < 1)) {
+        errors <- c(errors, "@size must be a single positive numeric value")
+    }
+    if (nrow(object@spat) > 0) {
+        if (!all(c("bin", "spat_factor") %in% colnames(object@spat))) {
+            errors <- c(errors, "@spat must have columns 'bin' and 'spat_factor'")
+        }
+    }
+    if (length(errors) == 0) TRUE else errors
+})
+
 #'
 #' @param object An instance of `PBM`.
 #'
@@ -124,9 +152,10 @@ validate_pbm <- function(pbm) {
 #'
 #' @export
 traj_model_to_pbm_list <- function(
-    traj_model, func = "logSumExp",
-    normalization_intervals = traj_model@normalization_intervals,
-    bits_threshold = NULL) {
+  traj_model, func = "logSumExp",
+  normalization_intervals = traj_model@normalization_intervals,
+  bits_threshold = NULL
+) {
     f2v <- feat_to_variable(traj_model)
     norm_sequences <- prego::intervals_to_seq(normalization_intervals, traj_model@params$peaks_size)
     cli_alert_info("Computing motif energies for {.val {length(traj_model@motif_models)}} motifs on {.val {nrow(normalization_intervals)}} normalization intervals")

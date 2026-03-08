@@ -174,7 +174,6 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
 
     p_dna <- plot_dna(dna_df, diffs_df, base_size, base_family, rasterize, raster_device = raster_device)
     p_logos <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "probability")
-    p_logos_rc <- plot_logos(pbm_list[rev(levels(dna_df$motif))], rc = TRUE, logos_method = "probability")
     p_logos_bits <- plot_logos(pbm_list[rev(levels(dna_df$motif))], logos_method = "bits")
 
     if (is.null(annot_track)) {
@@ -213,6 +212,33 @@ dna_plot_height <- function(n_motifs, dna_height = 0.03) {
     dna_height * n_motifs
 }
 
+#' Internal theme for IQ track plots
+#'
+#' A reusable ggplot2 theme combining theme_classic with common axis/grid/legend
+#' tweaks shared by track-based plot functions (plot_atac, plot_annotation,
+#' plot_atac_ext).
+#'
+#' @param base_size Numeric, base font size. Default: 8.
+#' @param base_family Character, base font family. Default: "ArialMT".
+#' @param legend.position Character, legend position. Default: "right".
+#' @param ... Additional theme elements passed to \code{theme()}.
+#'
+#' @return A list of ggplot2 theme objects.
+#' @noRd
+theme_iq_track <- function(base_size = 8, base_family = "ArialMT", legend.position = "right", ...) {
+    list(
+        theme_classic(base_size = base_size, base_family = base_family),
+        theme(
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            panel.grid = element_blank(),
+            axis.line.x = element_blank(),
+            legend.position = legend.position,
+            ...
+        )
+    )
+}
+
 plot_logos <- function(pbm_list, rc = FALSE, logos_method = "probability") {
     if (rc) {
         pssms <- purrr::map(pbm_list, ~ t(prego::pssm_rc(.x@pssm)))
@@ -238,15 +264,15 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
         filter(pos >= 1, pos <= l + 1) %>%
         ggplot(aes(x = pos, y = atac, color = type, linewidth = type)) +
         geom_hline(yintercept = 0, color = "black") +
-        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = pos, y = 1, yend = 0), size = 0.5, linetype = "dashed", color = "gray") +
-        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = lpos, y = 0, yend = -0.3), size = 0.5) +
-        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), size = 0.5)
+        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = pos, y = 1, yend = 0), linewidth = 0.5, linetype = "dashed", color = "gray") +
+        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = pos, xend = lpos, y = 0, yend = -0.3), linewidth = 0.5) +
+        geom_segment(data = diffs_df, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), linewidth = 0.5)
 
     if (!is.null(annot_intervals)) {
         p <- p +
-            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = pos, xend = pos, y = 1, yend = 0), size = 0.5, color = annot_intervals_color, linetype = "dashed") +
-            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = pos, xend = lpos, y = 0, yend = -0.3), size = 0.5, color = annot_intervals_color) +
-            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), size = 0.5, color = annot_intervals_color)
+            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = pos, xend = pos, y = 1, yend = 0), linewidth = 0.5, color = annot_intervals_color, linetype = "dashed") +
+            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = pos, xend = lpos, y = 0, yend = -0.3), linewidth = 0.5, color = annot_intervals_color) +
+            geom_segment(data = annot_intervals, inherit.aes = FALSE, aes(x = lpos, xend = lpos, y = -0.3, yend = -0.5), linewidth = 0.5, color = annot_intervals_color)
     }
 
     if (rasterize) {
@@ -270,14 +296,7 @@ plot_atac <- function(atac_data, diffs_df, atac_colors, atac_sizes, l, atac_smoo
             # size = 3,
             label = paste("<->", glue::glue("{l}bp"), collapse = "\n")
         ) +
-        theme_classic(base_size = base_size, base_family = base_family) +
-        theme(
-            axis.text.x = element_blank(),
-            axis.ticks.x = element_blank(),
-            panel.grid = element_blank(),
-            axis.line.x = element_blank(),
-            legend.position = "right"
-        ) +
+        theme_iq_track(base_size = base_size, base_family = base_family, legend.position = "right") +
         scale_y_continuous(breaks = c(0, 0.5, 1), limits = c(-0.5, 1)) +
         labs(x = NULL, y = NULL, title = "") +
         scale_x_continuous(expand = c(0, 0)) +
@@ -312,14 +331,7 @@ plot_annotation <- function(annot_data, annot_colors, annot_track_smooth, interv
     p <- p +
         scale_fill_manual(name = "", values = annot_colors) +
         guides(linewidth = "none") +
-        theme_classic(base_size = base_size, base_family = base_family) +
-        theme(
-            axis.text.x = element_blank(),
-            axis.ticks.x = element_blank(),
-            panel.grid = element_blank(),
-            axis.line.x = element_blank(),
-            legend.position = "right"
-        ) +
+        theme_iq_track(base_size = base_size, base_family = base_family, legend.position = "right") +
         labs(x = NULL, y = annot_data$type[1], title = "") +
         scale_x_continuous(expand = c(0, 0)) +
         theme(plot.margin = margin(0, 0, 0, 0))
@@ -330,7 +342,7 @@ plot_annotation <- function(annot_data, annot_colors, annot_track_smooth, interv
 plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smooth, interval, tss_intervals, exon_intervals, base_size, base_family, rasterize, raster_device) {
     ext_interval <- gintervals.normalize(interval, l_ext)
 
-    tss_data <- gintervals.neighbors1(tss_intervals, ext_interval) %>%
+    tss_data <- gintervals.neighbors(tss_intervals, ext_interval, maxneighbors = 1) %>%
         filter(dist == 0) %>%
         mutate(ext_pos = start - start1 + 1) %>%
         filter(ext_pos > 0, ext_pos <= l_ext) %>%
@@ -338,7 +350,7 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
         mutate(geneSymbol = ifelse(strand == 1, paste0(geneSymbol, "->"), paste0("<-", geneSymbol))) %>%
         rename(Gene = geneSymbol)
 
-    exon_data <- gintervals.neighbors1(exon_intervals, ext_interval) %>%
+    exon_data <- gintervals.neighbors(exon_intervals, ext_interval, maxneighbors = 1) %>%
         filter(dist == 0) %>%
         mutate(start = start - start1 + 1) %>%
         mutate(end = end - start1 + 1) %>%
@@ -411,21 +423,12 @@ plot_atac_ext <- function(atac_data, atac_colors, atac_sizes, l_ext, l, atac_smo
 
     p <- p +
         guides(linewidth = "none") +
-        theme_classic(base_size = base_size, base_family = base_family) +
-        theme(
-            axis.text.x = element_blank(),
-            axis.ticks.x = element_blank(),
-            panel.grid = element_blank(),
-            axis.line.x = element_blank(),
-            axis.line.y = element_blank(),
-            legend.position = "none"
-        ) +
+        theme_iq_track(base_size = base_size, base_family = base_family, legend.position = "none", axis.line.y = element_blank()) +
         scale_y_continuous(
             expand = c(0, 0),
             limits = c(-1, 1.6),
             breaks = c(0, 0.5, 1)
         ) +
-        # ylim(0, 1) +
         labs(x = NULL, y = NULL, title = "") +
         scale_x_continuous(expand = c(0, 0)) +
         theme(plot.margin = margin(0, 2, 0, 2))
@@ -485,7 +488,7 @@ plot_dna <- function(dna_df, diffs_df, base_size, base_family, rasterize, raster
                 y = 0.7,
                 yend = length(unique(dna_df$motif)) + 0.3
             ),
-            size = 0.2,
+            linewidth = 0.2,
             linetype = "dashed",
             color = "gray"
         )
@@ -519,8 +522,8 @@ plot_dna <- function(dna_df, diffs_df, base_size, base_family, rasterize, raster
 
 save_plot <- function(p, filename, dev, plot_width, plot_height, ...) {
     dev(filename, width = plot_width, height = plot_height, ...)
+    on.exit(dev.off(), add = TRUE)
     print(p)
-    dev.off()
 }
 
 preprocess_pbm_list <- function(pbm_list, bits_threshold) {
@@ -549,10 +552,6 @@ compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs
 
     if (!is.null(motifs)) {
         motifs <- intersect(motifs, rownames(e_mat))
-        missing <- setdiff(motifs, rownames(e_mat))
-        if (length(missing) > 0) {
-            cli::cli_warn("The following motifs are not present in the PBM models: {.val {missing}}")
-        }
         if (!plot_others) {
             return(list(e_mat = e_mat[motifs, , drop = FALSE], r_mat = r_mat[motifs, , drop = FALSE]))
         }
@@ -607,13 +606,13 @@ prepare_dna_data <- function(dna, max_e, r_mat, e_mat, scale_cex, pbm_list, eps)
                 mutate(pos = as.numeric(pos)),
             by = join_by(pos)
         ) %>%
-        gather("motif", "response", -pos, -nuc, -size, -e) %>%
+        tidyr::pivot_longer(cols = -c(pos, nuc, size, e), names_to = "motif", values_to = "response") %>%
         left_join(
             t(e_mat) %>%
                 as.data.frame() %>%
                 rownames_to_column("pos") %>%
                 mutate(pos = as.numeric(pos)) %>%
-                gather("motif", "energy", -pos),
+                tidyr::pivot_longer(cols = -pos, names_to = "motif", values_to = "energy"),
             by = join_by(pos, motif)
         ) %>%
         mutate(response = ifelse(abs(energy) >= 5, response, 0)) %>%
@@ -684,7 +683,9 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
     interval <- gintervals.normalize(interval, ext_width)
     cli::cli_alert("Preparing ATAC-seq data ({.val {length(atac_names)}} tracks)")
     gvtrack.create("bias", tn5bias_track, func = "sum")
+    on.exit(gvtrack.rm("bias"), add = TRUE)
     purrr::walk2(atac_names, atac_tracks, ~ gvtrack.create(.x, .y, func = "sum"))
+    on.exit(purrr::walk(atac_names, gvtrack.rm), add = TRUE)
 
     if (is.null(tracks_q)) {
         tracks_q <- compute_tracks_q(atac_names, atac_tracks, iterator, norm_q, norm_intervals, tn5bias_track, normalize_tn5bias)
@@ -704,7 +705,7 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
         select(-intervalID) %>%
         mutate(pos = start - orig_interval$start + 1) %>%
         mutate(ext_pos = start - interval$start + 1) %>%
-        gather("type", "atac", -pos, -ext_pos, -chrom, -start, -end) %>%
+        tidyr::pivot_longer(cols = -c(pos, ext_pos, chrom, start, end), names_to = "type", values_to = "atac") %>%
         mutate(atac = ifelse(is.na(atac), 0, atac)) %>%
         left_join(tracks_q, by = "type") %>%
         mutate(atac_n = pmin(1, atac / q)) %>%
@@ -717,12 +718,13 @@ prepare_atac_data <- function(atac_names, atac_tracks, interval, iterator, atac_
 prepare_annot_data <- function(annot_track, annot_track_name, annot_track_iterator, annot_track_smooth, interval) {
     cli::cli_alert("Preparing annotation data ({.val {length(annot_track_name)}} tracks)")
     purrr::walk2(annot_track_name, annot_track, ~ gvtrack.create(.x, .y, func = "sum"))
+    on.exit(purrr::walk(annot_track_name, gvtrack.rm), add = TRUE)
 
     annot_data <- misha::gextract(annot_track_name, gintervals.expand(interval, annot_track_iterator * annot_track_smooth), iterator = annot_track_iterator, colnames = annot_track_name) %>%
         select(-intervalID) %>%
         mutate(pos = start - interval$start + 1) %>%
         mutate(ext_pos = start - interval$start + 1) %>%
-        gather("type", "annot", -pos, -ext_pos, -chrom, -start, -end) %>%
+        tidyr::pivot_longer(cols = -c(pos, ext_pos, chrom, start, end), names_to = "type", values_to = "annot") %>%
         mutate(annot = ifelse(is.na(annot), 0, annot)) %>%
         mutate(type = factor(type, levels = annot_track_name))
 
@@ -752,7 +754,7 @@ compute_annot_intervals_df <- function(annot_intervals, interval, dna_df, width)
         return(NULL)
     }
 
-    annot_intervals <- gintervals.neighbors1(annot_intervals, interval) %>%
+    annot_intervals <- gintervals.neighbors(annot_intervals, interval, maxneighbors = 1) %>%
         filter(dist == 0) %>%
         mutate(pos = start - start1 + 1)
 

@@ -1,6 +1,6 @@
 Package: iceqream
 Title: Interpretable Computational Engine for Quantitative Regression of Enhancer ATAC Motifs
-Version: 0.0.5
+Version: 0.0.6
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il", role = c("aut", "cre")),
     person("Akhiad", "Bercovich", , "akhiad.bercovich@weizmann.ac.il", role = "aut"),
@@ -18,7 +18,6 @@ Imports:
     glmnet,
     Matrix,
     matrixStats,
-    misha.ext,
     methods,
     prego (>= 0.0.5),
     purrr,
@@ -50,7 +49,6 @@ Suggests:
     testthat (>= 3.0.0)
 Remotes: 
     tanaylab/misha,
-    tanaylab/misha.ext,
     tanaylab/prego,
     jokergoo/ComplexHeatmap
 Config/testthat/edition: 3

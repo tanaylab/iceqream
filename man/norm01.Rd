@@ -20,10 +20,7 @@ from each element (translation) and then dividing each element by
 the new maximum value (scaling).
 }
 \examples{
-# Generate random values
 x <- rnorm(100)
-range(x)
 normed_x <- norm01(x)
-range(normed_x) # This should show values between 0 and 1
 
 }

@@ -58,7 +58,7 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals = NULL, peaks = N
             filter(type == "interaction") %>%
             distinct(variable, term1, term2)
         cli::cli_alert_info("Computing {.val {nrow(ftv_inter)}} interaction terms")
-        interactions <- create_specifc_terms(e_test, ftv_inter)
+        interactions <- create_specific_terms(e_test, ftv_inter)
         needed_inters <- colnames(traj_model@interactions)
         interactions <- as.data.frame(interactions)
         if (!is.null(needed_inters)) {
@@ -149,7 +149,7 @@ extract_traj_model_sequences <- function(traj_model, peak_intervals) {
 calc_traj_model_energies <- function(traj_model, peak_intervals = traj_model@peak_intervals, func = "logSumExp", sequences = NULL, norm_sequences = NULL, bidirect = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
 
-    if (is.null(sequences) || is.null(norm_sequences)) {
+    if (is.null(sequences) && is.null(norm_sequences)) {
         seqs <- extract_traj_model_sequences(traj_model, peak_intervals)
         sequences <- seqs$sequences
         norm_sequences <- seqs$norm_sequences
@@ -185,7 +185,7 @@ infer_energies_new <- function(sequences, norm_sequences, motif_list, min_energy
     mdb <- motifs_to_mdb(ml)
 
     all_energies <- prego::extract_pwm(c(sequences, norm_sequences), dataset = mdb, prior = 0.01)
-    energies <- all_energies[1:length(sequences), ]
+    energies <- all_energies[seq_len(length(sequences)), ]
     norm_energies <- all_energies[(length(sequences) + 1):nrow(all_energies), ]
 
     if (is.null(dim(energies))) {

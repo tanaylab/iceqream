@@ -1,3 +1,28 @@
+# iceqream 0.0.6
+
+## Bug fixes
+
+* Fix: `prob1_thresh` parameter in `preprocess_data` was silently ignored due to being passed as NULL instead of the computed value.
+* Fix: `select_motifs_by_correlation` fallback path always returned zero motifs.
+* Fix: `distill_traj_model` selected the weakest motif per cluster instead of the strongest (wrong sort order).
+* Fix: `regress_trajectory_motifs_manifold` modified the wrong object (`mm` instead of `mm_new`), discarding motif model updates.
+* Fix: `iq_regression` applied redundant TSS distance filtering twice (once in outer and inner call).
+* Fix: divide-by-zero in `create_specific_terms` and `create_features_terms` when interaction normalization factors are zero.
+
+## Improvements
+
+* New exported functions: `norm_energy_dataset` and `strip_traj_model`.
+* Migrated deprecated ggplot2 APIs: `size` aesthetic in line geoms replaced with `linewidth`; numeric `legend.position` replaced with `legend.position.inside`.
+* Migrated `tidyr::gather` calls to `tidyr::pivot_longer`.
+* Virtual tracks created during `preprocess_data`, `normalize_regional`, and plotting functions are now cleaned up automatically via `on.exit()`.
+* Graphics devices opened during report generation are now closed reliably via `on.exit()`.
+* S4 validity checks added for `IQFeature`, `PBM`, and `TrajectoryModel` classes.
+* Fixed typo in function name: `create_specifc_terms` renamed to `create_specific_terms`.
+
+## Tests
+
+* Added 127 validation tests covering utility functions, S4 validity, refactored helpers, and API migration correctness (total: 575 tests).
+
 # iceqream 0.0.5
 
 ## Bug fixes

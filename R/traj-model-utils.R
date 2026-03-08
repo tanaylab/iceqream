@@ -49,7 +49,7 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
                     ftv_inter <- feat_to_variable(traj_model, add_types = TRUE) %>%
                         filter(type == "interaction") %>%
                         distinct(variable, term1, term2)
-                    interactions <- create_specifc_terms(cbind(traj_model@normalized_energies, traj_model@additional_features), ftv_inter)
+                    interactions <- create_specific_terms(cbind(traj_model@normalized_energies, traj_model@additional_features), ftv_inter)
                     interactions <- interactions[, colnames(traj_model@interactions), drop = FALSE]
                     interactions <- interactions * interaction_scale_factor
                     traj_model@interactions <- interactions
@@ -113,55 +113,61 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
 
     lambda <- lambda %||% traj_model@params$lambda
 
-    if (relearn_model) {
+    if (relearn_model && !use_cv && family == "binomial" && rescale_pred) {
+        fit_result <- fit_and_predict_model(X_train, y_train, X, traj_model@diff_score, alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+        model <- fit_result$model
+        pred <- fit_result$predicted_diff_score
+    } else {
+        if (relearn_model) {
+            if (family == "binomial") {
+                family_param <- binomial(link = "logit")
+            } else if (family == "gaussian") {
+                family_param <- gaussian()
+            } else {
+                cli_abort("Family must be either 'binomial' or 'gaussian'")
+            }
+
+            if (use_cv) {
+                cv_model <- glmnet::cv.glmnet(X_train, y_train, family = family_param, alpha = traj_model@params$alpha, nfolds = nfolds, seed = traj_model@params$seed)
+                traj_model@params$cv_stats <- list(
+                    lambda.min = cv_model$lambda.min,
+                    lambda.1se = cv_model$lambda.1se,
+                    cvm = cv_model$cvm,
+                    cvsd = cv_model$cvsd,
+                    lambda = cv_model$lambda
+                )
+
+                lambda <- cv_model$lambda.min
+                cli::cli_alert("Using lambda: {.val {lambda}}")
+                model <- glmnet::glmnet(X_train, y_train,
+                    family = family_param,
+                    alpha = traj_model@params$alpha,
+                    lambda = lambda,
+                    seed = traj_model@params$seed
+                )
+                traj_model@params$lambda <- lambda
+            } else {
+                model <- glmnet::glmnet(X_train, y_train, family = family_param, alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+            }
+        } else {
+            model <- traj_model@model
+        }
+
+        model <- strip_glmnet(model)
+
+        # Ensure X is a matrix for prediction
+        X <- as.matrix(X)
+
         if (family == "binomial") {
-            family_param <- binomial(link = "logit")
-        } else if (family == "gaussian") {
-            family_param <- gaussian()
+            pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = lambda))[, 1]
         } else {
-            cli_abort("Family must be either 'binomial' or 'gaussian'")
+            pred <- glmnet::predict.glmnet(model, newx = X, type = "response", s = lambda)[, 1]
         }
 
-        if (use_cv) {
-            cv_model <- glmnet::cv.glmnet(X_train, y_train, family = family_param, alpha = traj_model@params$alpha, nfolds = nfolds, seed = traj_model@params$seed)
-            traj_model@params$cv_stats <- list(
-                lambda.min = cv_model$lambda.min,
-                lambda.1se = cv_model$lambda.1se,
-                cvm = cv_model$cvm,
-                cvsd = cv_model$cvsd,
-                lambda = cv_model$lambda
-            )
-
-            lambda <- cv_model$lambda.min
-            cli::cli_alert("Using lambda: {.val {lambda}}")
-            model <- glmnet::glmnet(X_train, y_train,
-                family = family_param,
-                alpha = traj_model@params$alpha,
-                lambda = lambda,
-                seed = traj_model@params$seed
-            )
-            traj_model@params$lambda <- lambda
-        } else {
-            model <- glmnet::glmnet(X_train, y_train, family = family_param, alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)
+        if (rescale_pred) {
+            pred <- norm01(pred)
+            pred <- rescale(pred, traj_model@diff_score)
         }
-    } else {
-        model <- traj_model@model
-    }
-
-    model <- strip_glmnet(model)
-
-    # Ensure X is a matrix for prediction
-    X <- as.matrix(X)
-
-    if (family == "binomial") {
-        pred <- logist(glmnet::predict.glmnet(model, newx = X, type = "link", s = lambda))[, 1]
-    } else {
-        pred <- glmnet::predict.glmnet(model, newx = X, type = "response", s = lambda)[, 1]
-    }
-
-    if (rescale_pred) {
-        pred <- norm01(pred)
-        pred <- rescale(pred, traj_model@diff_score)
     }
 
     if (verbose) {
@@ -181,56 +187,6 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
 
     return(traj_model)
 }
-
-#' Add motif models to trajectory model
-#'
-#' This function adds specified motif models to a given trajectory model.
-#' It updates the model, motif models, predicted difference score, model features,
-#' coefficients, normalized energies, and features R^2 of the trajectory model.
-#'
-#' @param traj_model The trajectory model object to add motif models to.
-#' @param new_motif_models A named list of motif models to add. Each element should contain a 'pssm' component and optionally a 'spat' component.
-#' @param verbose A logical value indicating whether to display information about the R^2 after adding the motif models. Default is TRUE.
-#'
-#' @return The updated trajectory model object after adding the motif models.
-#'
-#' @export
-add_motif_models_to_traj <- function(traj_model, new_motif_models, verbose = TRUE) {
-    if (!all(purrr::map_lgl(new_motif_models, ~ !is.null(.x$pssm)))) {
-        cli_abort("All motif models must contain a 'pssm' component.")
-    }
-
-    # Check for name conflicts
-    existing_names <- names(traj_model@motif_models)
-    new_names <- names(new_motif_models)
-    if (any(new_names %in% existing_names)) {
-        cli_abort("Motif{?s} {.val {new_names[new_names %in% existing_names]}} already exist{?s} in the trajectory model.")
-    }
-
-    traj_model_new <- traj_model
-
-    traj_model_new_motifs <- traj_model
-    traj_model_new_motifs@motif_models <- new_motif_models
-
-    # infer energies
-    traj_model_new@normalized_energies <- cbind(
-        traj_model_new@normalized_energies,
-        calc_traj_model_energies(traj_model_new_motifs, traj_model@peak_intervals)
-    )
-
-    traj_model_new@motif_models <- c(traj_model@motif_models, new_motif_models)
-
-    # Create new logistic features and update model features
-    X <- traj_model_new@model_features
-    X_new <- create_logist_features(traj_model_new@normalized_energies)
-    X <- cbind(X, X_new[, !colnames(X_new) %in% colnames(X)])
-    traj_model_new@model_features <- X
-
-    traj_model_new <- relearn_traj_model(traj_model_new, verbose = verbose)
-
-    return(traj_model_new)
-}
-
 
 #' Remove motif models from trajectory model
 #'
@@ -569,6 +525,55 @@ has_additional_features <- function(traj_model) {
     return(ncol(traj_model@additional_features) > 0 && nrow(traj_model@additional_features) > 0)
 }
 
+#' Add motif models to trajectory model
+#'
+#' This function adds specified motif models to a given trajectory model.
+#' It updates the model, motif models, predicted difference score, model features,
+#' coefficients, normalized energies, and features R^2 of the trajectory model.
+#'
+#' @param traj_model The trajectory model object to add motif models to.
+#' @param new_motif_models A named list of motif models to add. Each element should contain a 'pssm' component and optionally a 'spat' component.
+#' @param verbose A logical value indicating whether to display information about the R^2 after adding the motif models. Default is TRUE.
+#'
+#' @return The updated trajectory model object after adding the motif models.
+#'
+#' @export
+add_motif_models_to_traj <- function(traj_model, new_motif_models, verbose = TRUE) {
+    if (!all(purrr::map_lgl(new_motif_models, ~ !is.null(.x$pssm)))) {
+        cli_abort("All motif models must contain a 'pssm' component.")
+    }
+
+    # Check for name conflicts
+    existing_names <- names(traj_model@motif_models)
+    new_names <- names(new_motif_models)
+    if (any(new_names %in% existing_names)) {
+        cli_abort("Motif{?s} {.val {new_names[new_names %in% existing_names]}} already exist{?s} in the trajectory model.")
+    }
+
+    traj_model_new <- traj_model
+
+    traj_model_new_motifs <- traj_model
+    traj_model_new_motifs@motif_models <- new_motif_models
+
+    # infer energies
+    traj_model_new@normalized_energies <- cbind(
+        traj_model_new@normalized_energies,
+        calc_traj_model_energies(traj_model_new_motifs, traj_model@peak_intervals)
+    )
+
+    traj_model_new@motif_models <- c(traj_model@motif_models, new_motif_models)
+
+    # Create new logistic features and update model features
+    X <- traj_model_new@model_features
+    X_new <- create_logist_features(traj_model_new@normalized_energies)
+    X <- cbind(X, X_new[, !colnames(X_new) %in% colnames(X)])
+    traj_model_new@model_features <- X
+
+    traj_model_new <- relearn_traj_model(traj_model_new, verbose = verbose)
+
+    return(traj_model_new)
+}
+
 #' Adjust Energy Values in a Trajectory Model
 #'
 #' This function optimizes the energy normalization parameters for each motif in a trajectory model
@@ -763,3 +768,4 @@ adjust_motif_seq_lengths <- function(traj_model, seq_lengths = c(2e3, 1e3, 500, 
 
     return(traj_model_new)
 }
+

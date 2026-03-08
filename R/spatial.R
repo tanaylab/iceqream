@@ -5,7 +5,7 @@ compute_spat_pwm <- function(pssm, intervals = NULL, size = NULL, sequences = NU
         }
 
         if (!is.null(size)) {
-            intervals <- misha.ext::gintervals.normalize(intervals %>% select(any_of(c("chrom", "start", "end", "strand"))), size)
+            intervals <- gintervals.normalize(intervals %>% select(any_of(c("chrom", "start", "end", "strand"))), size)
         }
 
         sequences <- prego::intervals_to_seq(intervals)
@@ -35,48 +35,6 @@ direct_sequences <- function(sequences, pssm, bidi_seqs = sequences) {
     new_sequences <- ifelse(r_pwm > l_pwm, sequences_rc, sequences)
 
     return(new_sequences)
-}
-
-direct_intervals <- function(intervals, pssm, bidi_seqs = NULL) {
-    if (is.null(bidi_seqs)) {
-        bidi_seqs <- prego::intervals_to_seq(intervals)
-    }
-
-    bidi_seqs <- direct_sequences(bidi_seqs, pssm)
-
-    intervals <- intervals %>%
-        mutate(strand = ifelse(bidi_seqs == toupper(bidi_seqs), 1, -1))
-
-    return(intervals)
-}
-
-direct_traj_model <- function(traj_model, size = 500) {
-    max_motifs <- apply(traj_model@normalized_energies, 1, function(x) colnames(traj_model@normalized_energies)[which.max(x)])
-    bidi_seqs <- prego::intervals_to_seq(traj_model@peak_intervals, size)
-
-    middle_point <- round(size / 2)
-    s_l <- substr(bidi_seqs, 1, middle_point)
-    s_r <- substr(bidi_seqs, (middle_point + 1), size)
-
-    l_e <- plyr::llply(traj_model@motif_models, function(x) {
-        prego::compute_pwm(s_l, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = getOption("prego.parallel", TRUE))
-    l_e <- do.call(cbind, l_e)
-    r_e <- plyr::llply(traj_model@motif_models, function(x) {
-        prego::compute_pwm(s_r, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max)
-    }, .parallel = getOption("prego.parallel", TRUE))
-    r_e <- do.call(cbind, r_e)
-    r_ge_l <- r_e > l_e
-
-    ge <- rep(NA, nrow(traj_model@peak_intervals))
-    for (m in colnames(r_ge_l)) {
-        ge[max_motifs == m] <- r_ge_l[max_motifs == m, m]
-    }
-
-    traj_model@peak_intervals <- traj_model@peak_intervals %>%
-        mutate(strand = ifelse(ge, -1, 1))
-
-    return(traj_model)
 }
 
 #' Compute motif directional hits
@@ -140,45 +98,6 @@ compute_motif_pwm_threshold <- function(intervals, pssm, q_thresh = 0.95, diff_s
     return(thresh)
 }
 
-compute_traj_model_directional_hits <- function(traj_model, size, pwm_quantile = 0.999, top_q = 0.1, bottom_q = 0.1, parallel = TRUE) {
-    intervals <- traj_model@peak_intervals
-
-    intervals <- annotate_intervals_diff_score(intervals, traj_model@diff_score, top_q, bottom_q)
-
-    hits <- plyr::llply(names(traj_model@motif_models), function(motif) {
-        pssm <- traj_model@motif_models[[motif]]$pssm
-        cli::cli_alert("Computing directional hits for {.val {motif}}")
-        pwm_threshold <- compute_motif_pwm_threshold(intervals, pssm, diff_score = traj_model@diff_score, q_thresh = pwm_quantile, size = size)
-        cli::cli_alert_info("PWM threshold for {.val {motif}}: {.val {pwm_threshold}}")
-        top <- compute_motif_directional_hits(
-            pssm = pssm,
-            intervals = intervals %>% filter(type == "top"),
-            size = size,
-            pwm_threshold = pwm_threshold
-        )
-        bottom <- compute_motif_directional_hits(
-            pssm = pssm,
-            intervals = intervals %>% filter(type == "bottom"),
-            size = size,
-            pwm_threshold = pwm_threshold
-        )
-
-        colnames(top) <- paste0(colnames(top), ".", motif)
-        colnames(bottom) <- paste0(colnames(bottom), ".", motif)
-        list(
-            top = top,
-            bottom = bottom,
-            threshold = pwm_threshold
-        )
-    }, .parallel = parallel)
-
-    top_mat <- do.call(cbind, lapply(hits, function(x) x$top))
-    bottom_mat <- do.call(cbind, lapply(hits, function(x) x$bottom))
-    thresholds <- sapply(hits, function(x) x$threshold)
-
-    return(list(top = as.matrix(top_mat), bottom = as.matrix(bottom_mat), threshold = thresholds))
-}
-
 
 compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_threshold = 7, sequences = NULL, atac_track = NULL, k4me3_track = NULL, k27me3_track = NULL, k27ac_track = NULL, orient_to_intervals = NULL, align_to_max = TRUE, ...) {
     if (!is.null(orient_to_intervals)) {
@@ -186,7 +105,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             cli_abort("Intervals must be provided when orienting to intervals.")
         }
 
-        intervals <- misha.ext::gintervals.neighbors1(intervals, orient_to_intervals, mindist = 1) %>%
+        intervals <- gintervals.neighbors(intervals, orient_to_intervals, mindist = 1, maxneighbors = 1) %>%
             mutate(strand = ifelse(dist < 0, -1, 1)) %>%
             select(chrom, start, end, strand)
     }
@@ -197,7 +116,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
         }
 
         if (!is.null(size)) {
-            intervals <- misha.ext::gintervals.normalize(intervals, size)
+            intervals <- gintervals.normalize(intervals, size)
         }
 
         sequences <- prego::intervals_to_seq(intervals)
@@ -219,7 +138,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
     n <- nrow(freqs)
     n_hits <- sum(freqs, na.rm = TRUE)
 
-    res <- tibble::tibble(pos = 1:length(spat_freq), freq = spat_freq, n = n, n_hits = n_hits)
+    res <- tibble::tibble(pos = seq_along(spat_freq), freq = spat_freq, n = n, n_hits = n_hits)
 
     if (!is.null(atac_track)) {
         if (is.null(intervals)) {
@@ -238,10 +157,10 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
             max_pwms <- apply(local_pwm_n[pwm_maxs >= pwm_threshold, ], 1, which.max)
             atac_intervals <- atac_intervals %>%
                 mutate(start = start + max_pwms) %>%
-                misha.ext::gintervals.normalize(size) %>%
+                gintervals.normalize(size) %>%
                 select(chrom, start, end)
         } else {
-            atac_intervals <- misha.ext::gintervals.normalize(intervals, size) %>%
+            atac_intervals <- gintervals.normalize(intervals, size) %>%
                 select(chrom, start, end)
         }
 
@@ -284,6 +203,7 @@ compute_pssm_spatial_freq <- function(pssm, intervals = NULL, size = NULL, pwm_t
 calc_track_pos_data <- function(track, intervals, threshold = 7, direction = NULL) {
     withr::local_options(list(gmultitasking = FALSE, gmax.data.size = 1e7))
     gvtrack.create("track", track, "global.percentile.max")
+    on.exit(gvtrack.rm("track"), add = TRUE)
     chip_data <- gextract(c("-log2(1-track)"), iterator = 1, intervals = intervals, colnames = "track") %>%
         arrange(intervalID) %>%
         mutate(pos = start - intervals$start[intervalID] + 1)
@@ -383,69 +303,6 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
     return(spatial_freqs)
 }
 
-compute_epi_features_spatial_dist <- function(traj_model, size, chip_tracks, chip_track_names = chip_tracks, atac_track = NULL, quantiles = c(0.1, 0.9), pwm_threshold = 7, parallel = TRUE) {
-    all_intervals <- traj_model@peak_intervals
-    all_intervals <- misha.ext::gintervals.normalize(all_intervals, size)
-
-
-    # traj_model <- direct_traj_model(traj_model)
-
-    spatial_d <- plyr::ldply(names(traj_model@motif_models), function(motif) {
-        q_thresh <- quantile(traj_model@normalized_energies[, motif], quantiles)
-        intervals <- all_intervals %>%
-            mutate(motif = traj_model@normalized_energies[, motif]) %>%
-            filter(motif <= q_thresh[1] | motif >= q_thresh[2]) %>%
-            mutate(type = ifelse(motif <= q_thresh[1], "bottom", "top"))
-        # intervals <- direct_intervals(intervals, traj_model@motif_models[[motif]]$pssm, bidi_seqs = NULL)
-        intervals$strand <- 1
-        local_pwm_n <- compute_spat_pwm(traj_model@motif_models[[motif]]$pssm, intervals, size, bidirect = TRUE)
-
-        # pwm_maxs <- apply(local_pwm_n, 1, max, na.rm = TRUE)
-        # # atac_intervals <- intervals[pwm_maxs >= pwm_threshold, ]
-
-        # # align the intervals to the maximum in every sequence
-        # max_pwms <- apply(local_pwm_n, 1, which.max)
-        # intervals_aligned <- intervals %>%
-        #     mutate(start = start + max_pwms) %>%
-        #     misha.ext::gintervals.normalize(size) %>%
-        #     select(chrom, start, end, type)
-
-        res <- purrr::map2_dfr(chip_tracks, chip_track_names, ~ {
-            bind_rows(
-                tibble::tibble(type = "top", pos = 1:size, value = calc_track_pos_data(.x, intervals %>% filter(type == "top"), direction = intervals$strand[intervals$type == "top"]), motif = motif, track = .y),
-                tibble::tibble(type = "bottom", pos = 1:size, value = calc_track_pos_data(.x, intervals %>% filter(type == "bottom"), direction = intervals$strand[intervals$type == "bottom"]), motif = motif, track = .y)
-            )
-        })
-    }, .parallel = parallel)
-
-    spatial_d <- spatial_d %>%
-        spread(track, value)
-
-    return(spatial_d)
-}
-
-plot_epi_spatial_freq <- function(spatial_freqs, motif, mark, smooth = 10) {
-    spatial_freqs <- spatial_freqs %>%
-        filter(motif == !!motif)
-
-    spatial_freqs$mark <- spatial_freqs[, mark]
-
-    spatial_freqs <- spatial_freqs %>%
-        mutate(p = zoo::rollmean(mark, smooth, fill = NA, align = "center"))
-
-
-    p <- ggplot(spatial_freqs, aes(x = pos, y = p, color = type)) +
-        geom_line() +
-        scale_color_manual(name = "", values = c(top = "red", bottom = "blue")) +
-        theme_classic() +
-        theme(legend.position = "none") +
-        xlab("Position") +
-        ylab("Frequency") +
-        ggtitle(mark)
-
-    return(p)
-}
-
 #' Plot motif spatial frequency
 #'
 #' This function plots the spatial frequency of a given motif across genomic positions.
@@ -520,50 +377,4 @@ plot_motif_spatial_freq <- function(spatial_freqs, motif, smooth = 10, plot_atac
     #     scale_color_manual(name = "", values = c(top = "red", bottom = "blue"))
 
     return(p)
-}
-
-plot_all_motif_spatial_freq <- function(traj_model, size, pwm_threshold = 7, top_q = 0.1, bottom_q = 0.1, smooth = 10, filename = NULL, width = NULL, height = NULL, dev = grDevices::pdf, ...) {
-    spatial_freqs <- compute_traj_model_spatial_freq(traj_model, size, pwm_threshold, top_q, bottom_q)
-
-    motifs <- names(traj_model@motif_models)
-
-    p <- purrr::map(motifs, ~ plot_motif_spatial_freq(spatial_freqs, .x, smooth = smooth)) %>%
-        patchwork::wrap_plots(ncol = 1)
-
-    if (!is.null(filename)) {
-        if (is.null(width)) {
-            width <- 10
-        }
-        if (is.null(height)) {
-            height <- length(motifs) * 3
-        }
-        cli_alert_info("Saving plot...")
-        dev(filename, width = width, height = height, ...)
-        print(p)
-        dev.off()
-        cli_alert_success("Plot saved to {.file {filename}}")
-        invisible(p)
-    } else {
-        return(p)
-    }
-}
-
-compute_fold_enrichment <- function(mat) {
-    mat[is.na(mat)] <- 0
-
-    mat <- mat > 0
-
-    # Get the probabilities of having a 1 in each column
-    p_col <- colSums(mat) / nrow(mat)
-
-    # Get the probability of having a 1 in both columns using matrix multiplication
-    p_both <- (t(mat) %*% mat) / nrow(mat)
-
-    # Get the outer product of the column probabilities to get the denominator for the fold enrichment calculation
-    p_first_second <- tcrossprod(p_col)
-
-    # Calculate fold enrichment
-    fe_matrix <- log2(p_both / p_first_second)
-
-    return(fe_matrix)
 }

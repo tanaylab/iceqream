@@ -25,12 +25,7 @@ maximum value (after subtracting the minimum value) of \code{orig_x} and then
 adding the minimum value of \code{orig_x} to each element.
 }
 \examples{
-# Generate random values and normalize
 orig_x <- rnorm(100)
-normed_x <- norm01(orig_x)
-# Rescale normalized values back to original range
-rescaled_x <- rescale(normed_x, orig_x)
-range(rescaled_x) # This should closely match the range of orig_x
-range(orig_x)
+rescaled_x <- rescale(norm01(orig_x), orig_x)
 
 }

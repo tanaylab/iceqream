@@ -123,7 +123,7 @@ test_that("load_peaks: valid data frame with chrom, start, end is accepted", {
     peaks_df <- data.frame(
         chrom = c("chr1", "chr1", "chr2"),
         start = c(100, 500, 200),
-        end   = c(200, 600, 300),
+        end = c(200, 600, 300),
         stringsAsFactors = FALSE
     )
     # load_peaks calls gintervals.canonic which needs misha, so we mock it
@@ -203,7 +203,7 @@ test_that("load_peaks: data frame with extra columns preserves them", {
     peaks_df <- data.frame(
         chrom = c("chr1", "chr2"),
         start = c(100, 200),
-        end   = c(200, 300),
+        end = c(200, 300),
         score = c(5.5, 3.2),
         stringsAsFactors = FALSE
     )
