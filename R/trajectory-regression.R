@@ -110,6 +110,8 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
                                       max_motif_interaction_n = NULL,
                                       max_add_interaction_n = NULL,
                                       max_interaction_n = NULL,
+                                      only_sig_motifs = FALSE,
+                                      only_sig_add_motifs = TRUE,
                                       symmetrize_spat = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
     peak_intervals <- peak_intervals %||% peaks
@@ -265,7 +267,8 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
             max_motif_n = max_motif_interaction_n,
             max_add_n = max_add_interaction_n,
             max_n = max_interaction_n,
-            lambda = lambda, alpha = alpha, seed = seed
+            lambda = lambda, alpha = alpha, seed = seed,
+            only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs
         )
         clust_energies <- cbind(clust_energies, interactions)
     } else {
