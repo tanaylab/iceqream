@@ -12,7 +12,7 @@
 #' @param norm_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.
 #' @param max_motif_num maximum number of motifs to consider. Default: 50
 #' @param n_clust_factor factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1
-#' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
+#' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL and \code{motif_cor_matrix} is provided, the function will compute energies only for motifs in the correlation matrix. If both are NULL, the function will use \code{pssm_db} to calculate the motif energies for all motifs (note that this might take a while).
 #' @param norm_motif_energies A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
@@ -22,6 +22,8 @@
 #' @param bin_end the end of the trajectory. Default: the last bin (only used when atac_scores is provided)
 #' @param normalize_energies whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
+#' @param motif_cor_matrix Optional. A pre-computed correlation matrix (motif × motif) of the motif energies. If provided, this will be used for clustering motifs instead of computing correlations, which can significantly speed up the process when using an external GPU tool. The row and column names should correspond to the motif names after initial selection by correlation.
+#' @param use_pyrego_gpu Logical. If TRUE and pyrego is available, use GPU-accelerated correlation computation. This can significantly speed up the initial motif selection and clustering steps. Default: FALSE.
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param norm_energy_max maximum value of the normalized energy. Default: 10
 #' @param n_prego_motifs number of prego motifs (de-novo motifs) to consider.
@@ -78,6 +80,8 @@ regress_trajectory_motifs <- function(peak_intervals,
                                       bin_start = 1,
                                       bin_end = NULL,
                                       min_initial_energy_cor = 0.05,
+                                      motif_cor_matrix = NULL,
+                                      use_pyrego_gpu = FALSE,
                                       normalize_energies = TRUE,
                                       energy_norm_quantile = 1,
                                       norm_energy_max = 10,
@@ -147,7 +151,7 @@ regress_trajectory_motifs <- function(peak_intervals,
         norm_intervals <- peak_intervals
     }
 
-    validate_motif_energies(motif_energies, peak_intervals, pssm_db)
+    validate_motif_energies(motif_energies, peak_intervals, pssm_db, motif_cor_matrix)
 
     min_energy <- -7
 
@@ -160,7 +164,32 @@ regress_trajectory_motifs <- function(peak_intervals,
     peak_intervals <- peak_intervals[enhancers_filter, ]
     atac_scores <- atac_scores[enhancers_filter, ]
     atac_diff <- atac_diff[enhancers_filter]
-    motif_energies <- motif_energies[enhancers_filter, ]
+
+    # Track whether energies will come from motif_cor_matrix
+    energies_from_cor_matrix <- is.null(motif_energies) && !is.null(motif_cor_matrix)
+
+    # Handle the case when motif_energies is NULL but motif_cor_matrix is provided
+    if (is.null(motif_energies)) {
+        if (!is.null(motif_cor_matrix)) {
+            cli_alert_info("Computing motif energies for motifs from the correlation matrix...")
+            # Extract motif names from the correlation matrix
+            motif_names <- colnames(motif_cor_matrix)
+            # Subset pssm_db to only include these motifs
+            pssm_db_subset <- pssm_db %>% filter(motif %in% motif_names)
+            # Compute energies for the filtered peaks
+            motif_energies <- compute_motif_energies(
+                peak_intervals,
+                db = pssm_db_subset,
+                normalization_intervals = norm_intervals,
+                normalize = normalize_energies,
+                energy_norm_quantile = energy_norm_quantile,
+                norm_energy_max = norm_energy_max,
+                min_energy = min_energy
+            )
+        }
+    } else {
+        motif_energies <- motif_energies[enhancers_filter, ]
+    }
 
     if (!is.null(additional_features)) {
         additional_features <- additional_features[enhancers_filter, ]
@@ -177,7 +206,6 @@ regress_trajectory_motifs <- function(peak_intervals,
     cli_alert("Extracting sequences...")
     all_seqs <- prego::intervals_to_seq(peak_intervals_all, peaks_size)
     norm_seqs <- prego::intervals_to_seq(norm_intervals, peaks_size)
-
 
     if (is.null(traj_prego) && n_prego_motifs > 0) {
         traj_prego <- learn_traj_prego(peak_intervals, atac_diff,
@@ -200,7 +228,13 @@ regress_trajectory_motifs <- function(peak_intervals,
         prego_models <- list()
     }
 
-    motifs <- select_motifs_by_correlation(motif_energies, atac_diff, min_initial_energy_cor, max_motif_num)
+    # Skip motif selection by correlation if energies came from motif_cor_matrix
+    if (energies_from_cor_matrix) {
+        cli_alert_info("Using all {.val {ncol(motif_energies)}} motifs from the correlation matrix (skipping correlation-based selection)")
+        motifs <- colnames(motif_energies)
+    } else {
+        motifs <- select_motifs_by_correlation(motif_energies, atac_diff, min_initial_energy_cor, max_motif_num)
+    }
 
     motif_energies <- motif_energies[, motifs]
     result <- select_features_by_regression(
@@ -224,6 +258,28 @@ regress_trajectory_motifs <- function(peak_intervals,
         diff_filter <- rep(TRUE, nrow(peak_intervals))
     }
 
+    # Use pyrego GPU computation if requested and correlation matrix not provided
+    if (use_pyrego_gpu && is.null(motif_cor_matrix)) {
+        if (pyrego_available()) {
+            cli_alert_info("Using pyrego GPU for correlation matrix computation...")
+            pyrego_result <- compute_motif_correlations_gpu(
+                sequences = all_seqs[enhancers_filter],
+                motif_energies = features,
+                atac_diff = atac_diff,
+                pssm_db = pssm_db,
+                min_initial_energy_cor = 0, # Already filtered, so use 0
+                reference_sequences = norm_seqs,
+                norm_quantile = energy_norm_quantile,
+                norm_energy_max = norm_energy_max,
+                min_energy = min_energy,
+                verbose = TRUE
+            )
+            motif_cor_matrix <- pyrego_result$correlation_matrix
+        } else {
+            cli::cli_warn("pyrego is not available. Falling back to CPU correlation computation.")
+        }
+    }
+
     distilled <- distill_motifs(
         features,
         max_motif_num,
@@ -245,7 +301,8 @@ regress_trajectory_motifs <- function(peak_intervals,
         kmer_sequence_length = kmer_sequence_length,
         n_clust_factor = n_clust_factor,
         distill_single = FALSE,
-        symmetrize_spat = symmetrize_spat
+        symmetrize_spat = symmetrize_spat,
+        motif_cor_matrix = motif_cor_matrix
     )
     clust_energies <- distilled$energies
 
@@ -310,6 +367,13 @@ regress_trajectory_motifs <- function(peak_intervals,
             n_clust_factor = n_clust_factor,
             include_interactions = include_interactions,
             interaction_threshold = interaction_threshold,
+            # When include_interactions is TRUE, training above concatenates
+            # `interactions` into `clust_energies` before `create_logist_features`,
+            # so every interaction column is expanded into 4 logist features. Inference
+            # (in R/inference.R) reads this flag to decide whether to apply the same
+            # 4x expansion on the test side; without this, inference errored with
+            # "subscript out of bounds" on the model_features alignment step.
+            logist_interactions = include_interactions,
             symmetrize_spat = symmetrize_spat,
             seed = seed
         )
