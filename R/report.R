@@ -72,7 +72,7 @@ plot_prediction_boxplot <- function(traj_model, n_groups = 5) {
 
     plot_df <- plot_df %>%
         mutate(obs_group = cut(observed, quantile(observed, seq(0, 1, length.out = n_groups + 1)), include.lowest = TRUE)) %>%
-        gather(key = "type", value = "value", observed, predicted)
+        pivot_longer(cols = c(observed, predicted), names_to = "type", values_to = "value")
 
     p <- plot_df %>%
         ggplot(aes(x = obs_group, y = value, fill = type)) +
@@ -402,7 +402,7 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable, co
     }
 
     coef_df <- coef_df %>%
-        gather("type", "value", -variable) %>%
+        pivot_longer(cols = -variable, names_to = "type", values_to = "value") %>%
         mutate(type = factor(type, levels = c("low-energy", "sigmoid", "high-energy", "higher-energy")))
 
     cli_alert_info("Plotting motif {.val {variable}}")
