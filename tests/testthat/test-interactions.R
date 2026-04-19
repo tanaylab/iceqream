@@ -126,6 +126,27 @@ test_that("baseline: add_interactions(thr=0.001) on fixture produces snapshot", 
     expect_snapshot(baseline)
 })
 
+test_that("min_signal_correlation drops interactions below threshold x max(|cor|)", {
+    tm <- create_interaction_traj_model(n_peaks = 200, n_motifs = 10, seed = 1)
+
+    tm_unfiltered <- suppressMessages(suppressWarnings(
+        add_interactions(tm, interaction_threshold = 0.001, seed = 1)
+    ))
+    tm_filtered <- suppressMessages(suppressWarnings(
+        add_interactions(tm, interaction_threshold = 0.001, seed = 1,
+            min_signal_correlation = 0.5)
+    ))
+
+    expect_lte(ncol(tm_filtered@interactions), ncol(tm_unfiltered@interactions))
+    expect_gt(ncol(tm_filtered@interactions), 0)
+
+    # All kept interactions must individually exceed 0.5 * max(|cor|).
+    train_idx <- which(tm@type == "train")
+    y_train <- norm01(tm@diff_score)[train_idx]
+    cm <- abs(tgs_cor(tm_filtered@interactions[train_idx, ], as.matrix(y_train))[, 1])
+    expect_true(all(cm > 0.5 * max(cm) - 1e-10))
+})
+
 test_that("interaction_scale_factor scales the interaction matrix linearly", {
     tm <- create_interaction_traj_model(n_peaks = 100, n_motifs = 5, seed = 2)
 
