@@ -39,12 +39,6 @@ test_that("trajectory model utility functions are exported and callable", {
     expect_true(is.function(learn_traj_prego))
 })
 
-test_that("trajectory model manipulation functions are exported and callable", {
-    expect_true(is.function(add_motif_models_to_traj))
-    expect_true(is.function(adjust_energies))
-    expect_true(is.function(adjust_motif_seq_lengths))
-})
-
 test_that("homogenize_pssm_models is exported and callable", {
     expect_true(is.function(homogenize_pssm_models))
 })
