@@ -40,6 +40,12 @@ iq_regression(
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
   max_n_interactions = NULL,
+  strategy = c("progressive", "single"),
+  interaction_thresholds = c(0.01, 0.0005),
+  interaction_only_sig_motifs = c(TRUE, FALSE),
+  interaction_only_sig_add_motifs = c(TRUE, TRUE),
+  interaction_scale_factor = 1,
+  interaction_min_signal_correlation = NULL,
   n_prego_motifs = 0,
   n_cores = NULL,
   output_dir = NULL,
@@ -119,6 +125,18 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 \item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
 
 \item{max_n_interactions}{maximum number of interactions to consider. Default: NULL (all interactions).}
+
+\item{strategy}{Interaction-selection strategy when \code{include_interactions = TRUE}. Either \code{"progressive"} (default) or \code{"single"}. Progressive runs \code{\link[=add_interactions_progressive]{add_interactions_progressive()}} — a two-pass selection that seeds with a tight threshold (Akhiad's pattern) and, when multi-bin \code{atac_scores} are available, injects \code{base_pred}/\code{end_pred}/\code{pred_diff_e_b} engineered additional features between passes via \code{\link[=default_score_split_features]{default_score_split_features()}} before a looser second pass. Single reproduces the 0.0.6 single-pass behavior at \code{interaction_threshold} — use this for numeric parity with the published paper or with the pycqream Phase 2 validation.}
+
+\item{interaction_thresholds}{When \code{strategy = "progressive"}, the per-pass \code{interaction_threshold} values. Default \code{c(0.01, 0.0005)}.}
+
+\item{interaction_only_sig_motifs}{When \code{strategy = "progressive"}, the per-pass \code{only_sig_motifs}. Default \code{c(TRUE, FALSE)}.}
+
+\item{interaction_only_sig_add_motifs}{When \code{strategy = "progressive"}, the per-pass \code{only_sig_add_motifs}. Default \code{c(TRUE, TRUE)}.}
+
+\item{interaction_scale_factor}{Forwarded to each \code{\link[=add_interactions]{add_interactions()}} call.}
+
+\item{interaction_min_signal_correlation}{Forwarded to each \code{\link[=add_interactions]{add_interactions()}} call; if non-NULL, drops interactions whose training-set absolute correlation with \code{diff_score} is below this fraction of the best interaction's. \code{1/8} mirrors Akhiad's manual post-filter.}
 
 \item{n_prego_motifs}{number of prego motifs (de-novo motifs) to consider.}
 
