@@ -519,7 +519,7 @@ plot_cell_type_scatter <- function(mat, anchor_cell_type, const_peaks = NULL, fi
     p <- mat %>%
         mat_to_intervs() %>%
         mutate(const = ifelse(const_peaks, "const", "variable")) %>%
-        gather("type", "val", -(chrom:end), -!!sym(anchor_cell_type), -const) %>%
+        pivot_longer(cols = -c(chrom:end, !!sym(anchor_cell_type), const), names_to = "type", values_to = "val") %>%
         ggplot(aes(x = !!sym(anchor_cell_type), y = val, color = const)) +
         scattermore::geom_scattermore(pointsize = 2) +
         geom_abline(linetype = "dashed", color = "darkblue") +
