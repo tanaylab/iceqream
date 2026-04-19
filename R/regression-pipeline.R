@@ -18,6 +18,12 @@
 #' @param prego_spat_bin_size size of each spatial bin for prego motif inference. Default: NULL (uses prego default).
 #' @param prego_spat_num_bins number of spatial bins for prego motif inference. Default: NULL (uses prego default).
 #' @param max_n_interactions maximum number of interactions to consider. Default: NULL (all interactions).
+#' @param strategy Interaction-selection strategy when `include_interactions = TRUE`. Either `"progressive"` (default) or `"single"`. Progressive runs [add_interactions_progressive()] — a two-pass selection that seeds with a tight threshold (Akhiad's pattern) and, when multi-bin `atac_scores` are available, injects `base_pred`/`end_pred`/`pred_diff_e_b` engineered additional features between passes via [default_score_split_features()] before a looser second pass. Single reproduces the 0.0.6 single-pass behavior at `interaction_threshold` — use this for numeric parity with the published paper or with the pycqream Phase 2 validation.
+#' @param interaction_thresholds When `strategy = "progressive"`, the per-pass `interaction_threshold` values. Default `c(0.01, 0.0005)`.
+#' @param interaction_only_sig_motifs When `strategy = "progressive"`, the per-pass `only_sig_motifs`. Default `c(TRUE, FALSE)`.
+#' @param interaction_only_sig_add_motifs When `strategy = "progressive"`, the per-pass `only_sig_add_motifs`. Default `c(TRUE, TRUE)`.
+#' @param interaction_scale_factor Forwarded to each [add_interactions()] call.
+#' @param interaction_min_signal_correlation Forwarded to each [add_interactions()] call; if non-NULL, drops interactions whose training-set absolute correlation with `diff_score` is below this fraction of the best interaction's. `1/8` mirrors Akhiad's manual post-filter.
 #'
 #' @return An instance of \code{TrajectoryModel} with the final model.
 #'
@@ -63,6 +69,12 @@ iq_regression <- function(
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
   max_n_interactions = NULL,
+  strategy = c("progressive", "single"),
+  interaction_thresholds = c(0.01, 0.0005),
+  interaction_only_sig_motifs = c(TRUE, FALSE),
+  interaction_only_sig_add_motifs = c(TRUE, TRUE),
+  interaction_scale_factor = 1,
+  interaction_min_signal_correlation = NULL,
   n_prego_motifs = 0,
   n_cores = NULL,
   output_dir = NULL,
@@ -71,6 +83,8 @@ iq_regression <- function(
   ...
 ) {
     peak_intervals <- peak_intervals %||% peaks
+    strategy <- match.arg(strategy)
+    supplied_atac_diff <- !is.null(atac_diff)
 
     if (!is.null(n_cores)) {
         cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
@@ -241,7 +255,66 @@ iq_regression <- function(
     }
 
     if (include_interactions) {
-        traj_model <- add_interactions(traj_model, interaction_threshold = interaction_threshold, max_motif_n = max_motif_interaction_n, max_add_n = max_add_interaction_n, max_n = max_n_interactions, seed = seed)
+        if (strategy == "single") {
+            cli::cli_alert("Using single-pass interaction strategy (paper / 0.0.6-compatible).")
+            traj_model <- add_interactions(
+                traj_model,
+                interaction_threshold = interaction_threshold,
+                max_motif_n = max_motif_interaction_n,
+                max_add_n = max_add_interaction_n,
+                max_n = max_n_interactions,
+                interaction_scale_factor = interaction_scale_factor,
+                min_signal_correlation = interaction_min_signal_correlation,
+                seed = seed
+            )
+        } else {
+            # Progressive. Use default_score_split_features as the between-pass
+            # builder when multi-bin atac_scores are available; degrade to a
+            # tight single-pass when they aren't (e.g. user supplied atac_diff).
+            train_atac <- if (!supplied_atac_diff) atac_scores[train_idxs, , drop = FALSE] else NULL
+            resolved_bin_end <- bin_end %||% ifelse(is.null(train_atac), 2L, ncol(train_atac))
+            has_bins <- !is.null(train_atac) &&
+                ncol(train_atac) >= 2 &&
+                !identical(bin_start, resolved_bin_end)
+            builder <- if (has_bins) {
+                function(tm) {
+                    default_score_split_features(
+                        tm,
+                        atac_scores = train_atac,
+                        bin_start = bin_start,
+                        bin_end = resolved_bin_end
+                    )
+                }
+            } else {
+                cli::cli_alert_info(
+                    "Progressive interaction strategy: no multi-bin {.field atac_scores} available, running single tight pass at threshold {.val {interaction_thresholds[1]}}."
+                )
+                NULL
+            }
+            if (is.null(builder) && length(interaction_thresholds) > 1) {
+                # Without a builder, the tail passes are redundant. Collapse to a single tight pass.
+                thresholds <- interaction_thresholds[1]
+                only_sig_motifs <- interaction_only_sig_motifs[1]
+                only_sig_add_motifs <- interaction_only_sig_add_motifs[1]
+            } else {
+                thresholds <- interaction_thresholds
+                only_sig_motifs <- interaction_only_sig_motifs
+                only_sig_add_motifs <- interaction_only_sig_add_motifs
+            }
+            traj_model <- add_interactions_progressive(
+                traj_model,
+                thresholds = thresholds,
+                only_sig_motifs = only_sig_motifs,
+                only_sig_add_motifs = only_sig_add_motifs,
+                additional_features_builder = builder,
+                interaction_scale_factor = interaction_scale_factor,
+                min_signal_correlation = interaction_min_signal_correlation,
+                max_motif_n = max_motif_interaction_n,
+                max_add_n = max_add_interaction_n,
+                max_n = max_n_interactions,
+                seed = seed
+            )
+        }
         final_model <- infer_and_save(traj_model, "iq_regression_final_model.rds")
     }
 
