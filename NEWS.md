@@ -1,16 +1,55 @@
-# iceqream 0.0.7 (in development)
+# iceqream 0.0.7
 
 ## Breaking changes
 
 * Removed three exported functions that had no internal callers, no tests,
   and were never referenced from any vignette or public workflow:
   `add_motif_models_to_traj()`, `adjust_energies()`, `adjust_motif_seq_lengths()`.
+* `iq_regression(include_interactions = TRUE)` now uses Akhiad-inspired
+  tight single-pass defaults instead of the previous loose defaults:
+    * `interaction_threshold`: `0.01` (was `0.001`).
+    * `interaction_only_sig_motifs`: `TRUE` (new argument, previously
+      hard-coded to the `add_interactions()` default of `FALSE`).
+  For exact numeric parity with 0.0.6 / paper / pycqream Phase 2 results,
+  pass `interaction_threshold = 0.001, interaction_only_sig_motifs = FALSE`
+  explicitly. The new defaults hold R^2 train/test within ±0.005 of the
+  old defaults on the gastrulation vignette data (measured: 0.531/0.351
+  vs 0.529/0.352).
+
+## New features
+
+* Exported `add_interactions_progressive()` — N-pass interaction selection
+  with a pluggable between-pass feature-injection hook. Mirrors the manual
+  workflow used in Akhiad's analysis notebooks.
+* Exported `default_score_split_features()` — helper that builds
+  `base_pred`, `end_pred`, `pred_diff_e_b` engineered additional features
+  from start- and end-bin ATAC scores by relearning the trajectory model
+  twice. **Caveat:** using this builder in `iq_regression` with
+  `strategy = "progressive"` causes test-time overfitting because the
+  helper models' predictions are defined only for training peaks. Use
+  explicit test-time propagation (infer the helper models on test peaks
+  and supply the predictions as `additional_features`) when you need this
+  feature engineered-style. See `?default_score_split_features`.
+* `iq_regression()` gains a `strategy = c("single", "progressive")`
+  argument. `"single"` is the default. `"progressive"` is exported for
+  power users who handle the test-time base_pred/end_pred propagation.
+* `add_interactions()` gains `interaction_scale_factor` (multiplier on
+  the normalized interaction matrix) and `min_signal_correlation`
+  (post-filter: drop interactions with |cor(col, diff_score[train])| <
+  threshold × max(|cor|)). `min_signal_correlation = 1/8` mirrors the
+  manual post-filter in Akhiad's notebook.
 
 ## Bug fixes
 
 * Fix: `remove_interactions()` silently failed to strip the logist-expanded
   interaction columns from `@model_features` when `logist_interactions = TRUE`,
   leaving orphan columns behind after a subsequent `add_interactions(force = TRUE)`.
+* Fix: `infer_trajectory_motifs()` produced a
+  "not valid for @'interactions'" S4 validity error on any
+  interaction-augmented model because `rbind(matrix, data.frame)` was
+  assigned back to the matrix-only slot. Latent until now — no prior test
+  exercised `iq_regression(include_interactions = TRUE)` through
+  inference on the final model.
 * Fix: `escape_vars()` used a regex that made the escaped dot optional
   (`\\.?`), causing name-prefix matches to incorrectly hit variables that
   shared a prefix with the intended target (e.g. `motif.low-energy` also
@@ -26,6 +65,30 @@
 * `relearn_traj_model()` with `use_cv = TRUE` no longer refits `glmnet` after
   `cv.glmnet`; the path fit stored inside `cv_model$glmnet.fit` is reused.
   Saves one full fit per CV-enabled relearn.
+* Finished the partial `tidyr::gather` → `pivot_longer` and `plyr::*` →
+  `purrr::*` migrations started in 0.0.6. `plyr::llply(..., .parallel = TRUE)`
+  is retained in the hot paths where parallelism is active
+  (`distill-motifs.R`, `distill-multi-traj.R`, `inference.R`, `PBM.R`).
+
+## Deferred
+
+* Integration with misha's `feat/glm-pred` branch
+  (`glm_batch_quantiles()`, `glm_extract_features()`, `glm_pred.create()`
+  virtual tracks): deferred until the branch merges to misha master.
+  Expected wins: 5–10× on per-motif quantile normalization, faster
+  feature-matrix construction, and post-fit genome-wide scoring without
+  per-position R round-trip. See `.a5c/runs/deep-code-review-2026-04-19.md`
+  §3.
+* `cv.glmnet` parallelization via `doParallel`: deferred due to the
+  OpenMP-oversubscription / deadlock risk when glmnet's internal
+  parallelism stacks with R-level `foreach`. Safe rollout requires
+  forcing `OMP_NUM_THREADS = 1` inside each worker and exposing it as
+  opt-in via a package option. See `.a5c/runs/deep-code-review-2026-04-19.md`
+  §5.2.
+* Test-time `base_pred` / `end_pred` propagation so that
+  `strategy = "progressive"` with `default_score_split_features` doesn't
+  overfit on test. Would require inferring the base-only / end-only
+  helper models on test peaks inside `infer_trajectory_motifs`.
 
 # iceqream 0.0.6
 
