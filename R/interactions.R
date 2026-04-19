@@ -236,6 +236,206 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
     return(traj_model)
 }
 
+#' Build base-score / end-score engineered additional features
+#'
+#' Used by [add_interactions_progressive()] between passes. Relearns the
+#' trajectory model twice — once with each end of `atac_scores` as the
+#' response — and returns a data frame with three engineered columns
+#' suitable for `cbind()` onto `@additional_features`:
+#'
+#' * `base_pred`: prediction under the bin_start score, scaled to `[0, 10]`.
+#' * `end_pred`: prediction under the bin_end score, scaled to `[0, 10]`.
+#' * `pred_diff_e_b`: `end_pred - base_pred` scaled to `[0, 10]`.
+#'
+#' These features mirror the manual pattern in Akhiad's analysis
+#' workflow and are what the second pass of
+#' [add_interactions_progressive()] anchors interactions against.
+#'
+#' Requires `atac_scores` with at least two distinct columns. If the
+#' inputs don't support it, the caller should fall back to a single
+#' [add_interactions()] call.
+#'
+#' @param traj_model A `TrajectoryModel` already fit with a first pass
+#'   of interactions (so the relearns have something meaningful to fit).
+#' @param atac_scores A data frame / matrix of per-peak ATAC scores with
+#'   one column per bin, rows aligned with `traj_model@peak_intervals`.
+#' @param bin_start,bin_end Column index (integer) or name (character) of
+#'   the start and end bins in `atac_scores`.
+#'
+#' @return A data frame with columns `base_pred`, `end_pred`,
+#'   `pred_diff_e_b`, row-aligned with `traj_model@peak_intervals`.
+#' @export
+default_score_split_features <- function(traj_model, atac_scores, bin_start, bin_end) {
+    atac_scores <- as.data.frame(atac_scores)
+    if (nrow(atac_scores) != nrow(traj_model@peak_intervals)) {
+        cli::cli_abort(
+            "{.field atac_scores} has {.val {nrow(atac_scores)}} rows but {.field traj_model} has {.val {nrow(traj_model@peak_intervals)}} peaks."
+        )
+    }
+    if (is.character(bin_start)) bin_start <- match(bin_start, colnames(atac_scores))
+    if (is.character(bin_end)) bin_end <- match(bin_end, colnames(atac_scores))
+    if (is.na(bin_start) || is.na(bin_end) || bin_start == bin_end) {
+        cli::cli_abort("{.field bin_start} and {.field bin_end} must resolve to two distinct columns of {.field atac_scores}.")
+    }
+
+    base_score <- atac_scores[, bin_start]
+    end_score <- atac_scores[, bin_end]
+
+    tm_base <- suppressMessages(
+        relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE,
+            verbose = FALSE, new_score = base_score, rescale_pred = FALSE)
+    )
+    tm_end <- suppressMessages(
+        relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE,
+            verbose = FALSE, new_score = end_score, rescale_pred = FALSE)
+    )
+
+    base_pred <- tm_base@predicted_diff_score
+    end_pred <- tm_end@predicted_diff_score
+
+    data.frame(
+        base_pred = norm01(base_pred) * 10,
+        end_pred = norm01(end_pred) * 10,
+        pred_diff_e_b = norm01(end_pred - base_pred) * 10,
+        row.names = rownames(traj_model@normalized_energies)
+    )
+}
+
+#' Progressive two-pass interaction selection
+#'
+#' Implements the two-pass interaction-selection pattern used manually in
+#' Akhiad's analysis workflow:
+#'
+#' 1. First pass: tight `interaction_threshold[1]`, typically with
+#'    `only_sig_motifs = TRUE` — a strict selection to seed the model with
+#'    high-confidence interactions.
+#' 2. (Optional) Call `additional_features_builder(traj_model)` to produce
+#'    engineered additional features (e.g. `base_pred`, `end_pred` from
+#'    [default_score_split_features()]) and inject them. Relearn once so
+#'    the next pass sees an enriched anchor set.
+#' 3. Second pass: looser `interaction_threshold[2]`, typically with
+#'    `only_sig_motifs = FALSE` and `force = TRUE` — broader selection
+#'    that can pick interactions anchored on the newly-injected features.
+#'
+#' Without a feature builder, the two passes are equivalent to a single
+#' [add_interactions()] call at the final (loosest) threshold, so the
+#' primary use case is with `default_score_split_features` or a custom
+#' builder. For data without multi-bin `atac_scores`, prefer a single
+#' [add_interactions()] call with `interaction_threshold = thresholds[1]`.
+#'
+#' @param traj_model A `TrajectoryModel`.
+#' @param thresholds A numeric vector of `interaction_threshold` values,
+#'   one per pass. Default `c(0.01, 0.0005)` mirrors Akhiad's pattern.
+#' @param only_sig_motifs A logical vector matched to `thresholds`.
+#'   Default `c(TRUE, FALSE)`.
+#' @param only_sig_add_motifs A logical vector matched to `thresholds`.
+#'   Default `c(TRUE, TRUE)`.
+#' @param additional_features_builder NULL or a function taking the
+#'   traj_model after pass 1 and returning a data frame to cbind onto
+#'   `@additional_features`. Use [default_score_split_features()] as a
+#'   ready-made builder when `atac_scores` is available.
+#' @param interaction_scale_factor,min_signal_correlation Forwarded to
+#'   each [add_interactions()] call.
+#' @param seed Integer seed forwarded to [add_interactions()].
+#' @param ... Additional arguments forwarded to [add_interactions()]
+#'   (e.g. `max_motif_n`, `max_add_n`, `max_n`, `logist_interactions`).
+#'
+#' @return The updated trajectory model with interactions and any
+#'   engineered additional features from the builder.
+#' @export
+add_interactions_progressive <- function(
+    traj_model,
+    thresholds = c(0.01, 0.0005),
+    only_sig_motifs = c(TRUE, FALSE),
+    only_sig_add_motifs = c(TRUE, TRUE),
+    additional_features_builder = NULL,
+    interaction_scale_factor = 1,
+    min_signal_correlation = NULL,
+    seed = 60427,
+    ...
+) {
+    if (length(only_sig_motifs) == 1) {
+        only_sig_motifs <- rep(only_sig_motifs, length(thresholds))
+    }
+    if (length(only_sig_add_motifs) == 1) {
+        only_sig_add_motifs <- rep(only_sig_add_motifs, length(thresholds))
+    }
+    if (length(thresholds) != length(only_sig_motifs) ||
+        length(thresholds) != length(only_sig_add_motifs)) {
+        cli::cli_abort(
+            "{.field thresholds}, {.field only_sig_motifs}, and {.field only_sig_add_motifs} must have the same length."
+        )
+    }
+    if (length(thresholds) < 1) {
+        cli::cli_abort("{.field thresholds} must have at least one value.")
+    }
+
+    # Single-threshold: identical to a single add_interactions call.
+    if (length(thresholds) == 1) {
+        return(add_interactions(
+            traj_model,
+            interaction_threshold = thresholds[1],
+            only_sig_motifs = only_sig_motifs[1],
+            only_sig_add_motifs = only_sig_add_motifs[1],
+            interaction_scale_factor = interaction_scale_factor,
+            min_signal_correlation = min_signal_correlation,
+            seed = seed,
+            ...
+        ))
+    }
+
+    cli::cli_alert("Progressive interactions: pass 1 of {.val {length(thresholds)}} at threshold {.val {thresholds[1]}} ({.field only_sig_motifs} = {.val {only_sig_motifs[1]}})")
+    traj_model <- add_interactions(
+        traj_model,
+        interaction_threshold = thresholds[1],
+        only_sig_motifs = only_sig_motifs[1],
+        only_sig_add_motifs = only_sig_add_motifs[1],
+        interaction_scale_factor = interaction_scale_factor,
+        min_signal_correlation = min_signal_correlation,
+        seed = seed,
+        force = FALSE,
+        ...
+    )
+
+    if (!is.null(additional_features_builder)) {
+        cli::cli_alert("Building engineered additional features between passes")
+        new_feats <- additional_features_builder(traj_model)
+        if (!is.null(new_feats) && nrow(new_feats) > 0 && ncol(new_feats) > 0) {
+            existing <- traj_model@additional_features
+            if (nrow(existing) == 0) {
+                existing <- data.frame(row.names = rownames(traj_model@normalized_energies))
+            }
+            # Drop any already-present columns so we don't double-register.
+            dup_cols <- intersect(colnames(new_feats), colnames(existing))
+            if (length(dup_cols) > 0) {
+                existing <- existing[, setdiff(colnames(existing), dup_cols), drop = FALSE]
+            }
+            traj_model@additional_features <- cbind(existing, new_feats)
+            # Relearn so model_features reflects the new additional features.
+            traj_model <- suppressMessages(
+                relearn_traj_model(traj_model, new_energies = FALSE, new_logist = TRUE, verbose = FALSE)
+            )
+        }
+    }
+
+    for (k in seq.int(2, length(thresholds))) {
+        cli::cli_alert("Progressive interactions: pass {.val {k}} of {.val {length(thresholds)}} at threshold {.val {thresholds[k]}} ({.field only_sig_motifs} = {.val {only_sig_motifs[k]}})")
+        traj_model <- add_interactions(
+            traj_model,
+            interaction_threshold = thresholds[k],
+            only_sig_motifs = only_sig_motifs[k],
+            only_sig_add_motifs = only_sig_add_motifs[k],
+            interaction_scale_factor = interaction_scale_factor,
+            min_signal_correlation = min_signal_correlation,
+            seed = seed,
+            force = TRUE,
+            ...
+        )
+    }
+
+    traj_model
+}
+
 remove_interactions <- function(traj_model) {
     if (has_interactions(traj_model)) {
         if (is.null(traj_model@params$logist_interactions) || !traj_model@params$logist_interactions) {

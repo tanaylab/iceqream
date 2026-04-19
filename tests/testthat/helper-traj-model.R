@@ -75,6 +75,20 @@ create_interaction_traj_model <- function(n_peaks = 200, n_motifs = 10, train_fr
     )
 }
 
+# Synthetic multi-bin atac_scores matching the fixture above — 3 bins per
+# peak, bin 1 = linear-only (motif1), bin 3 = linear + interaction, so
+# end - base captures the interaction term.
+create_interaction_atac_scores <- function(traj_model) {
+    n <- nrow(traj_model@normalized_energies)
+    E <- traj_model@normalized_energies
+    set.seed(3)
+    bin1 <- norm01(0.4 * E[, 1] + rnorm(n, sd = 0.3))
+    bin2 <- norm01(0.4 * E[, 1] - 0.15 * E[, 2] + rnorm(n, sd = 0.3))
+    bin3 <- norm01(0.4 * E[, 1] - 0.3 * E[, 2] + 0.05 * E[, 1] * E[, 2] + rnorm(n, sd = 0.3))
+    data.frame(bin1 = bin1, bin2 = bin2, bin3 = bin3,
+               row.names = rownames(traj_model@normalized_energies))
+}
+
 create_mock_traj_model <- function(n_peaks = 50, n_motifs = 2, train_frac = 0.8) {
     set.seed(42)
     n_train <- round(n_peaks * train_frac)
