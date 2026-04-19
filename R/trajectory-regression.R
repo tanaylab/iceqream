@@ -321,6 +321,13 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
             n_clust_factor = n_clust_factor,
             include_interactions = include_interactions,
             interaction_threshold = interaction_threshold,
+            # When include_interactions is TRUE, training above concatenates
+            # `interactions` into `clust_energies` before `create_logist_features`,
+            # so every interaction column is expanded into 4 logist features. Inference
+            # (in R/inference.R) reads this flag to decide whether to apply the same
+            # 4x expansion on the test side; without this, inference errored with
+            # "subscript out of bounds" on the model_features alignment step.
+            logist_interactions = include_interactions,
             symmetrize_spat = symmetrize_spat,
             seed = seed
         )
