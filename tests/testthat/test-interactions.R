@@ -126,6 +126,104 @@ test_that("baseline: add_interactions(thr=0.001) on fixture produces snapshot", 
     expect_snapshot(baseline)
 })
 
+test_that("progressive with length-1 thresholds matches single add_interactions", {
+    tm <- create_interaction_traj_model(n_peaks = 100, n_motifs = 6, seed = 4)
+
+    tm_single <- suppressMessages(suppressWarnings(
+        add_interactions(tm, interaction_threshold = 0.001,
+            only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, seed = 4)
+    ))
+    tm_progressive <- suppressMessages(suppressWarnings(
+        add_interactions_progressive(
+            tm,
+            thresholds = 0.001,
+            only_sig_motifs = FALSE,
+            only_sig_add_motifs = TRUE,
+            seed = 4
+        )
+    ))
+
+    expect_equal(ncol(tm_progressive@interactions), ncol(tm_single@interactions))
+    expect_setequal(colnames(tm_progressive@interactions), colnames(tm_single@interactions))
+})
+
+test_that("default_score_split_features returns 3 columns aligned to peaks", {
+    tm <- create_interaction_traj_model(n_peaks = 150, n_motifs = 6, seed = 5)
+    atac <- create_interaction_atac_scores(tm)
+
+    out <- suppressMessages(suppressWarnings(
+        default_score_split_features(tm, atac, bin_start = 1, bin_end = 3)
+    ))
+
+    expect_s3_class(out, "data.frame")
+    expect_equal(nrow(out), nrow(tm@peak_intervals))
+    expect_setequal(colnames(out), c("base_pred", "end_pred", "pred_diff_e_b"))
+    expect_true(all(out$base_pred >= 0 & out$base_pred <= 10))
+    expect_true(all(out$end_pred >= 0 & out$end_pred <= 10))
+})
+
+test_that("default_score_split_features accepts bin column names", {
+    tm <- create_interaction_traj_model(n_peaks = 80, n_motifs = 5, seed = 6)
+    atac <- create_interaction_atac_scores(tm)
+
+    out <- suppressMessages(suppressWarnings(
+        default_score_split_features(tm, atac, bin_start = "bin1", bin_end = "bin3")
+    ))
+    expect_equal(nrow(out), nrow(tm@peak_intervals))
+})
+
+test_that("default_score_split_features errors on identical bins", {
+    tm <- create_interaction_traj_model(n_peaks = 80, n_motifs = 5, seed = 7)
+    atac <- create_interaction_atac_scores(tm)
+
+    expect_error(
+        default_score_split_features(tm, atac, bin_start = 1, bin_end = 1),
+        "distinct"
+    )
+})
+
+test_that("progressive with default_score_split_features injects 3 engineered features", {
+    tm <- create_interaction_traj_model(n_peaks = 150, n_motifs = 6, seed = 8)
+    atac <- create_interaction_atac_scores(tm)
+
+    builder <- function(tm) default_score_split_features(tm, atac, bin_start = 1, bin_end = 3)
+
+    tm_out <- suppressMessages(suppressWarnings(
+        add_interactions_progressive(
+            tm,
+            thresholds = c(0.01, 0.0005),
+            only_sig_motifs = c(TRUE, FALSE),
+            only_sig_add_motifs = c(TRUE, TRUE),
+            additional_features_builder = builder,
+            seed = 8
+        )
+    ))
+
+    # Engineered features made it into @additional_features
+    expect_true(all(c("base_pred", "end_pred", "pred_diff_e_b") %in%
+        colnames(tm_out@additional_features)))
+
+    # Second pass ran (force=TRUE), so interactions from pass 1 were
+    # replaced. Post-pass, the model has some interactions.
+    expect_gt(ncol(tm_out@interactions), 0)
+
+    # R^2 train should at least match the single-pass baseline on the
+    # same fixture seeded identically (progressive is expected to do
+    # as well or better because it uses engineered features too).
+    tm_single <- suppressMessages(suppressWarnings(
+        add_interactions(tm, interaction_threshold = 0.0005, seed = 8,
+            only_sig_motifs = FALSE, only_sig_add_motifs = TRUE)
+    ))
+    r2_single <- cor(tm_single@predicted_diff_score[tm@type == "train"],
+                     tm@diff_score[tm@type == "train"])^2
+    r2_progressive <- cor(tm_out@predicted_diff_score[tm_out@type == "train"],
+                          tm_out@diff_score[tm_out@type == "train"])^2
+    # Allow 0.01 tolerance because the progressive path rescales additional
+    # features and the engineered features change the additional-feature
+    # anchor pool for pass 2 — this is a soft parity gate.
+    expect_gte(r2_progressive, r2_single - 0.01)
+})
+
 test_that("min_signal_correlation drops interactions below threshold x max(|cor|)", {
     tm <- create_interaction_traj_model(n_peaks = 200, n_motifs = 10, seed = 1)
 
