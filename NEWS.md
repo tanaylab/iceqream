@@ -1,3 +1,32 @@
+# iceqream 0.0.7 (in development)
+
+## Breaking changes
+
+* Removed three exported functions that had no internal callers, no tests,
+  and were never referenced from any vignette or public workflow:
+  `add_motif_models_to_traj()`, `adjust_energies()`, `adjust_motif_seq_lengths()`.
+
+## Bug fixes
+
+* Fix: `remove_interactions()` silently failed to strip the logist-expanded
+  interaction columns from `@model_features` when `logist_interactions = TRUE`,
+  leaving orphan columns behind after a subsequent `add_interactions(force = TRUE)`.
+* Fix: `escape_vars()` used a regex that made the escaped dot optional
+  (`\\.?`), causing name-prefix matches to incorrectly hit variables that
+  shared a prefix with the intended target (e.g. `motif.low-energy` also
+  matched `motiflow-energy`).
+* Fix: `cli_warn` in `infer_trajectory_motifs` printed the full additional-
+  features data frame instead of just the feature names.
+* Fix: `plot_traj_model_clusters_report()` would silently `unlink(dir, recursive = TRUE)`
+  any user-supplied path — now refuses to delete `/`, `$HOME`, `getwd()`, or
+  any path shallower than 3 components.
+
+## Improvements
+
+* `relearn_traj_model()` with `use_cv = TRUE` no longer refits `glmnet` after
+  `cv.glmnet`; the path fit stored inside `cv_model$glmnet.fit` is reused.
+  Saves one full fit per CV-enabled relearn.
+
 # iceqream 0.0.6
 
 ## Bug fixes

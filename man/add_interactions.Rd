@@ -22,7 +22,8 @@ add_interactions(
   nfolds = 10,
   family = "binomial",
   rescale_pred = FALSE,
-  only_sig_motifs = FALSE
+  only_sig_motifs = FALSE,
+  only_sig_add_motifs = TRUE
 )
 }
 \arguments{
