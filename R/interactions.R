@@ -227,7 +227,7 @@ remove_interactions <- function(traj_model) {
             inter_terms <- colnames(traj_model@interactions)
         } else {
             inter_terms <- purrr::map(c("low-energy", "high-energy", "higher-energy", "sigmoid"), ~ {
-                paste0(colnames(traj_model@model_features), "_", .x)
+                paste0(colnames(traj_model@interactions), "_", .x)
             }) %>% do.call(c, .)
         }
         traj_model@model_features <- traj_model@model_features[, !(colnames(traj_model@model_features) %in% inter_terms)]
