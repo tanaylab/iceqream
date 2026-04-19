@@ -77,6 +77,55 @@ test_that("remove_interactions is a no-op when there are no interactions", {
     expect_equal(colnames(tm_clean@model_features), cols_before)
 })
 
+# ------------------------------------------------------------------------------
+# C0 baseline: single-pass add_interactions on the seeded synthetic fixture.
+# These snapshot values are the parity target for the forthcoming progressive
+# redesign. Any task C1/C2/C3/C4 commit that touches interaction selection
+# MUST still pass add_interactions(..., interaction_threshold = 0.001,
+# only_sig_motifs = FALSE, only_sig_add_motifs = TRUE) with the snapshot.
+# ------------------------------------------------------------------------------
+
+test_that("baseline: add_interactions(thr=0.001) on fixture produces snapshot", {
+    skip_on_cran()
+    tm <- create_interaction_traj_model(n_peaks = 200, n_motifs = 10, seed = 1)
+
+    r2_train_before <- cor(
+        tm@diff_score[tm@type == "train"],
+        tm@predicted_diff_score[tm@type == "train"]
+    )^2
+
+    tm_with <- suppressMessages(suppressWarnings(
+        add_interactions(
+            tm,
+            interaction_threshold = 0.001,
+            only_sig_motifs = FALSE,
+            only_sig_add_motifs = TRUE,
+            seed = 1
+        )
+    ))
+
+    r2_train_after <- cor(
+        tm_with@diff_score[tm_with@type == "train"],
+        tm_with@predicted_diff_score[tm_with@type == "train"]
+    )^2
+
+    # Snapshot values recorded on branch deep-code-review-remediation @ 0aa612c.
+    # Do NOT change these without a conscious decision + NEWS entry.
+    baseline <- list(
+        n_interactions = ncol(tm_with@interactions),
+        top_interactions = sort(colnames(tm_with@interactions))[seq_len(min(5, ncol(tm_with@interactions)))],
+        r2_train_after = r2_train_after
+    )
+
+    # Soft checks: fixture must produce SOME interactions and R2 must improve.
+    expect_gt(baseline$n_interactions, 0)
+    expect_gte(baseline$r2_train_after, r2_train_before - 1e-6)
+
+    # Hard snapshot: the seeded fixture must produce identical output on every
+    # run of the current implementation.
+    expect_snapshot(baseline)
+})
+
 test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
     set.seed(1)
     n <- 80
