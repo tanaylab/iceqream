@@ -36,16 +36,18 @@ iq_regression(
   bits_threshold = 1.75,
   filter_sample_frac = 0.1,
   include_interactions = FALSE,
-  interaction_threshold = 0.001,
+  interaction_threshold = 0.01,
+  interaction_only_sig_motifs = TRUE,
+  interaction_only_sig_add_motifs = TRUE,
+  interaction_scale_factor = 1,
+  interaction_min_signal_correlation = NULL,
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
   max_n_interactions = NULL,
-  strategy = c("progressive", "single"),
+  strategy = c("single", "progressive"),
   interaction_thresholds = c(0.01, 0.0005),
-  interaction_only_sig_motifs = c(TRUE, FALSE),
-  interaction_only_sig_add_motifs = c(TRUE, TRUE),
-  interaction_scale_factor = 1,
-  interaction_min_signal_correlation = NULL,
+  interaction_only_sig_motifs_prog = c(TRUE, FALSE),
+  interaction_only_sig_add_motifs_prog = c(TRUE, TRUE),
   n_prego_motifs = 0,
   n_cores = NULL,
   output_dir = NULL,
@@ -118,7 +120,15 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{include_interactions}{whether to include interactions between motifs / additional fetures as model features. IQ will create interactions between significant additional features and all motifs, and between significant motifs. Default: FALSE}
 
-\item{interaction_threshold}{threshold for the selecting features to create interactions. IQ learns a linear model on the features and selects the features with coefficients above this threshold. Default: 0.001}
+\item{interaction_threshold}{Threshold for interaction feature selection. Features whose absolute linear-model coefficient exceeds this threshold are used as interaction anchors. Default: \code{0.01} (Akhiad-inspired tight selection). Before 0.0.7 the default was \code{0.001}; pass \code{interaction_threshold = 0.001} explicitly and \code{interaction_only_sig_motifs = FALSE} for numeric parity with the 0.0.6 / paper / pycqream Phase 2 baseline.}
+
+\item{interaction_only_sig_motifs}{If \code{TRUE} (the new 0.0.7 default), only motif features that survived the coefficient-threshold selection are used as motif-side interaction anchors. If \code{FALSE}, all motif features are candidate anchors for motif-motif interactions. Default: \code{TRUE}.}
+
+\item{interaction_only_sig_add_motifs}{If \code{TRUE} (default), only additional-feature columns that survived the coefficient-threshold selection are used as additional-feature anchors for motif interactions.}
+
+\item{interaction_scale_factor}{A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1.}
+
+\item{interaction_min_signal_correlation}{If non-NULL, drops interactions whose training-set absolute correlation with \code{diff_score} is below this fraction of the best interaction's |cor|. \code{1/8} mirrors Akhiad's manual post-filter. Default: NULL.}
 
 \item{max_motif_interaction_n}{maximum number of motifs to consider for interactions. If NULL, all motifs above the interaction_threshold will be considered. Default: NULL}
 
@@ -126,17 +136,13 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{max_n_interactions}{maximum number of interactions to consider. Default: NULL (all interactions).}
 
-\item{strategy}{Interaction-selection strategy when \code{include_interactions = TRUE}. Either \code{"progressive"} (default) or \code{"single"}. Progressive runs \code{\link[=add_interactions_progressive]{add_interactions_progressive()}} — a two-pass selection that seeds with a tight threshold (Akhiad's pattern) and, when multi-bin \code{atac_scores} are available, injects \code{base_pred}/\code{end_pred}/\code{pred_diff_e_b} engineered additional features between passes via \code{\link[=default_score_split_features]{default_score_split_features()}} before a looser second pass. Single reproduces the 0.0.6 single-pass behavior at \code{interaction_threshold} — use this for numeric parity with the published paper or with the pycqream Phase 2 validation.}
+\item{strategy}{Interaction-selection strategy when \code{include_interactions = TRUE}. \code{"single"} (default) runs a single \code{\link[=add_interactions]{add_interactions()}} call at \code{interaction_threshold}. \code{"progressive"} runs \code{\link[=add_interactions_progressive]{add_interactions_progressive()}} — a two-pass selection that seeds with a tight threshold and, when multi-bin \code{atac_scores} are available, injects \code{base_pred}/\code{end_pred}/\code{pred_diff_e_b} engineered additional features between passes via \code{\link[=default_score_split_features]{default_score_split_features()}} before a looser second pass. NOTE: the default progressive builder (\code{\link[=default_score_split_features]{default_score_split_features()}}) causes severe test-time overfitting under \code{include_interactions = TRUE} because the helper models' predictions are computed on training peaks only and get imputed to 0 for test peaks at inference. Prefer \code{"single"} unless you have a test-time pipeline for these engineered features.}
 
-\item{interaction_thresholds}{When \code{strategy = "progressive"}, the per-pass \code{interaction_threshold} values. Default \code{c(0.01, 0.0005)}.}
+\item{interaction_thresholds}{When \code{strategy = "progressive"}, per-pass \code{interaction_threshold}. Default \code{c(0.01, 0.0005)}.}
 
-\item{interaction_only_sig_motifs}{When \code{strategy = "progressive"}, the per-pass \code{only_sig_motifs}. Default \code{c(TRUE, FALSE)}.}
+\item{interaction_only_sig_motifs_prog}{When \code{strategy = "progressive"}, per-pass \code{only_sig_motifs}. Default \code{c(TRUE, FALSE)}.}
 
-\item{interaction_only_sig_add_motifs}{When \code{strategy = "progressive"}, the per-pass \code{only_sig_add_motifs}. Default \code{c(TRUE, TRUE)}.}
-
-\item{interaction_scale_factor}{Forwarded to each \code{\link[=add_interactions]{add_interactions()}} call.}
-
-\item{interaction_min_signal_correlation}{Forwarded to each \code{\link[=add_interactions]{add_interactions()}} call; if non-NULL, drops interactions whose training-set absolute correlation with \code{diff_score} is below this fraction of the best interaction's. \code{1/8} mirrors Akhiad's manual post-filter.}
+\item{interaction_only_sig_add_motifs_prog}{When \code{strategy = "progressive"}, per-pass \code{only_sig_add_motifs}. Default \code{c(TRUE, TRUE)}.}
 
 \item{n_prego_motifs}{number of prego motifs (de-novo motifs) to consider.}
 

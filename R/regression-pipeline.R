@@ -18,12 +18,15 @@
 #' @param prego_spat_bin_size size of each spatial bin for prego motif inference. Default: NULL (uses prego default).
 #' @param prego_spat_num_bins number of spatial bins for prego motif inference. Default: NULL (uses prego default).
 #' @param max_n_interactions maximum number of interactions to consider. Default: NULL (all interactions).
-#' @param strategy Interaction-selection strategy when `include_interactions = TRUE`. Either `"progressive"` (default) or `"single"`. Progressive runs [add_interactions_progressive()] — a two-pass selection that seeds with a tight threshold (Akhiad's pattern) and, when multi-bin `atac_scores` are available, injects `base_pred`/`end_pred`/`pred_diff_e_b` engineered additional features between passes via [default_score_split_features()] before a looser second pass. Single reproduces the 0.0.6 single-pass behavior at `interaction_threshold` — use this for numeric parity with the published paper or with the pycqream Phase 2 validation.
-#' @param interaction_thresholds When `strategy = "progressive"`, the per-pass `interaction_threshold` values. Default `c(0.01, 0.0005)`.
-#' @param interaction_only_sig_motifs When `strategy = "progressive"`, the per-pass `only_sig_motifs`. Default `c(TRUE, FALSE)`.
-#' @param interaction_only_sig_add_motifs When `strategy = "progressive"`, the per-pass `only_sig_add_motifs`. Default `c(TRUE, TRUE)`.
-#' @param interaction_scale_factor Forwarded to each [add_interactions()] call.
-#' @param interaction_min_signal_correlation Forwarded to each [add_interactions()] call; if non-NULL, drops interactions whose training-set absolute correlation with `diff_score` is below this fraction of the best interaction's. `1/8` mirrors Akhiad's manual post-filter.
+#' @param interaction_threshold Threshold for interaction feature selection. Features whose absolute linear-model coefficient exceeds this threshold are used as interaction anchors. Default: `0.01` (Akhiad-inspired tight selection). Before 0.0.7 the default was `0.001`; pass `interaction_threshold = 0.001` explicitly and `interaction_only_sig_motifs = FALSE` for numeric parity with the 0.0.6 / paper / pycqream Phase 2 baseline.
+#' @param interaction_only_sig_motifs If `TRUE` (the new 0.0.7 default), only motif features that survived the coefficient-threshold selection are used as motif-side interaction anchors. If `FALSE`, all motif features are candidate anchors for motif-motif interactions. Default: `TRUE`.
+#' @param interaction_only_sig_add_motifs If `TRUE` (default), only additional-feature columns that survived the coefficient-threshold selection are used as additional-feature anchors for motif interactions.
+#' @param interaction_scale_factor A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1.
+#' @param interaction_min_signal_correlation If non-NULL, drops interactions whose training-set absolute correlation with `diff_score` is below this fraction of the best interaction's |cor|. `1/8` mirrors Akhiad's manual post-filter. Default: NULL.
+#' @param strategy Interaction-selection strategy when `include_interactions = TRUE`. `"single"` (default) runs a single [add_interactions()] call at `interaction_threshold`. `"progressive"` runs [add_interactions_progressive()] — a two-pass selection that seeds with a tight threshold and, when multi-bin `atac_scores` are available, injects `base_pred`/`end_pred`/`pred_diff_e_b` engineered additional features between passes via [default_score_split_features()] before a looser second pass. NOTE: the default progressive builder ([default_score_split_features()]) causes severe test-time overfitting under `include_interactions = TRUE` because the helper models' predictions are computed on training peaks only and get imputed to 0 for test peaks at inference. Prefer `"single"` unless you have a test-time pipeline for these engineered features.
+#' @param interaction_thresholds When `strategy = "progressive"`, per-pass `interaction_threshold`. Default `c(0.01, 0.0005)`.
+#' @param interaction_only_sig_motifs_prog When `strategy = "progressive"`, per-pass `only_sig_motifs`. Default `c(TRUE, FALSE)`.
+#' @param interaction_only_sig_add_motifs_prog When `strategy = "progressive"`, per-pass `only_sig_add_motifs`. Default `c(TRUE, TRUE)`.
 #'
 #' @return An instance of \code{TrajectoryModel} with the final model.
 #'
@@ -65,16 +68,18 @@ iq_regression <- function(
   bits_threshold = 1.75,
   filter_sample_frac = 0.1,
   include_interactions = FALSE,
-  interaction_threshold = 0.001,
+  interaction_threshold = 0.01,
+  interaction_only_sig_motifs = TRUE,
+  interaction_only_sig_add_motifs = TRUE,
+  interaction_scale_factor = 1,
+  interaction_min_signal_correlation = NULL,
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
   max_n_interactions = NULL,
-  strategy = c("progressive", "single"),
+  strategy = c("single", "progressive"),
   interaction_thresholds = c(0.01, 0.0005),
-  interaction_only_sig_motifs = c(TRUE, FALSE),
-  interaction_only_sig_add_motifs = c(TRUE, TRUE),
-  interaction_scale_factor = 1,
-  interaction_min_signal_correlation = NULL,
+  interaction_only_sig_motifs_prog = c(TRUE, FALSE),
+  interaction_only_sig_add_motifs_prog = c(TRUE, TRUE),
   n_prego_motifs = 0,
   n_cores = NULL,
   output_dir = NULL,
@@ -256,10 +261,14 @@ iq_regression <- function(
 
     if (include_interactions) {
         if (strategy == "single") {
-            cli::cli_alert("Using single-pass interaction strategy (paper / 0.0.6-compatible).")
+            cli::cli_alert(
+                "Using single-pass interaction strategy (threshold = {.val {interaction_threshold}}, {.field only_sig_motifs} = {.val {interaction_only_sig_motifs}}, {.field only_sig_add_motifs} = {.val {interaction_only_sig_add_motifs}})."
+            )
             traj_model <- add_interactions(
                 traj_model,
                 interaction_threshold = interaction_threshold,
+                only_sig_motifs = interaction_only_sig_motifs,
+                only_sig_add_motifs = interaction_only_sig_add_motifs,
                 max_motif_n = max_motif_interaction_n,
                 max_add_n = max_add_interaction_n,
                 max_n = max_n_interactions,
@@ -271,6 +280,14 @@ iq_regression <- function(
             # Progressive. Use default_score_split_features as the between-pass
             # builder when multi-bin atac_scores are available; degrade to a
             # tight single-pass when they aren't (e.g. user supplied atac_diff).
+            # NOTE: the default_score_split_features builder causes test-time
+            # overfitting because the helper-model predictions are fit on
+            # train-only peaks and imputed to 0 for test peaks at inference.
+            # Progressive is kept exported as an opt-in power-user API; the
+            # default strategy is "single".
+            cli::cli_alert_warning(
+                "strategy = {.val progressive} with the default builder is known to regress test R^2 under {.code include_interactions = TRUE}. See {.help default_score_split_features} for details."
+            )
             train_atac <- if (!supplied_atac_diff) atac_scores[train_idxs, , drop = FALSE] else NULL
             resolved_bin_end <- bin_end %||% ifelse(is.null(train_atac), 2L, ncol(train_atac))
             has_bins <- !is.null(train_atac) &&
@@ -292,14 +309,13 @@ iq_regression <- function(
                 NULL
             }
             if (is.null(builder) && length(interaction_thresholds) > 1) {
-                # Without a builder, the tail passes are redundant. Collapse to a single tight pass.
                 thresholds <- interaction_thresholds[1]
-                only_sig_motifs <- interaction_only_sig_motifs[1]
-                only_sig_add_motifs <- interaction_only_sig_add_motifs[1]
+                only_sig_motifs <- interaction_only_sig_motifs_prog[1]
+                only_sig_add_motifs <- interaction_only_sig_add_motifs_prog[1]
             } else {
                 thresholds <- interaction_thresholds
-                only_sig_motifs <- interaction_only_sig_motifs
-                only_sig_add_motifs <- interaction_only_sig_add_motifs
+                only_sig_motifs <- interaction_only_sig_motifs_prog
+                only_sig_add_motifs <- interaction_only_sig_add_motifs_prog
             }
             traj_model <- add_interactions_progressive(
                 traj_model,

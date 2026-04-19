@@ -255,6 +255,22 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
 #' inputs don't support it, the caller should fall back to a single
 #' [add_interactions()] call.
 #'
+#' @section Caveat — test-time leakage:
+#' When used as the `additional_features_builder` in
+#' [add_interactions_progressive()] from an `iq_regression` pipeline
+#' that also calls [infer_trajectory_motifs()] for test peaks, the
+#' injected `base_pred` / `end_pred` / `pred_diff_e_b` columns are
+#' defined only for training peaks. At test-time inference they are
+#' imputed to 0, which drops the main model's R^2 on test severely
+#' (measured: −0.27 on the gastrulation vignette). To use this builder
+#' correctly, you must independently run the base-only / end-only
+#' helper models on test peaks and supply the resulting predictions as
+#' `additional_features` at `infer_trajectory_motifs()` time. The
+#' built-in `iq_regression(strategy = "progressive")` path does NOT
+#' currently thread this through — prefer `strategy = "single"` for
+#' regression and leave progressive + this builder to advanced users
+#' who handle test-time propagation themselves.
+#'
 #' @param traj_model A `TrajectoryModel` already fit with a first pass
 #'   of interactions (so the relearns have something meaningful to fit).
 #' @param atac_scores A data frame / matrix of per-peak ATAC scores with
@@ -412,8 +428,21 @@ add_interactions_progressive <- function(
             }
             traj_model@additional_features <- cbind(existing, new_feats)
             # Relearn so model_features reflects the new additional features.
+            # logist_dinucs = TRUE matches how infer_trajectory_motifs expands
+            # features at inference time (create_logist_features on every
+            # additional-feature column, including dinucleotides). Without
+            # this, the between-pass relearn leaves raw "TT"/"CT"/... columns
+            # in @model_features while inference emits "TT_low-energy"/..., and
+            # infer_trajectory_motifs aborts with a Missing-columns error.
             traj_model <- suppressMessages(
-                relearn_traj_model(traj_model, new_energies = FALSE, new_logist = TRUE, verbose = FALSE)
+                relearn_traj_model(
+                    traj_model,
+                    new_energies = FALSE,
+                    new_logist = TRUE,
+                    logist_dinucs = TRUE,
+                    logist_interactions = isTRUE(traj_model@params$logist_interactions),
+                    verbose = FALSE
+                )
             )
         }
     }
