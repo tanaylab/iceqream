@@ -139,12 +139,11 @@ relearn_traj_model <- function(traj_model, new_energies = FALSE, new_logist = FA
 
                 lambda <- cv_model$lambda.min
                 cli::cli_alert("Using lambda: {.val {lambda}}")
-                model <- glmnet::glmnet(X_train, y_train,
-                    family = family_param,
-                    alpha = traj_model@params$alpha,
-                    lambda = lambda,
-                    seed = traj_model@params$seed
-                )
+                # Reuse the full-path fit built inside cv.glmnet; coefficients
+                # at s = lambda.min come directly from the stored path (lambda.min
+                # is always in cv_model$lambda) so no interpolation happens.
+                # Saves a full glmnet refit per relearn.
+                model <- cv_model$glmnet.fit
                 traj_model@params$lambda <- lambda
             } else {
                 model <- glmnet::glmnet(X_train, y_train, family = family_param, alpha = traj_model@params$alpha, lambda = lambda, seed = traj_model@params$seed)

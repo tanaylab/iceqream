@@ -76,3 +76,30 @@ test_that("remove_interactions is a no-op when there are no interactions", {
 
     expect_equal(colnames(tm_clean@model_features), cols_before)
 })
+
+test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
+    set.seed(1)
+    n <- 80
+    p <- 6
+    X <- matrix(rnorm(n * p), n, p)
+    y <- plogis(X[, 1] - X[, 2] + rnorm(n, sd = 0.3))
+
+    cv_model <- glmnet::cv.glmnet(
+        X, y,
+        family = binomial(link = "logit"),
+        alpha = 0.5, nfolds = 5, seed = 1
+    )
+    lambda <- cv_model$lambda.min
+
+    old_path_model <- glmnet::glmnet(
+        X, y,
+        family = binomial(link = "logit"),
+        alpha = 0.5, lambda = lambda, seed = 1
+    )
+    new_path_model <- cv_model$glmnet.fit
+
+    pred_old <- glmnet::predict.glmnet(old_path_model, newx = X, type = "link", s = lambda)[, 1]
+    pred_new <- glmnet::predict.glmnet(new_path_model, newx = X, type = "link", s = lambda)[, 1]
+
+    expect_lt(max(abs(pred_old - pred_new)), 1e-3)
+})
