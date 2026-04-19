@@ -4,7 +4,7 @@ escape_vars <- function(vars) {
     vars <- gsub("\\|", "\\\\|", vars)
     vars <- gsub("\\*", "\\\\*", vars)
     vars <- gsub("\\+", "\\\\+", vars)
-    vars <- gsub("\\.", "\\\\.?", vars)
+    vars <- gsub("\\.", "\\\\.", vars)
     vars <- gsub("\\^", "\\\\^", vars)
     vars <- gsub("\\$", "\\\\$", vars)
     vars <- gsub("\\{", "\\\\{", vars)
