@@ -449,6 +449,18 @@ plot_traj_model_clusters_report <- function(traj_model, dir, k = 10, spatial_fre
     hm <- ComplexHeatmap::Heatmap(cm, name = "features", cluster_rows = hc, cluster_columns = hc, col = circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red")), split = k, column_split = k)
 
     if (dir.exists(dir)) {
+        resolved <- normalizePath(dir, mustWork = TRUE)
+        dangerous <- unique(c(
+            "/",
+            normalizePath("~", mustWork = FALSE),
+            normalizePath(getwd(), mustWork = FALSE)
+        ))
+        depth <- length(strsplit(resolved, .Platform$file.sep, fixed = TRUE)[[1]])
+        if (resolved %in% dangerous || depth < 4) {
+            cli::cli_abort(
+                "Refusing to recursively delete {.path {resolved}}. Please pass a dedicated subdirectory as {.arg dir}."
+            )
+        }
         unlink(dir, recursive = TRUE)
     }
 
