@@ -30,7 +30,7 @@ import_marginal_tracks <- function(files, track_prefix, binsize = 20, overwrite 
     gdir.create(track_prefix, showWarnings = FALSE)
     ct_names <- tools::file_path_sans_ext(basename(files))
     tracks <- paste0(track_prefix, ".", ct_names)
-    plyr::l_ply(seq_along(files), function(i) {
+    purrr::walk(seq_along(files), function(i) {
         track <- tracks[i]
         if (gtrack.exists(track)) {
             if (!overwrite) {

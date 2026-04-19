@@ -313,7 +313,7 @@ add_features_r2 <- function(traj_model, sample_frac = 0.1, additional = FALSE, s
 
     motif_models <- names(traj_model@motif_models)
     full_model_r2 <- cor(traj_model@predicted_diff_score, traj_model@diff_score)^2
-    var_stats <- plyr::llply(motif_models, function(var) {
+    var_stats <- purrr::map(motif_models, function(var) {
         pssm <- traj_model@motif_models[[var]]$pssm
         traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
         bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
