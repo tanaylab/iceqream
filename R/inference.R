@@ -120,7 +120,12 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals = NULL, peaks = N
     }
 
     if (has_interactions(traj_model)) {
-        traj_model@interactions <- rbind(traj_model@interactions, interactions)
+        # @interactions is a matrix; rbind with a data.frame coerces to
+        # data.frame which fails the slot validity check. Coerce back.
+        traj_model@interactions <- as.matrix(rbind(
+            as.data.frame(traj_model@interactions),
+            interactions
+        ))
     }
 
     return(traj_model)
