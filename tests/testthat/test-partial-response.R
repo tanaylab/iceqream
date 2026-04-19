@@ -13,3 +13,4 @@ test_that("escape_vars handles paren, question, pipe, plus, star, caret, dollar,
         )
     }
 })
+
