@@ -36,14 +36,14 @@ create_features_terms <- function(energies, features, data, scale = 1) {
 }
 
 
-create_interaction_terms <- function(energies, motif_feats = NULL, add_feats = NULL, additional_features = NULL, max_motif_n = NULL, max_add_n = NULL, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE) {
+create_interaction_terms <- function(energies, motif_feats = NULL, add_feats = NULL, additional_features = NULL, max_motif_n = NULL, max_add_n = NULL, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, scale = 1) {
     create_interactions <- function(features, data, max_n) {
         if (is.null(features) || is.null(data)) {
             return(NULL)
         }
 
         features <- head(features, n = max_n %||% length(features))
-        interactions <- create_features_terms(data, features, data)
+        interactions <- create_features_terms(data, features, data, scale = scale)
 
         interactions
     }
@@ -88,7 +88,7 @@ get_significant_interactions <- function(
   energies, y, interaction_threshold, max_motif_n = NULL, max_add_n = NULL,
   max_n = NULL,
   additional_features = NULL, lambda = 1e-5, alpha = 1, seed = 60427,
-  ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), idxs = NULL, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE
+  ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), idxs = NULL, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, scale = 1
 ) {
     if (is.null(idxs)) {
         idxs <- seq_len(nrow(energies))
@@ -122,7 +122,7 @@ get_significant_interactions <- function(
 
     inter <- create_interaction_terms(energies,
         motif_feats = motif_feats, add_feats = add_feats,
-        additional_features = additional_features, max_motif_n = max_motif_n, max_add_n = max_add_n, only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs
+        additional_features = additional_features, max_motif_n = max_motif_n, max_add_n = max_add_n, only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs, scale = scale
     )
 
     if (!is.null(max_n) && ncol(inter) > max_n) {
@@ -152,13 +152,14 @@ get_significant_interactions <- function(
 #' @param logist_interactions Logical indicating whether to transform interactions to logistic functions. Default: FALSE
 #' @param only_sig_motifs Logical indicating whether to only consider significant motifs for interactions. Default: FALSE
 #' @param alpha The elastic net mixing parameter for glmnet. alpha=1 is the lasso penalty, alpha=0 is the ridge penalty. Default: 1
+#' @param interaction_scale_factor A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1 (no scaling). Values >1 make interactions more prominent relative to motif features; values <1 down-weight them.
 #'
 #' @inheritParams regress_trajectory_motifs
 #' @inheritParams relearn_traj_model
 #'
 #' @return The updated trajectory model with added interactions.
 #' @export
-add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial", rescale_pred = FALSE, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE) {
+add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial", rescale_pred = FALSE, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, interaction_scale_factor = 1) {
     r2_all_before <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
     if (traj_model_has_test(traj_model)) {
         r2_train_before <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
@@ -187,7 +188,7 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
             cbind(traj_model@normalized_energies, traj_model@additional_features), norm01(traj_model@diff_score), interaction_threshold,
             max_motif_n = max_motif_n, max_add_n = max_add_n,
             max_n = max_n,
-            additional_features = traj_model@additional_features, lambda = lambda, alpha = alpha, seed = seed, ignore_feats = ignore_feats, idxs = which(traj_model@type == "train"), only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs
+            additional_features = traj_model@additional_features, lambda = lambda, alpha = alpha, seed = seed, ignore_feats = ignore_feats, idxs = which(traj_model@type == "train"), only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs, scale = interaction_scale_factor
         )
     }
 

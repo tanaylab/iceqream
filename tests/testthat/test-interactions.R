@@ -126,6 +126,22 @@ test_that("baseline: add_interactions(thr=0.001) on fixture produces snapshot", 
     expect_snapshot(baseline)
 })
 
+test_that("interaction_scale_factor scales the interaction matrix linearly", {
+    tm <- create_interaction_traj_model(n_peaks = 100, n_motifs = 5, seed = 2)
+
+    tm_a <- suppressMessages(suppressWarnings(
+        add_interactions(tm, interaction_threshold = 0.001, seed = 2,
+            interaction_scale_factor = 1)
+    ))
+    tm_b <- suppressMessages(suppressWarnings(
+        add_interactions(tm, interaction_threshold = 0.001, seed = 2,
+            interaction_scale_factor = 3)
+    ))
+
+    # Interactions should be scaled 3x
+    expect_equal(tm_b@interactions, tm_a@interactions * 3, tolerance = 1e-10)
+})
+
 test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
     set.seed(1)
     n <- 80
