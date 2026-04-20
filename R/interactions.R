@@ -386,6 +386,24 @@ add_interactions_progressive <- function(
         cli::cli_abort("{.field thresholds} must have at least one value.")
     }
 
+    # Guard against ... collisions with the args we set explicitly on each
+    # inner add_interactions() call. These two are the only args forwarded
+    # via ... that we override per-pass — the others (only_sig_motifs,
+    # interaction_scale_factor, seed, etc.) are formal args of this
+    # function, so R matches them to the formal slot before ... can
+    # capture them. interaction_threshold and force are NOT formal args
+    # of progressive, so a user could pass them via ... and hit an
+    # ambiguous "matched by multiple actual arguments" error.
+    reserved_via_dots <- c("interaction_threshold", "force")
+    extra_args <- list(...)
+    clash <- intersect(names(extra_args), reserved_via_dots)
+    if (length(clash) > 0) {
+        cli::cli_abort(c(
+            "{.arg {clash}} cannot be passed to {.fn add_interactions_progressive}.",
+            "i" = "{.arg interaction_threshold} is controlled per-pass via the {.arg thresholds} argument. {.arg force} is set internally ({.val FALSE} on pass 1, {.val TRUE} on passes 2+)."
+        ))
+    }
+
     # Single-threshold: identical to a single add_interactions call.
     if (length(thresholds) == 1) {
         return(add_interactions(

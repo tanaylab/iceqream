@@ -89,7 +89,6 @@ iq_regression <- function(
 ) {
     peak_intervals <- peak_intervals %||% peaks
     strategy <- match.arg(strategy)
-    supplied_atac_diff <- !is.null(atac_diff)
 
     if (!is.null(n_cores)) {
         cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
@@ -277,59 +276,19 @@ iq_regression <- function(
                 seed = seed
             )
         } else {
-            # Progressive. Use default_score_split_features as the between-pass
-            # builder when multi-bin atac_scores are available; degrade to a
-            # tight single-pass when they aren't (e.g. user supplied atac_diff).
-            # NOTE: the default_score_split_features builder causes test-time
-            # overfitting because the helper-model predictions are fit on
-            # train-only peaks and imputed to 0 for test peaks at inference.
-            # Progressive is kept exported as an opt-in power-user API; the
-            # default strategy is "single".
-            cli::cli_alert_warning(
-                "strategy = {.val progressive} with the default builder is known to regress test R^2 under {.code include_interactions = TRUE}. See {.help default_score_split_features} for details."
-            )
-            train_atac <- if (!supplied_atac_diff) atac_scores[train_idxs, , drop = FALSE] else NULL
-            resolved_bin_end <- bin_end %||% ifelse(is.null(train_atac), 2L, ncol(train_atac))
-            has_bins <- !is.null(train_atac) &&
-                ncol(train_atac) >= 2 &&
-                !identical(bin_start, resolved_bin_end)
-            builder <- if (has_bins) {
-                function(tm) {
-                    default_score_split_features(
-                        tm,
-                        atac_scores = train_atac,
-                        bin_start = bin_start,
-                        bin_end = resolved_bin_end
-                    )
-                }
-            } else {
-                cli::cli_alert_info(
-                    "Progressive interaction strategy: no multi-bin {.field atac_scores} available, running single tight pass at threshold {.val {interaction_thresholds[1]}}."
-                )
-                NULL
-            }
-            if (is.null(builder) && length(interaction_thresholds) > 1) {
-                thresholds <- interaction_thresholds[1]
-                only_sig_motifs <- interaction_only_sig_motifs_prog[1]
-                only_sig_add_motifs <- interaction_only_sig_add_motifs_prog[1]
-            } else {
-                thresholds <- interaction_thresholds
-                only_sig_motifs <- interaction_only_sig_motifs_prog
-                only_sig_add_motifs <- interaction_only_sig_add_motifs_prog
-            }
-            traj_model <- add_interactions_progressive(
-                traj_model,
-                thresholds = thresholds,
-                only_sig_motifs = only_sig_motifs,
-                only_sig_add_motifs = only_sig_add_motifs,
-                additional_features_builder = builder,
-                interaction_scale_factor = interaction_scale_factor,
-                min_signal_correlation = interaction_min_signal_correlation,
-                max_motif_n = max_motif_interaction_n,
-                max_add_n = max_add_interaction_n,
-                max_n = max_n_interactions,
-                seed = seed
-            )
+            # Progressive within iq_regression is currently disabled because
+            # default_score_split_features produces train-only features that
+            # get imputed to 0 at test-time inference, silently collapsing
+            # test R^2 by ~0.27 on gastrulation. Promoted to an error from
+            # a warning on reviewer feedback — warnings get buried and the
+            # failure mode is a silent correctness issue, not a performance
+            # one. The helpers remain exported for power users who propagate
+            # base_pred/end_pred to test peaks themselves.
+            cli::cli_abort(c(
+                "{.code strategy = \"progressive\"} inside {.fn iq_regression} is disabled until test-time {.field base_pred}/{.field end_pred} propagation lands.",
+                "x" = "The default progressive builder ({.fn default_score_split_features}) fits base-only/end-only helper models on train peaks and leaves test peaks at 0 at inference, which collapses test R^2 by ~0.27 on the gastrulation vignette (measured 2026-04-19).",
+                "i" = "If you need the Akhiad-style two-pass workflow now, call {.fn add_interactions_progressive} directly on a model that already spans train + test peaks, and supply {.field additional_features} for both sets at inference."
+            ))
         }
         final_model <- infer_and_save(traj_model, "iq_regression_final_model.rds")
     }

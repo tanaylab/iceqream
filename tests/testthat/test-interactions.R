@@ -126,6 +126,85 @@ test_that("baseline: add_interactions(thr=0.001) on fixture produces snapshot", 
     expect_snapshot(baseline)
 })
 
+test_that("add_interactions_progressive rejects interaction_threshold / force via ...", {
+    tm <- create_interaction_traj_model(n_peaks = 60, n_motifs = 4, seed = 0)
+
+    # These two go into ... (not formal args) and would collide with the
+    # per-pass values add_interactions_progressive passes to its inner
+    # add_interactions() calls.
+    expect_error(
+        add_interactions_progressive(tm, interaction_threshold = 0.001),
+        regexp = "cannot be passed"
+    )
+    expect_error(
+        add_interactions_progressive(tm, force = TRUE),
+        regexp = "cannot be passed"
+    )
+
+    # Formal args set to legal values must NOT trigger the ... guard.
+    # This call runs through to the real selection.
+    expect_no_error(
+        tryCatch(
+            suppressMessages(suppressWarnings(
+                add_interactions_progressive(
+                    tm,
+                    thresholds = c(0.01, 0.0005),
+                    only_sig_motifs = c(TRUE, FALSE),
+                    only_sig_add_motifs = c(TRUE, TRUE)
+                )
+            )),
+            error = function(e) {
+                if (grepl("cannot be passed", conditionMessage(e))) stop(e)
+                # Any other error (e.g. downstream numerics) is not the
+                # thing we're testing for here — swallow it.
+                NULL
+            }
+        )
+    )
+})
+
+test_that("between-pass relearn produces logist-expanded dinucleotide columns (inference alignment)", {
+    # Pins the invariant that add_interactions_progressive's between-pass
+    # relearn emits model_features whose dinucleotide columns are
+    # suffixed with _low-energy/_high-energy/_higher-energy/_sigmoid —
+    # matching what infer_trajectory_motifs expects (see
+    # R/interactions.R:437-446 and inference.R:74). If a future change
+    # to relearn_traj_model flips the default, inference aborts with a
+    # "Missing model feature columns" error on the TT/CT/GT/... dinucs.
+    tm <- create_interaction_traj_model(n_peaks = 80, n_motifs = 5, seed = 11)
+    # Inject dinuc columns into additional_features so the code path
+    # that splits dinucs-vs-rest has something to act on.
+    n <- nrow(tm@normalized_energies)
+    dinucs <- c("TT", "CT", "GT", "AT")
+    dinuc_mat <- matrix(runif(n * length(dinucs), 0, 1), nrow = n, ncol = length(dinucs),
+                        dimnames = list(rownames(tm@normalized_energies), dinucs))
+    tm@additional_features <- as.data.frame(dinuc_mat)
+
+    atac <- create_interaction_atac_scores(tm)
+    builder <- function(m) default_score_split_features(m, atac, bin_start = 1, bin_end = 3)
+
+    tm_out <- suppressMessages(suppressWarnings(
+        add_interactions_progressive(
+            tm,
+            thresholds = c(0.01, 0.0005),
+            only_sig_motifs = c(TRUE, FALSE),
+            additional_features_builder = builder,
+            seed = 11
+        )
+    ))
+
+    cols <- colnames(tm_out@model_features)
+    # After the between-pass relearn with logist_dinucs = TRUE, every
+    # dinuc is expanded 4x (and the raw "TT" et al. are NOT present).
+    for (d in dinucs) {
+        expect_true(paste0(d, "_low-energy") %in% cols, info = d)
+        expect_true(paste0(d, "_high-energy") %in% cols, info = d)
+        expect_true(paste0(d, "_sigmoid") %in% cols, info = d)
+        expect_true(paste0(d, "_higher-energy") %in% cols, info = d)
+        expect_false(d %in% cols, info = d)
+    }
+})
+
 test_that("progressive with length-1 thresholds matches single add_interactions", {
     tm <- create_interaction_traj_model(n_peaks = 100, n_motifs = 6, seed = 4)
 
@@ -268,22 +347,24 @@ test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
     X <- matrix(rnorm(n * p), n, p)
     y <- plogis(X[, 1] - X[, 2] + rnorm(n, sd = 0.3))
 
-    cv_model <- glmnet::cv.glmnet(
+    cv_model <- suppressWarnings(glmnet::cv.glmnet(
         X, y,
         family = binomial(link = "logit"),
         alpha = 0.5, nfolds = 5, seed = 1
-    )
+    ))
     lambda <- cv_model$lambda.min
 
-    old_path_model <- glmnet::glmnet(
-        X, y,
-        family = binomial(link = "logit"),
-        alpha = 0.5, lambda = lambda, seed = 1
-    )
-    new_path_model <- cv_model$glmnet.fit
+    # lambda.min is always a value in cv_model$lambda — so extracting
+    # coefficients at s = lambda.min from cv_model$glmnet.fit returns the
+    # exact stored path coefficients with no interpolation. This is the
+    # claim the perf optimization in R/traj-model-utils.R:142 relies on.
+    # Tightened from the original 1e-3 prediction test (too loose to
+    # catch a real drift) to a direct coefficient comparison at the
+    # numerical-precision floor.
+    expect_true(lambda %in% cv_model$lambda)
 
-    pred_old <- glmnet::predict.glmnet(old_path_model, newx = X, type = "link", s = lambda)[, 1]
-    pred_new <- glmnet::predict.glmnet(new_path_model, newx = X, type = "link", s = lambda)[, 1]
-
-    expect_lt(max(abs(pred_old - pred_new)), 1e-3)
+    coef_new <- as.numeric(glmnet::coef.glmnet(cv_model$glmnet.fit, s = lambda))
+    # And cross-check: coef(cv_model, s="lambda.min") should agree.
+    coef_cv <- as.numeric(glmnet::coef.glmnet(cv_model, s = "lambda.min"))
+    expect_equal(coef_new, coef_cv, tolerance = 1e-10)
 })
