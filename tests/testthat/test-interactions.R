@@ -142,25 +142,24 @@ test_that("add_interactions_progressive rejects interaction_threshold / force vi
     )
 
     # Formal args set to legal values must NOT trigger the ... guard.
-    # This call runs through to the real selection.
-    expect_no_error(
-        tryCatch(
-            suppressMessages(suppressWarnings(
-                add_interactions_progressive(
-                    tm,
-                    thresholds = c(0.01, 0.0005),
-                    only_sig_motifs = c(TRUE, FALSE),
-                    only_sig_add_motifs = c(TRUE, TRUE)
-                )
-            )),
-            error = function(e) {
-                if (grepl("cannot be passed", conditionMessage(e))) stop(e)
-                # Any other error (e.g. downstream numerics) is not the
-                # thing we're testing for here — swallow it.
-                NULL
-            }
-        )
+    # We don't care whether the downstream selection succeeds (it may
+    # fail on this small fixture for other reasons) — only that *the
+    # specific "cannot be passed" error does not fire*.
+    err <- tryCatch(
+        suppressMessages(suppressWarnings(
+            add_interactions_progressive(
+                tm,
+                thresholds = c(0.01, 0.0005),
+                only_sig_motifs = c(TRUE, FALSE),
+                only_sig_add_motifs = c(TRUE, TRUE)
+            )
+        )),
+        error = function(e) conditionMessage(e)
     )
+    if (!is.null(err) && is.character(err)) {
+        expect_false(grepl("cannot be passed", err),
+            info = paste("Unexpected ...-guard firing on formal arg:", err))
+    }
 })
 
 test_that("between-pass relearn produces logist-expanded dinucleotide columns (inference alignment)", {
@@ -341,6 +340,17 @@ test_that("interaction_scale_factor scales the interaction matrix linearly", {
 })
 
 test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
+    # Guards the perf optimization in R/traj-model-utils.R:142: instead of
+    # refitting glmnet(X, y, lambda = lambda.min) after cv.glmnet, reuse
+    # cv_model$glmnet.fit and predict at s = lambda.min. This is safe only
+    # if the coefficients at that point agree (to numerical precision) with
+    # a freshly-refit single-lambda glmnet.
+    #
+    # History: first shipped with a 1e-3 prediction-max-diff test (too
+    # loose). Second attempt compared coef(cv_model$glmnet.fit, s=...) to
+    # coef(cv_model, s="lambda.min") — tautological since both dispatch
+    # to the same underlying call. This version compares reuse vs a
+    # genuine refit, which is what the optimization actually claims.
     set.seed(1)
     n <- 80
     p <- 6
@@ -353,18 +363,29 @@ test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
         alpha = 0.5, nfolds = 5, seed = 1
     ))
     lambda <- cv_model$lambda.min
-
-    # lambda.min is always a value in cv_model$lambda — so extracting
-    # coefficients at s = lambda.min from cv_model$glmnet.fit returns the
-    # exact stored path coefficients with no interpolation. This is the
-    # claim the perf optimization in R/traj-model-utils.R:142 relies on.
-    # Tightened from the original 1e-3 prediction test (too loose to
-    # catch a real drift) to a direct coefficient comparison at the
-    # numerical-precision floor.
     expect_true(lambda %in% cv_model$lambda)
 
-    coef_new <- as.numeric(glmnet::coef.glmnet(cv_model$glmnet.fit, s = lambda))
-    # And cross-check: coef(cv_model, s="lambda.min") should agree.
-    coef_cv <- as.numeric(glmnet::coef.glmnet(cv_model, s = "lambda.min"))
-    expect_equal(coef_new, coef_cv, tolerance = 1e-10)
+    refit <- suppressWarnings(glmnet::glmnet(
+        X, y,
+        family = binomial(link = "logit"),
+        alpha = 0.5, lambda = lambda, seed = 1
+    ))
+    coef_refit <- as.numeric(glmnet::coef.glmnet(refit, s = lambda))
+    coef_reused <- as.numeric(glmnet::coef.glmnet(cv_model$glmnet.fit, s = lambda))
+
+    # Empirical tolerance: cv.glmnet's path-based warm-start and glmnet's
+    # single-lambda warm-start legitimately differ by ~1e-5 on coefficients
+    # even when the lambda value is identical (measured 2e-5 max drift on
+    # this fixture with glmnet 4.x). 1e-4 catches order-of-magnitude
+    # drift if glmnet internals change upstream while tolerating
+    # expected warm-start differences. Do NOT tighten below 1e-5 without
+    # first verifying the drift empirically.
+    expect_equal(coef_reused, coef_refit, tolerance = 1e-4)
+
+    # And the (cheap) structural claim the optimization actually relies
+    # on: lambda.min is always an exact entry in cv_model$lambda, so
+    # predict(..., s = lambda.min) returns the stored path coefficients
+    # without any cross-point interpolation.
+    lambda_idx <- which(abs(cv_model$lambda - lambda) < 1e-12)
+    expect_length(lambda_idx, 1L)
 })
