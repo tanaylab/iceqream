@@ -256,20 +256,23 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
 #' [add_interactions()] call.
 #'
 #' @section Caveat — test-time leakage:
-#' When used as the `additional_features_builder` in
-#' [add_interactions_progressive()] from an `iq_regression` pipeline
-#' that also calls [infer_trajectory_motifs()] for test peaks, the
-#' injected `base_pred` / `end_pred` / `pred_diff_e_b` columns are
-#' defined only for training peaks. At test-time inference they are
-#' imputed to 0, which drops the main model's R^2 on test severely
-#' (measured: −0.27 on the gastrulation vignette). To use this builder
-#' correctly, you must independently run the base-only / end-only
-#' helper models on test peaks and supply the resulting predictions as
-#' `additional_features` at `infer_trajectory_motifs()` time. The
-#' built-in `iq_regression(strategy = "progressive")` path does NOT
-#' currently thread this through — prefer `strategy = "single"` for
-#' regression and leave progressive + this builder to advanced users
-#' who handle test-time propagation themselves.
+#' Using this function as the `additional_features_builder` of
+#' [add_interactions_progressive()] injects `base_pred` / `end_pred` /
+#' `pred_diff_e_b` columns that are defined only for the training peaks
+#' the `traj_model` was fit on. If you later call
+#' [infer_trajectory_motifs()] on test peaks, those columns are imputed
+#' to 0 for the test rows, which drops test R^2 severely (measured:
+#' −0.27 on the gastrulation vignette). To use this builder correctly
+#' you must independently run the base-only / end-only helper models
+#' on the test peaks and supply the resulting predictions as
+#' `additional_features` at [infer_trajectory_motifs()] time.
+#'
+#' Because this pitfall is easy to hit, `iq_regression(strategy =
+#' "progressive")` errors at call time — it reserves the progressive
+#' path for a future release that threads the test-time propagation
+#' through automatically. Use this builder only when calling
+#' [add_interactions_progressive()] directly with full control over
+#' test-time inference.
 #'
 #' @param traj_model A `TrajectoryModel` already fit with a first pass
 #'   of interactions (so the relearns have something meaningful to fit).

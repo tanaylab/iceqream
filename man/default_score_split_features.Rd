@@ -43,19 +43,21 @@ inputs don't support it, the caller should fall back to a single
 }
 \section{Caveat — test-time leakage}{
 
-When used as the \code{additional_features_builder} in
-\code{\link[=add_interactions_progressive]{add_interactions_progressive()}} from an \code{iq_regression} pipeline
-that also calls \code{\link[=infer_trajectory_motifs]{infer_trajectory_motifs()}} for test peaks, the
-injected \code{base_pred} / \code{end_pred} / \code{pred_diff_e_b} columns are
-defined only for training peaks. At test-time inference they are
-imputed to 0, which drops the main model's R^2 on test severely
-(measured: −0.27 on the gastrulation vignette). To use this builder
-correctly, you must independently run the base-only / end-only
-helper models on test peaks and supply the resulting predictions as
-\code{additional_features} at \code{infer_trajectory_motifs()} time. The
-built-in \code{iq_regression(strategy = "progressive")} path does NOT
-currently thread this through — prefer \code{strategy = "single"} for
-regression and leave progressive + this builder to advanced users
-who handle test-time propagation themselves.
+Using this function as the \code{additional_features_builder} of
+\code{\link[=add_interactions_progressive]{add_interactions_progressive()}} injects \code{base_pred} / \code{end_pred} /
+\code{pred_diff_e_b} columns that are defined only for the training peaks
+the \code{traj_model} was fit on. If you later call
+\code{\link[=infer_trajectory_motifs]{infer_trajectory_motifs()}} on test peaks, those columns are imputed
+to 0 for the test rows, which drops test R^2 severely (measured:
+−0.27 on the gastrulation vignette). To use this builder correctly
+you must independently run the base-only / end-only helper models
+on the test peaks and supply the resulting predictions as
+\code{additional_features} at \code{\link[=infer_trajectory_motifs]{infer_trajectory_motifs()}} time.
+
+Because this pitfall is easy to hit, \code{iq_regression(strategy = "progressive")} errors at call time — it reserves the progressive
+path for a future release that threads the test-time propagation
+through automatically. Use this builder only when calling
+\code{\link[=add_interactions_progressive]{add_interactions_progressive()}} directly with full control over
+test-time inference.
 }
 
