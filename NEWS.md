@@ -23,9 +23,12 @@
   (`default_score_split_features()`) causes silent test-R^2 collapse
   (~0.27 on gastrulation) because its helper-model predictions are
   defined only for training peaks and imputed to 0 at test. Errors are
-  louder than warnings; the helpers remain exported for power users who
-  propagate `base_pred` / `end_pred` to test peaks themselves via
-  `add_interactions_progressive()` directly.
+  louder than warnings. **The `strategy = "progressive"` path inside
+  `iq_regression` is currently disabled — it will error unconditionally.**
+  Power users who want the two-pass workflow should call
+  `add_interactions_progressive()` directly on a model that already spans
+  train + test peaks and supply `additional_features` (with `base_pred` /
+  `end_pred`) for both splits at inference time.
 
 ## New features
 
