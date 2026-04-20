@@ -38,15 +38,19 @@
 * Exported `default_score_split_features()` — helper that builds
   `base_pred`, `end_pred`, `pred_diff_e_b` engineered additional features
   from start- and end-bin ATAC scores by relearning the trajectory model
-  twice. **Caveat:** using this builder in `iq_regression` with
-  `strategy = "progressive"` causes test-time overfitting because the
-  helper models' predictions are defined only for training peaks. Use
-  explicit test-time propagation (infer the helper models on test peaks
-  and supply the predictions as `additional_features`) when you need this
-  feature engineered-style. See `?default_score_split_features`.
+  twice. Using this as an `additional_features_builder` requires
+  propagating the helper-model predictions to test peaks yourself — see
+  `?default_score_split_features`. Not safe to use inside `iq_regression`
+  until test-time propagation lands (see the breaking-change note above
+  — `iq_regression(strategy = "progressive")` errors unconditionally).
 * `iq_regression()` gains a `strategy = c("single", "progressive")`
-  argument. `"single"` is the default. `"progressive"` is exported for
-  power users who handle the test-time base_pred/end_pred propagation.
+  argument. `"single"` is the default. `"progressive"` is **currently
+  disabled** (errors at call time — see the breaking-change note above);
+  reserved for a future release once test-time propagation of the
+  engineered features lands. Power users who want the two-pass workflow
+  today should call `add_interactions_progressive()` directly on a
+  traj_model that already spans train + test peaks and supply the
+  engineered additional features explicitly at inference time.
 * `add_interactions()` gains `interaction_scale_factor` (multiplier on
   the normalized interaction matrix) and `min_signal_correlation`
   (post-filter: drop interactions with |cor(col, diff_score[train])| <

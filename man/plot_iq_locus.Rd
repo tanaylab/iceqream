@@ -9,7 +9,7 @@ plot_iq_locus(
   pbm_list,
   atac_tracks,
   width = 500,
-  ext_width = 200000,
+  ext_width = 2e+05,
   T_emax = 8,
   T_rmax = NULL,
   motifs = NULL,

@@ -10,7 +10,7 @@ add_interactions(
   max_motif_n = NULL,
   max_add_n = NULL,
   max_n = NULL,
-  lambda = 0.00001,
+  lambda = 1e-05,
   alpha = 1,
   seed = 60427,
   interactions = NULL,

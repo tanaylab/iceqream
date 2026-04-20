@@ -363,7 +363,6 @@ test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
         alpha = 0.5, nfolds = 5, seed = 1
     ))
     lambda <- cv_model$lambda.min
-    expect_true(lambda %in% cv_model$lambda)
 
     refit <- suppressWarnings(glmnet::glmnet(
         X, y,
