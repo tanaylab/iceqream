@@ -13,8 +13,19 @@
   For exact numeric parity with 0.0.6 / paper / pycqream Phase 2 results,
   pass `interaction_threshold = 0.001, interaction_only_sig_motifs = FALSE`
   explicitly. The new defaults hold R^2 train/test within ±0.005 of the
-  old defaults on the gastrulation vignette data (measured: 0.531/0.351
-  vs 0.529/0.352).
+  old defaults on the gastrulation vignette data at both the default
+  `max_n` cap (0.531/0.351 vs 0.529/0.352) and with `max_n_interactions =
+  5000` removing the shared correlation-cap bottleneck (0.549/0.367 vs
+  0.552/0.360 — tight defaults produce 25 fewer interactions with +0.007
+  test R^2).
+* `iq_regression(strategy = "progressive")` now errors at call time
+  instead of warning. The default progressive builder
+  (`default_score_split_features()`) causes silent test-R^2 collapse
+  (~0.27 on gastrulation) because its helper-model predictions are
+  defined only for training peaks and imputed to 0 at test. Errors are
+  louder than warnings; the helpers remain exported for power users who
+  propagate `base_pred` / `end_pred` to test peaks themselves via
+  `add_interactions_progressive()` directly.
 
 ## New features
 
