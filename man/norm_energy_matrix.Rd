@@ -30,8 +30,7 @@ A normalized energy matrix with the same dimensions as the input matrix.
 This function normalizes an energy matrix by applying logarithmic transformation and scaling.
 }
 \examples{
-# Example usage:
 data <- matrix(rnorm(100), nrow = 10)
-normalized_data <- norm_energy_matrix(data, data, min_energy = -7, q = 1, norm_energy_max = 10)
+norm_energy_matrix(data, data)
 
 }

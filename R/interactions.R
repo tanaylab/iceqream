@@ -9,11 +9,13 @@ n_interactions <- function(traj_model) {
     ncol(traj_model@interactions)
 }
 
-create_specifc_terms <- function(energies, terms, scale = 1) {
+create_specific_terms <- function(energies, terms, scale = 1) {
     term1_matrix <- energies[, terms$term1]
     term2_matrix <- energies[, terms$term2]
     inter <- term1_matrix * term2_matrix
-    inter <- t(t(inter) / apply(inter, 2, max, na.rm = TRUE))
+    max_vals <- apply(inter, 2, max, na.rm = TRUE)
+    max_vals[max_vals == 0] <- 1
+    inter <- t(t(inter) / max_vals)
     inter <- apply(inter, 2, norm01) * scale
     colnames(inter) <- terms$variable
     return(inter)
@@ -22,7 +24,9 @@ create_specifc_terms <- function(energies, terms, scale = 1) {
 create_features_terms <- function(energies, features, data, scale = 1) {
     interactions <- purrr::map_dfc(features, ~ {
         inter <- energies[, setdiff(colnames(energies), .x), drop = FALSE] * data[, .x]
-        inter <- t(t(inter) / apply(inter, 2, max, na.rm = TRUE))
+        max_vals <- apply(inter, 2, max, na.rm = TRUE)
+        max_vals[max_vals == 0] <- 1
+        inter <- t(t(inter) / max_vals)
         colnames(inter) <- paste0(.x, ":", colnames(inter))
         inter
     })
@@ -32,18 +36,22 @@ create_features_terms <- function(energies, features, data, scale = 1) {
 }
 
 
-create_interaction_terms <- function(energies, motif_feats = NULL, add_feats = NULL, additional_features = NULL, max_motif_n = NULL, max_add_n = NULL, only_sig_motifs = FALSE) {
+create_interaction_terms <- function(energies, motif_feats = NULL, add_feats = NULL, additional_features = NULL, max_motif_n = NULL, max_add_n = NULL, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, scale = 1) {
     create_interactions <- function(features, data, max_n) {
         if (is.null(features) || is.null(data)) {
             return(NULL)
         }
 
         features <- head(features, n = max_n %||% length(features))
-        interactions <- create_features_terms(data, features, data)
+        interactions <- create_features_terms(data, features, data, scale = scale)
 
         interactions
     }
 
+    # When only_sig_add_motifs=FALSE, use all additional feature columns as anchors
+    if (!only_sig_add_motifs && !is.null(additional_features)) {
+        add_feats <- colnames(additional_features)
+    }
 
     if (length(add_feats) > 0) {
         add_inter <- create_interactions(add_feats, cbind(energies, additional_features), max_add_n)
@@ -77,10 +85,11 @@ create_interaction_terms <- function(energies, motif_feats = NULL, add_feats = N
 }
 
 get_significant_interactions <- function(
-    energies, y, interaction_threshold, max_motif_n = NULL, max_add_n = NULL,
-    max_n = NULL,
-    additional_features = NULL, lambda = 1e-5, alpha = 1, seed = 60427,
-    ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), idxs = NULL, only_sig_motifs = FALSE) {
+  energies, y, interaction_threshold, max_motif_n = NULL, max_add_n = NULL,
+  max_n = NULL,
+  additional_features = NULL, lambda = 1e-5, alpha = 1, seed = 60427,
+  ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), idxs = NULL, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, scale = 1, min_signal_correlation = NULL
+) {
     if (is.null(idxs)) {
         idxs <- seq_len(nrow(energies))
     }
@@ -113,7 +122,7 @@ get_significant_interactions <- function(
 
     inter <- create_interaction_terms(energies,
         motif_feats = motif_feats, add_feats = add_feats,
-        additional_features = additional_features, max_motif_n = max_motif_n, max_add_n = max_add_n, only_sig_motifs = only_sig_motifs
+        additional_features = additional_features, max_motif_n = max_motif_n, max_add_n = max_add_n, only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs, scale = scale
     )
 
     if (!is.null(max_n) && ncol(inter) > max_n) {
@@ -122,6 +131,19 @@ get_significant_interactions <- function(
         cm <- tgs_cor(inter[idxs, ], as.matrix(y[idxs]))[, 1]
         chosen <- names(sort(abs(cm), decreasing = TRUE)[1:max_n])
         inter <- inter[, chosen]
+    }
+
+    if (!is.null(min_signal_correlation) && ncol(inter) > 0) {
+        cm_final <- abs(tgs_cor(inter[idxs, ], as.matrix(y[idxs]))[, 1])
+        threshold_cor <- min_signal_correlation * max(cm_final, na.rm = TRUE)
+        keep <- names(cm_final)[!is.na(cm_final) & cm_final > threshold_cor]
+        n_dropped <- ncol(inter) - length(keep)
+        if (n_dropped > 0) {
+            cli::cli_alert_info(
+                "Applied {.field min_signal_correlation} = {.val {min_signal_correlation}}: dropped {.val {n_dropped}} of {.val {ncol(inter)}} interactions below {.val {signif(threshold_cor, 3)}}."
+            )
+        }
+        inter <- inter[, keep, drop = FALSE]
     }
 
     return(inter)
@@ -143,13 +165,15 @@ get_significant_interactions <- function(
 #' @param logist_interactions Logical indicating whether to transform interactions to logistic functions. Default: FALSE
 #' @param only_sig_motifs Logical indicating whether to only consider significant motifs for interactions. Default: FALSE
 #' @param alpha The elastic net mixing parameter for glmnet. alpha=1 is the lasso penalty, alpha=0 is the ridge penalty. Default: 1
+#' @param interaction_scale_factor A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1 (no scaling). Values >1 make interactions more prominent relative to motif features; values <1 down-weight them.
+#' @param min_signal_correlation If non-NULL, after the `max_n` correlation-based top-N cap, drop any interaction column whose absolute correlation with the training `diff_score` is below `min_signal_correlation * max(|cor|)`. For example, `min_signal_correlation = 1/8` keeps only interactions whose |cor| exceeds 1/8 of the best interaction's |cor|, mirroring Akhiad's manual post-hoc filter. Default: NULL (no filter).
 #'
 #' @inheritParams regress_trajectory_motifs
 #' @inheritParams relearn_traj_model
 #'
 #' @return The updated trajectory model with added interactions.
 #' @export
-add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial", rescale_pred = FALSE, only_sig_motifs = FALSE) {
+add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial", rescale_pred = FALSE, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, interaction_scale_factor = 1, min_signal_correlation = NULL) {
     r2_all_before <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
     if (traj_model_has_test(traj_model)) {
         r2_train_before <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2
@@ -178,7 +202,7 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
             cbind(traj_model@normalized_energies, traj_model@additional_features), norm01(traj_model@diff_score), interaction_threshold,
             max_motif_n = max_motif_n, max_add_n = max_add_n,
             max_n = max_n,
-            additional_features = traj_model@additional_features, lambda = lambda, alpha = alpha, seed = seed, ignore_feats = ignore_feats, idxs = which(traj_model@type == "train"), only_sig_motifs = only_sig_motifs
+            additional_features = traj_model@additional_features, lambda = lambda, alpha = alpha, seed = seed, ignore_feats = ignore_feats, idxs = which(traj_model@type == "train"), only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs, scale = interaction_scale_factor, min_signal_correlation = min_signal_correlation
         )
     }
 
@@ -212,13 +236,263 @@ add_interactions <- function(traj_model, interaction_threshold = 0.001, max_moti
     return(traj_model)
 }
 
+#' Build base-score / end-score engineered additional features
+#'
+#' Used by [add_interactions_progressive()] between passes. Relearns the
+#' trajectory model twice — once with each end of `atac_scores` as the
+#' response — and returns a data frame with three engineered columns
+#' suitable for `cbind()` onto `@additional_features`:
+#'
+#' * `base_pred`: prediction under the bin_start score, scaled to `[0, 10]`.
+#' * `end_pred`: prediction under the bin_end score, scaled to `[0, 10]`.
+#' * `pred_diff_e_b`: `end_pred - base_pred` scaled to `[0, 10]`.
+#'
+#' These features mirror the manual pattern in Akhiad's analysis
+#' workflow and are what the second pass of
+#' [add_interactions_progressive()] anchors interactions against.
+#'
+#' Requires `atac_scores` with at least two distinct columns. If the
+#' inputs don't support it, the caller should fall back to a single
+#' [add_interactions()] call.
+#'
+#' @section Caveat — test-time leakage:
+#' Using this function as the `additional_features_builder` of
+#' [add_interactions_progressive()] injects `base_pred` / `end_pred` /
+#' `pred_diff_e_b` columns that are defined only for the training peaks
+#' the `traj_model` was fit on. If you later call
+#' [infer_trajectory_motifs()] on test peaks, those columns are imputed
+#' to 0 for the test rows, which drops test R^2 severely (measured:
+#' −0.27 on the gastrulation vignette). To use this builder correctly
+#' you must independently run the base-only / end-only helper models
+#' on the test peaks and supply the resulting predictions as
+#' `additional_features` at [infer_trajectory_motifs()] time.
+#'
+#' Because this pitfall is easy to hit, `iq_regression(strategy =
+#' "progressive")` errors at call time — it reserves the progressive
+#' path for a future release that threads the test-time propagation
+#' through automatically. Use this builder only when calling
+#' [add_interactions_progressive()] directly with full control over
+#' test-time inference.
+#'
+#' @param traj_model A `TrajectoryModel` already fit with a first pass
+#'   of interactions (so the relearns have something meaningful to fit).
+#' @param atac_scores A data frame / matrix of per-peak ATAC scores with
+#'   one column per bin, rows aligned with `traj_model@peak_intervals`.
+#' @param bin_start,bin_end Column index (integer) or name (character) of
+#'   the start and end bins in `atac_scores`.
+#'
+#' @return A data frame with columns `base_pred`, `end_pred`,
+#'   `pred_diff_e_b`, row-aligned with `traj_model@peak_intervals`.
+#' @export
+default_score_split_features <- function(traj_model, atac_scores, bin_start, bin_end) {
+    atac_scores <- as.data.frame(atac_scores)
+    if (nrow(atac_scores) != nrow(traj_model@peak_intervals)) {
+        cli::cli_abort(
+            "{.field atac_scores} has {.val {nrow(atac_scores)}} rows but {.field traj_model} has {.val {nrow(traj_model@peak_intervals)}} peaks."
+        )
+    }
+    if (is.character(bin_start)) bin_start <- match(bin_start, colnames(atac_scores))
+    if (is.character(bin_end)) bin_end <- match(bin_end, colnames(atac_scores))
+    if (is.na(bin_start) || is.na(bin_end) || bin_start == bin_end) {
+        cli::cli_abort("{.field bin_start} and {.field bin_end} must resolve to two distinct columns of {.field atac_scores}.")
+    }
+
+    base_score <- atac_scores[, bin_start]
+    end_score <- atac_scores[, bin_end]
+
+    tm_base <- suppressMessages(
+        relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE,
+            verbose = FALSE, new_score = base_score, rescale_pred = FALSE)
+    )
+    tm_end <- suppressMessages(
+        relearn_traj_model(traj_model, new_energies = FALSE, new_logist = FALSE,
+            verbose = FALSE, new_score = end_score, rescale_pred = FALSE)
+    )
+
+    base_pred <- tm_base@predicted_diff_score
+    end_pred <- tm_end@predicted_diff_score
+
+    data.frame(
+        base_pred = norm01(base_pred) * 10,
+        end_pred = norm01(end_pred) * 10,
+        pred_diff_e_b = norm01(end_pred - base_pred) * 10,
+        row.names = rownames(traj_model@normalized_energies)
+    )
+}
+
+#' Progressive two-pass interaction selection
+#'
+#' Implements the two-pass interaction-selection pattern used manually in
+#' Akhiad's analysis workflow:
+#'
+#' 1. First pass: tight `interaction_threshold[1]`, typically with
+#'    `only_sig_motifs = TRUE` — a strict selection to seed the model with
+#'    high-confidence interactions.
+#' 2. (Optional) Call `additional_features_builder(traj_model)` to produce
+#'    engineered additional features (e.g. `base_pred`, `end_pred` from
+#'    [default_score_split_features()]) and inject them. Relearn once so
+#'    the next pass sees an enriched anchor set.
+#' 3. Second pass: looser `interaction_threshold[2]`, typically with
+#'    `only_sig_motifs = FALSE` and `force = TRUE` — broader selection
+#'    that can pick interactions anchored on the newly-injected features.
+#'
+#' Without a feature builder, the two passes are equivalent to a single
+#' [add_interactions()] call at the final (loosest) threshold, so the
+#' primary use case is with `default_score_split_features` or a custom
+#' builder. For data without multi-bin `atac_scores`, prefer a single
+#' [add_interactions()] call with `interaction_threshold = thresholds[1]`.
+#'
+#' @param traj_model A `TrajectoryModel`.
+#' @param thresholds A numeric vector of `interaction_threshold` values,
+#'   one per pass. Default `c(0.01, 0.0005)` mirrors Akhiad's pattern.
+#' @param only_sig_motifs A logical vector matched to `thresholds`.
+#'   Default `c(TRUE, FALSE)`.
+#' @param only_sig_add_motifs A logical vector matched to `thresholds`.
+#'   Default `c(TRUE, TRUE)`.
+#' @param additional_features_builder NULL or a function taking the
+#'   traj_model after pass 1 and returning a data frame to cbind onto
+#'   `@additional_features`. Use [default_score_split_features()] as a
+#'   ready-made builder when `atac_scores` is available.
+#' @param interaction_scale_factor,min_signal_correlation Forwarded to
+#'   each [add_interactions()] call.
+#' @param seed Integer seed forwarded to [add_interactions()].
+#' @param ... Additional arguments forwarded to [add_interactions()]
+#'   (e.g. `max_motif_n`, `max_add_n`, `max_n`, `logist_interactions`).
+#'
+#' @return The updated trajectory model with interactions and any
+#'   engineered additional features from the builder.
+#' @export
+add_interactions_progressive <- function(
+    traj_model,
+    thresholds = c(0.01, 0.0005),
+    only_sig_motifs = c(TRUE, FALSE),
+    only_sig_add_motifs = c(TRUE, TRUE),
+    additional_features_builder = NULL,
+    interaction_scale_factor = 1,
+    min_signal_correlation = NULL,
+    seed = 60427,
+    ...
+) {
+    if (length(only_sig_motifs) == 1) {
+        only_sig_motifs <- rep(only_sig_motifs, length(thresholds))
+    }
+    if (length(only_sig_add_motifs) == 1) {
+        only_sig_add_motifs <- rep(only_sig_add_motifs, length(thresholds))
+    }
+    if (length(thresholds) != length(only_sig_motifs) ||
+        length(thresholds) != length(only_sig_add_motifs)) {
+        cli::cli_abort(
+            "{.field thresholds}, {.field only_sig_motifs}, and {.field only_sig_add_motifs} must have the same length."
+        )
+    }
+    if (length(thresholds) < 1) {
+        cli::cli_abort("{.field thresholds} must have at least one value.")
+    }
+
+    # Guard against ... collisions with the args we set explicitly on each
+    # inner add_interactions() call. These two are the only args forwarded
+    # via ... that we override per-pass — the others (only_sig_motifs,
+    # interaction_scale_factor, seed, etc.) are formal args of this
+    # function, so R matches them to the formal slot before ... can
+    # capture them. interaction_threshold and force are NOT formal args
+    # of progressive, so a user could pass them via ... and hit an
+    # ambiguous "matched by multiple actual arguments" error.
+    reserved_via_dots <- c("interaction_threshold", "force")
+    extra_args <- list(...)
+    clash <- intersect(names(extra_args), reserved_via_dots)
+    if (length(clash) > 0) {
+        cli::cli_abort(c(
+            "{.arg {clash}} cannot be passed to {.fn add_interactions_progressive}.",
+            "i" = "{.arg interaction_threshold} is controlled per-pass via the {.arg thresholds} argument. {.arg force} is set internally ({.val FALSE} on pass 1, {.val TRUE} on passes 2+)."
+        ))
+    }
+
+    # Single-threshold: identical to a single add_interactions call.
+    if (length(thresholds) == 1) {
+        return(add_interactions(
+            traj_model,
+            interaction_threshold = thresholds[1],
+            only_sig_motifs = only_sig_motifs[1],
+            only_sig_add_motifs = only_sig_add_motifs[1],
+            interaction_scale_factor = interaction_scale_factor,
+            min_signal_correlation = min_signal_correlation,
+            seed = seed,
+            ...
+        ))
+    }
+
+    cli::cli_alert("Progressive interactions: pass 1 of {.val {length(thresholds)}} at threshold {.val {thresholds[1]}} ({.field only_sig_motifs} = {.val {only_sig_motifs[1]}})")
+    traj_model <- add_interactions(
+        traj_model,
+        interaction_threshold = thresholds[1],
+        only_sig_motifs = only_sig_motifs[1],
+        only_sig_add_motifs = only_sig_add_motifs[1],
+        interaction_scale_factor = interaction_scale_factor,
+        min_signal_correlation = min_signal_correlation,
+        seed = seed,
+        force = FALSE,
+        ...
+    )
+
+    if (!is.null(additional_features_builder)) {
+        cli::cli_alert("Building engineered additional features between passes")
+        new_feats <- additional_features_builder(traj_model)
+        if (!is.null(new_feats) && nrow(new_feats) > 0 && ncol(new_feats) > 0) {
+            existing <- traj_model@additional_features
+            if (nrow(existing) == 0) {
+                existing <- data.frame(row.names = rownames(traj_model@normalized_energies))
+            }
+            # Drop any already-present columns so we don't double-register.
+            dup_cols <- intersect(colnames(new_feats), colnames(existing))
+            if (length(dup_cols) > 0) {
+                existing <- existing[, setdiff(colnames(existing), dup_cols), drop = FALSE]
+            }
+            traj_model@additional_features <- cbind(existing, new_feats)
+            # Relearn so model_features reflects the new additional features.
+            # logist_dinucs = TRUE matches how infer_trajectory_motifs expands
+            # features at inference time (create_logist_features on every
+            # additional-feature column, including dinucleotides). Without
+            # this, the between-pass relearn leaves raw "TT"/"CT"/... columns
+            # in @model_features while inference emits "TT_low-energy"/..., and
+            # infer_trajectory_motifs aborts with a Missing-columns error.
+            traj_model <- suppressMessages(
+                relearn_traj_model(
+                    traj_model,
+                    new_energies = FALSE,
+                    new_logist = TRUE,
+                    logist_dinucs = TRUE,
+                    logist_interactions = isTRUE(traj_model@params$logist_interactions),
+                    verbose = FALSE
+                )
+            )
+        }
+    }
+
+    for (k in seq.int(2, length(thresholds))) {
+        cli::cli_alert("Progressive interactions: pass {.val {k}} of {.val {length(thresholds)}} at threshold {.val {thresholds[k]}} ({.field only_sig_motifs} = {.val {only_sig_motifs[k]}})")
+        traj_model <- add_interactions(
+            traj_model,
+            interaction_threshold = thresholds[k],
+            only_sig_motifs = only_sig_motifs[k],
+            only_sig_add_motifs = only_sig_add_motifs[k],
+            interaction_scale_factor = interaction_scale_factor,
+            min_signal_correlation = min_signal_correlation,
+            seed = seed,
+            force = TRUE,
+            ...
+        )
+    }
+
+    traj_model
+}
+
 remove_interactions <- function(traj_model) {
     if (has_interactions(traj_model)) {
         if (is.null(traj_model@params$logist_interactions) || !traj_model@params$logist_interactions) {
             inter_terms <- colnames(traj_model@interactions)
         } else {
             inter_terms <- purrr::map(c("low-energy", "high-energy", "higher-energy", "sigmoid"), ~ {
-                paste0(colnames(traj_model@model_features), "_", .x)
+                paste0(colnames(traj_model@interactions), "_", .x)
             }) %>% do.call(c, .)
         }
         traj_model@model_features <- traj_model@model_features[, !(colnames(traj_model@model_features) %in% inter_terms)]
@@ -228,112 +502,3 @@ remove_interactions <- function(traj_model) {
     return(traj_model)
 }
 
-add_interactions_multi_traj <- function(mm, add_to_full = TRUE, max_motif_n = 30, max_inter_n = max_motif_n * 10, max_add_n = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA")) {
-    if (add_to_full) {
-        models <- mm@models_full
-    } else {
-        models <- mm@models
-    }
-    energies <- mm@models_full[[1]]@normalized_energies
-    y_mat <- purrr::map(models, ~ .x@diff_score) %>%
-        do.call(cbind, .) %>%
-        as.matrix()
-    train_idxs <- which(mm@models_full[[1]]@type == "train")
-
-    select_top <- function(mat, n) {
-        n <- min(n, ncol(mat))
-        cm <- tgs_cor(mat[train_idxs, , drop = FALSE], y_mat[train_idxs, , drop = FALSE])
-        chosen <- apply(abs(cm), 2, function(x) names(sort(x, decreasing = TRUE)[1:n]))
-        return(chosen)
-    }
-
-    max_motif_n <- max_motif_n %||% ncol(energies)
-    chosen <- select_top(energies, max_motif_n)
-    cli::cli_alert_info("{.val {nrow(chosen)}} motifs selected for interactions in each model.")
-
-    if (has_additional_features(mm@models_full[[1]])) {
-        additional_features <- as.matrix(mm@models_full[[1]]@additional_features)
-        additional_features <- additional_features[, setdiff(colnames(additional_features), ignore_feats)]
-        max_add_n <- max_add_n %||% ncol(additional_features)
-        chosen_add <- select_top(additional_features, max_add_n)
-        cli::cli_alert_info("{.val {nrow(chosen_add)}} additional features selected for interactions in each model.")
-    } else {
-        additional_features <- NULL
-        chosen_add <- NULL
-    }
-
-    cli::cli_alert("Creating interactions between motifs.")
-
-    traj_inter <- purrr::map(names(models), ~ {
-        cli::cli_alert_info("Creating interactions for model {.val {.x}}.")
-        motifs <- chosen[, .x]
-        create_features_terms(energies[, motifs], motifs, energies[, motifs])
-    })
-
-    cli::cli_alert_info("{.val {ncol(traj_inter[[1]])}} interactions created between motifs.")
-
-    if (!is.null(additional_features)) {
-        cli::cli_alert("Creating interactions between additional features and motifs.")
-        traj_inter_add <- purrr::map(names(models), ~ {
-            cli::cli_alert_info("Creating interactions for model {.val {.x}}.")
-            motifs <- chosen[, .x]
-            add_feats <- chosen_add[, .x]
-            create_features_terms(energies[, motifs], add_feats, additional_features)
-        })
-
-        cli::cli_alert_info("{.val {ncol(traj_inter_add[[1]])}} interactions created between additional features and motifs.")
-        traj_inter <- purrr::map2(traj_inter, traj_inter_add, ~ cbind(.x, .y))
-    }
-
-    if (!is.null(max_inter_n)) {
-        cli::cli_alert("Selecting top interactions based on correlation with the signal.")
-        traj_inter <- purrr::imap(traj_inter, ~ {
-            n <- min(max_inter_n, ncol(.x))
-            cm <- tgs_cor(.x[train_idxs, , drop = FALSE], y_mat[train_idxs, .y, drop = FALSE])[, 1]
-            chosen <- names(sort(abs(cm), decreasing = TRUE)[1:n])
-            .x[, chosen]
-        })
-        names(traj_inter) <- names(models)
-
-        cli::cli_alert_info("{.val {ncol(traj_inter[[1]])}} interactions selected based on correlation with the signal.")
-    }
-
-    models_inter <- purrr::imap(models, ~ {
-        cli::cli_h3("Adding interactions to model {.val {.y}}.")
-        add_interactions(.x, interactions = traj_inter[[.y]])
-    })
-
-    if (add_to_full) {
-        mm@models_full <- models_inter
-    } else {
-        mm@models <- models_inter
-    }
-
-    stats_df <- purrr::imap_dfr(models_inter, ~ {
-        tibble(
-            model = .y,
-            r2_all = .x@params$stats$r2_all,
-            r2_train = .x@params$stats$r2_train,
-            r2_test = .x@params$stats$r2_test,
-            n_motifs = ncol(.x@normalized_energies),
-            n_features = ncol(.x@model_features),
-            type = "interactions"
-        )
-    })
-
-    stats_no_inter <- purrr::imap_dfr(models, ~ {
-        tibble(
-            model = .y,
-            r2_all = .x@params$stats$r2_all,
-            r2_train = .x@params$stats$r2_train,
-            r2_test = .x@params$stats$r2_test,
-            n_features = ncol(.x@model_features),
-            n_motifs = ncol(.x@normalized_energies),
-            type = "no interactions"
-        )
-    })
-
-    mm@stats <- dplyr::bind_rows(stats_df, stats_no_inter, mm@stats)
-
-    return(mm)
-}

@@ -24,6 +24,4 @@ at 1.
 x <- rnorm(100)
 normed_x <- norm0q(x)
 
-range(normed_x) # This should show values between 0 and 1
-
 }

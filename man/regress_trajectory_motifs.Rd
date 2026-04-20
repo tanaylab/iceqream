@@ -36,10 +36,10 @@ regress_trajectory_motifs(
   prego_spat_num_bins = NULL,
   seed = 60427,
   feature_selection_beta = 0.003,
-  lambda = 0.00001,
+  lambda = 1e-05,
   alpha = 1,
   filter_using_r2 = FALSE,
-  r2_threshold = 0.0005,
+  r2_threshold = 5e-04,
   parallel = TRUE,
   peaks_size = 500,
   spat_num_bins = NULL,
@@ -50,6 +50,8 @@ regress_trajectory_motifs(
   max_motif_interaction_n = NULL,
   max_add_interaction_n = NULL,
   max_interaction_n = NULL,
+  only_sig_motifs = FALSE,
+  only_sig_add_motifs = TRUE,
   symmetrize_spat = TRUE
 )
 }
@@ -150,6 +152,8 @@ lasso penalty, and \code{alpha=0} the ridge penalty.}
 \item{max_add_interaction_n}{maximum number of additional features to consider for interactions. If NULL, all additional features above the interaction_threshold will be considered. Default: NULL}
 
 \item{max_interaction_n}{maximum number of interactions to consider.}
+
+\item{only_sig_motifs}{Logical indicating whether to only consider significant motifs for interactions. Default: FALSE}
 
 \item{symmetrize_spat}{if TRUE, the spatial model would be symmetrized around the center bin. Default: TRUE.}
 }

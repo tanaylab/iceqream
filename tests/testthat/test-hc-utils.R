@@ -33,8 +33,10 @@ test_that("get_correlation_based_clusters with low threshold produces fewer clus
     # Use positively correlated features so that lowering the threshold groups more together
     set.seed(42)
     base <- rnorm(20)
-    m <- cbind(base + rnorm(20, sd = 0.5), base + rnorm(20, sd = 0.5),
-               base + rnorm(20, sd = 0.5), base + rnorm(20, sd = 0.5))
+    m <- cbind(
+        base + rnorm(20, sd = 0.5), base + rnorm(20, sd = 0.5),
+        base + rnorm(20, sd = 0.5), base + rnorm(20, sd = 0.5)
+    )
     colnames(m) <- c("a", "b", "c", "d")
     cor_matrix <- cor(m)
     hc <- hclust(as.dist(1 - cor_matrix), method = "complete")

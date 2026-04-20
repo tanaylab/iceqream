@@ -1,3 +1,30 @@
+strip_glmnet <- function(model) {
+    essentials <- c(
+        "beta", "lambda", "a0", "dev.ratio", "nulldev",
+        "df", "dim", "nobs", "offset"
+    )
+
+    stripped <- structure(
+        lapply(essentials, function(x) model[[x]]),
+        names = essentials,
+        class = class(model)
+    )
+
+    stripped$call <- NULL
+
+    return(stripped)
+}
+
+#' Strip a trajectory model to essential components
+#' @param traj_model A TrajectoryModel object
+#' @return A stripped TrajectoryModel object
+#' @export
+strip_traj_model <- function(traj_model) {
+    traj_model@model <- strip_glmnet(traj_model@model)
+    traj_model@params$distilled_features <- NULL
+    return(traj_model)
+}
+
 validate_misha <- function() {
     # check if misha package is loaded
     if (!requireNamespace("misha", quietly = TRUE)) {
@@ -58,7 +85,7 @@ select_motifs_by_correlation <- function(motif_energies, atac_diff, min_initial_
         min_initial_energy_cor <- min_initial_energy_cor / 2
         motifs <- names(cm[abs(cm) >= min_initial_energy_cor])
         if (length(motifs) == 0) {
-            n <- min(min(max_motif_num, ncol(motif_energies)), length(motifs))
+            n <- min(max_motif_num, length(cm))
             motifs <- names(sort(abs(cm), decreasing = TRUE)[1:n])
             cli::cli_alert_warning("No features with absolute correlation >= {.val {min_initial_energy_cor}}. Taking top {.val {n}} correlated features")
         }
@@ -68,6 +95,73 @@ select_motifs_by_correlation <- function(motif_energies, atac_diff, min_initial_
     motifs <- motifs[!is.na(motifs)]
 
     return(motifs)
+}
+
+split_low_correlation_clusters <- function(clust_map, corr_matrix, intra_cor_thresh, unique_motifs = FALSE) {
+    avg_intra_cluster_cor <- function(cluster_id, clust_map, corr_matrix) {
+        features_in_cluster <- clust_map$feat[clust_map$clust == cluster_id]
+        cluster_corr <- corr_matrix[features_in_cluster, features_in_cluster]
+        mean(cluster_corr[upper.tri(cluster_corr)], na.rm = TRUE)
+    }
+
+    clust_map <- clust_map %>%
+        group_by(clust) %>%
+        mutate(intra_cor = avg_intra_cluster_cor(clust[1], clust_map, corr_matrix)) %>%
+        ungroup() %>%
+        mutate(intra_cor = ifelse(is.na(intra_cor), 1, intra_cor)) %>%
+        group_by(clust) %>%
+        mutate(n = n_distinct(feat)) %>%
+        ungroup()
+
+    to_split <- clust_map %>%
+        filter(intra_cor < intra_cor_thresh, n > 1) %>%
+        pull(clust) %>%
+        unique()
+
+    if (length(to_split) > 0) {
+        cli_alert_info("Splitting {.val {length(to_split)}} cluster{?s} with average intra-cluster correlation < {.val {intra_cor_thresh}}")
+
+        if (unique_motifs) {
+            feat_map <- clust_map %>%
+                distinct(clust, motif, feat, intra_cor) %>%
+                group_by(clust) %>%
+                mutate(clust_i = ifelse(clust %in% to_split, 1:n(), 1)) %>%
+                mutate(intra_cor = ifelse(clust %in% to_split, intra_cor, 1)) %>%
+                ungroup() %>%
+                tidyr::unite(clust, clust, clust_i, sep = "_") %>%
+                mutate(clust = as.integer(as.factor(clust)))
+
+            clust_map <- clust_map %>%
+                distinct(model, feat) %>%
+                left_join(feat_map, by = "feat")
+        } else {
+            clust_map <- clust_map %>%
+                group_by(clust) %>%
+                mutate(clust_i = ifelse(clust %in% to_split, 1:n(), 1)) %>%
+                ungroup() %>%
+                tidyr::unite(clust, clust, clust_i, sep = "_") %>%
+                mutate(clust = as.integer(as.factor(clust)))
+        }
+
+        clust_map <- clust_map %>%
+            group_by(clust) %>%
+            mutate(n = n_distinct(feat)) %>%
+            ungroup()
+    }
+
+    return(clust_map)
+}
+
+fit_and_predict_model <- function(train_features, train_y, predict_features, diff_score, alpha, lambda, seed, parallel = FALSE) {
+    train_features <- as.matrix(train_features)
+    train_y <- as.numeric(train_y)
+    predict_features <- as.matrix(predict_features)
+    model <- glmnet::glmnet(train_features, train_y, binomial(link = "logit"), alpha = alpha, lambda = lambda, parallel = parallel, seed = seed)
+    model <- strip_glmnet(model)
+    predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = predict_features, type = "link", s = lambda))[, 1]
+    predicted_diff_score <- norm01(predicted_diff_score)
+    predicted_diff_score <- rescale(predicted_diff_score, diff_score)
+    return(list(model = model, predicted_diff_score = predicted_diff_score))
 }
 
 select_features_by_regression <- function(motif_energies, atac_diff_n, additional_features,

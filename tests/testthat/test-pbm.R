@@ -279,7 +279,7 @@ test_that("pbm.compute errors when response=TRUE but normalize_energies=FALSE", 
 test_that("pbm.compute handles sequences of different length than size", {
     skip_if_not_installed("prego")
 
-    pbm <- create_mock_pbm(with_spat = TRUE)  # size = 500
+    pbm <- create_mock_pbm(with_spat = TRUE) # size = 500
     short_sequences <- random_dna_seq(5, len = 100)
 
     # cli::cli_alert_warning is used (not base::warning), so we capture messages

@@ -24,10 +24,8 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
     motif_num <- length(models)
 
     if (use_full) {
-        partial_resp_list <- purrr::map(multi_traj@models_full, compute_partial_response)
         traj_models <- multi_traj@models_full
     } else {
-        partial_resp_list <- purrr::map(multi_traj@models, compute_partial_response)
         traj_models <- multi_traj@models
     }
 
@@ -44,13 +42,27 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
         cli_abort("Invalid {.field type}. Must be one of 'pr', 'boxp', or 'spat'.")
     }
 
-    pr_mat <- partial_resp_list %>%
-        purrr::imap_dfr(~ enframe(matrixStats::colMaxs(as.matrix(.x)), "var", "max_pr") %>% mutate(model = .y)) %>%
-        select(var, max_pr, model) %>%
-        filter(var %in% names(models)) %>%
-        pivot_wider(names_from = c(model), values_from = max_pr) %>%
-        tibble::column_to_rownames("var") %>%
-        as.matrix()
+    if (type == "pr") {
+        partial_resp_list <- purrr::map(traj_models, compute_partial_response)
+    }
+
+    pr_mat <- if (type == "pr") {
+        partial_resp_list %>%
+            purrr::imap_dfr(~ enframe(matrixStats::colMaxs(as.matrix(.x)), "var", "max_pr") %>% mutate(model = .y)) %>%
+            select(var, max_pr, model) %>%
+            filter(var %in% names(models)) %>%
+            pivot_wider(names_from = c(model), values_from = max_pr) %>%
+            tibble::column_to_rownames("var") %>%
+            as.matrix()
+    } else {
+        # Lightweight ordering: use feature R2 values instead of full partial responses
+        purrr::imap_dfr(traj_models, ~ enframe(.x@features_r2, "var", "max_pr") %>% mutate(model = .y)) %>%
+            select(var, max_pr, model) %>%
+            filter(var %in% names(models)) %>%
+            pivot_wider(names_from = c(model), values_from = max_pr) %>%
+            tibble::column_to_rownames("var") %>%
+            as.matrix()
+    }
     pr_mat[is.na(pr_mat)] <- 0
     cm <- tgs_cor(t(pr_mat), pairwise.complete.obs = TRUE)
     hc <- hclust(as.dist(1 - cm), method = "ward.D2")
@@ -131,7 +143,6 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
     motifs_p <- purrr::imap(models, ~ prego::plot_pssm_logo(.x$pssm) + ggtitle(names_map[.y], subtitle = ""))
 
 
-
     n_traj_models <- length(traj_models)
 
     p <- patchwork::wrap_plots(
@@ -155,8 +166,8 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
         }
         cli_alert_info("Saving plot...")
         dev(filename, width = width, height = height, ...)
+        on.exit(dev.off(), add = TRUE)
         print(p)
-        dev.off()
         cli_alert_success("Plot saved to {.file {filename}}")
         invisible(p)
     } else {
@@ -194,7 +205,6 @@ plot_fake_e_vs_diff_boxp <- function() {
 }
 
 
-
 plot_fake_motif_spatial_freq <- function() {
     spatial_freqs <- data.frame(pos = seq(0, 1000, by = 50), freq = rep(0, 21), type = rep("top", 21))
 
@@ -206,5 +216,5 @@ plot_fake_motif_spatial_freq <- function() {
         ylab("Frequency") +
         scale_color_manual(name = "", values = c(top = "red", bottom = "blue")) +
         theme_classic() +
-        theme(legend.position = c(0.9, 0.9))
+        theme(legend.position.inside = c(0.9, 0.9), legend.position = "inside")
 }

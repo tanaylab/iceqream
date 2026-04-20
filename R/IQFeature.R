@@ -14,6 +14,17 @@ IQFeature <- setClass(
     )
 )
 
+setValidity("IQFeature", function(object) {
+    errors <- character()
+    if (length(object@name) != 1) {
+        errors <- c(errors, "@name must be a single character string")
+    }
+    if (length(object@name) == 1 && !nzchar(object@name)) {
+        errors <- c(errors, "@name must be non-empty")
+    }
+    if (length(errors) == 0) TRUE else errors
+})
+
 #' Show method for IQFeature
 #'
 #' This method defines how an IQFeature object should be displayed.
@@ -141,7 +152,7 @@ iq_feature_list.compute_response <- function(iq_list, mat) {
     })
 
     result <- list()
-    for (i in 1:length(resp)) {
+    for (i in seq_along(resp)) {
         if (is.list(resp[[i]])) {
             result <- c(result, resp[[i]])
         } else {

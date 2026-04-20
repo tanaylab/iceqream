@@ -72,7 +72,7 @@ plot_prediction_boxplot <- function(traj_model, n_groups = 5) {
 
     plot_df <- plot_df %>%
         mutate(obs_group = cut(observed, quantile(observed, seq(0, 1, length.out = n_groups + 1)), include.lowest = TRUE)) %>%
-        gather(key = "type", value = "value", observed, predicted)
+        pivot_longer(cols = c(observed, predicted), names_to = "type", values_to = "value")
 
     p <- plot_df %>%
         ggplot(aes(x = obs_group, y = value, fill = type)) +
@@ -224,7 +224,6 @@ plot_motif_energy_vs_response_boxplot <- function(traj_model, motif, xlab = past
 }
 
 
-
 #' Plot a report of trajectory motifs
 #'
 #' @param traj_model Trajectory model object. Please run \code{regress_trajectory_motifs} first.
@@ -366,8 +365,8 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
         }
         cli_alert_info("Saving plot...")
         dev(filename, width = width, height = height, ...)
+        on.exit(dev.off(), add = TRUE)
         print(p)
-        dev.off()
         cli_alert_success("Plot saved to {.file {filename}}")
         invisible(p)
     } else {
@@ -403,7 +402,7 @@ plot_coefs <- function(traj_model, variable, limits = NULL, title = variable, co
     }
 
     coef_df <- coef_df %>%
-        gather("type", "value", -variable) %>%
+        pivot_longer(cols = -variable, names_to = "type", values_to = "value") %>%
         mutate(type = factor(type, levels = c("low-energy", "sigmoid", "high-energy", "higher-energy")))
 
     cli_alert_info("Plotting motif {.val {variable}}")
@@ -450,20 +449,31 @@ plot_traj_model_clusters_report <- function(traj_model, dir, k = 10, spatial_fre
     hm <- ComplexHeatmap::Heatmap(cm, name = "features", cluster_rows = hc, cluster_columns = hc, col = circlize::colorRamp2(c(-1, 0, 1), c("blue", "white", "red")), split = k, column_split = k)
 
     if (dir.exists(dir)) {
+        resolved <- normalizePath(dir, mustWork = TRUE)
+        dangerous <- unique(c(
+            "/",
+            normalizePath("~", mustWork = FALSE),
+            normalizePath(getwd(), mustWork = FALSE)
+        ))
+        depth <- length(strsplit(resolved, .Platform$file.sep, fixed = TRUE)[[1]])
+        if (resolved %in% dangerous || depth < 4) {
+            cli::cli_abort(
+                "Refusing to recursively delete {.path {resolved}}. Please pass a dedicated subdirectory as {.arg dir}."
+            )
+        }
         unlink(dir, recursive = TRUE)
     }
 
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 
     png(file.path(dir, "heatmap.png"), width = 2000, height = 1000)
+    on.exit(dev.off(), add = TRUE)
     if (length(traj_model@features_r2) > 0) {
         ha <- ComplexHeatmap::rowAnnotation(r2 = ComplexHeatmap::anno_points(traj_model@features_r2[rownames(cm)]), width = grid::unit(3, "cm"))
         hm <- ComplexHeatmap::draw(hm + ha, heatmap_legend_side = "left")
     } else {
         hm <- ComplexHeatmap::draw(hm, heatmap_legend_side = "left")
     }
-
-    dev.off()
 
     clust_df <- ComplexHeatmap::row_order(hm) %>%
         purrr::imap_dfr(~ tibble(ord = .x, clust = .y)) %>%

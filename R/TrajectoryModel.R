@@ -73,6 +73,34 @@ TrajectoryModel <- setClass(
     )
 )
 
+setValidity("TrajectoryModel", function(object) {
+    errors <- character()
+    if (length(object@diff_score) == 0) {
+        errors <- c(errors, "@diff_score must be non-empty")
+    }
+    if (length(object@predicted_diff_score) > 0 && length(object@type) > 0) {
+        if (length(object@diff_score) != length(object@predicted_diff_score)) {
+            errors <- c(errors, "@diff_score and @predicted_diff_score must have the same length")
+        }
+        if (length(object@diff_score) != length(object@type)) {
+            errors <- c(errors, "@diff_score and @type must have the same length")
+        }
+    }
+    if (length(object@type) > 0 && !all(object@type %in% c("train", "test"))) {
+        errors <- c(errors, "@type must contain only 'train' and/or 'test' values")
+    }
+    if (nrow(object@peak_intervals) > 0) {
+        required_cols <- c("chrom", "start", "end")
+        if (!all(required_cols %in% colnames(object@peak_intervals))) {
+            errors <- c(errors, "@peak_intervals must have columns 'chrom', 'start', 'end'")
+        }
+    }
+    if (length(object@params) > 0 && !is.list(object@params)) {
+        errors <- c(errors, "@params must be a list")
+    }
+    if (length(errors) == 0) TRUE else errors
+})
+
 #' @param object An instance of `TrajectoryModel`.
 #' @rdname TrajectoryModel-class
 #' @exportMethod show

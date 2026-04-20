@@ -10,7 +10,7 @@ add_interactions(
   max_motif_n = NULL,
   max_add_n = NULL,
   max_n = NULL,
-  lambda = 0.00001,
+  lambda = 1e-05,
   alpha = 1,
   seed = 60427,
   interactions = NULL,
@@ -22,7 +22,10 @@ add_interactions(
   nfolds = 10,
   family = "binomial",
   rescale_pred = FALSE,
-  only_sig_motifs = FALSE
+  only_sig_motifs = FALSE,
+  only_sig_add_motifs = TRUE,
+  interaction_scale_factor = 1,
+  min_signal_correlation = NULL
 )
 }
 \arguments{
@@ -59,6 +62,10 @@ add_interactions(
 \item{rescale_pred}{Logical indicating whether to rescale the predicted values. Default is TRUE.}
 
 \item{only_sig_motifs}{Logical indicating whether to only consider significant motifs for interactions. Default: FALSE}
+
+\item{interaction_scale_factor}{A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1 (no scaling). Values >1 make interactions more prominent relative to motif features; values <1 down-weight them.}
+
+\item{min_signal_correlation}{If non-NULL, after the \code{max_n} correlation-based top-N cap, drop any interaction column whose absolute correlation with the training \code{diff_score} is below \verb{min_signal_correlation * max(|cor|)}. For example, \code{min_signal_correlation = 1/8} keeps only interactions whose |cor| exceeds 1/8 of the best interaction's |cor|, mirroring Akhiad's manual post-hoc filter. Default: NULL (no filter).}
 }
 \value{
 The updated trajectory model with added interactions.

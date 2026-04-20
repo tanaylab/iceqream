@@ -103,15 +103,3 @@ learn_traj_prego <- function(peak_intervals = NULL, peaks = NULL, atac_diff, n_m
         )
     )
 }
-
-infer_traj_prego <- function(traj_prego, peak_intervals, norm_intervals = peak_intervals, ...) {
-    withr::local_options(list(gmax.data.size = 1e9))
-
-    seqs <- prego::intervals_to_seq(peak_intervals, traj_prego$peaks_size)
-    norm_seqs <- prego::intervals_to_seq(norm_intervals, traj_prego$peaks_size)
-
-    cli_alert_info("Inferring energies using prego models...")
-    e_test <- infer_energies(seqs, norm_seqs, traj_prego$models, traj_prego$min_energy, traj_prego$energy_norm_quantile, traj_prego$norm_energy_max, ...)
-
-    return(e_test)
-}

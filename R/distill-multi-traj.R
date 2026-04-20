@@ -76,7 +76,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     }
 
     orig_traj_model_names <- names(traj_models)
-    names(traj_models) <- paste0("m", 1:length(traj_models))
+    names(traj_models) <- paste0("m", seq_along(traj_models))
 
     if (unique_motifs) {
         motif_map <- purrr::imap_dfr(traj_models, ~ {
@@ -111,7 +111,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         }) %>% do.call(cbind, .)
 
         # unify models
-        motif_models <- purrr::imap(traj_models, ~ {
+        motif_models <- purrr::map(traj_models, ~ {
             .x@motif_models
         }) %>% do.call(c, .)
     }
@@ -165,56 +165,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         arrange(clust, desc(abs(cor)))
 
     if (!is.null(intra_cor_thresh)) {
-        avg_intra_cluster_cor <- function(cluster_id, clust_map, corr_matrix) {
-            features_in_cluster <- clust_map$feat[clust_map$clust == cluster_id]
-            cluster_corr <- corr_matrix[features_in_cluster, features_in_cluster]
-            mean(cluster_corr[upper.tri(cluster_corr)], na.rm = TRUE)
-        }
-
-        clust_map <- clust_map %>%
-            group_by(clust) %>%
-            mutate(intra_cor = avg_intra_cluster_cor(clust[1], clust_map, cm)) %>%
-            ungroup() %>%
-            mutate(intra_cor = ifelse(is.na(intra_cor), 1, intra_cor)) %>%
-            group_by(clust) %>%
-            mutate(n = n_distinct(feat)) %>%
-            ungroup()
-
-        to_split <- clust_map %>%
-            filter(intra_cor < intra_cor_thresh, n > 1) %>%
-            pull(clust) %>%
-            unique()
-
-        if (length(to_split) > 0) {
-            cli_alert_info("Splitting {.val {length(to_split)}} cluster{?s} with average intra-cluster correlation < {.val {intra_cor_thresh}}")
-
-            if (unique_motifs) {
-                feat_map <- clust_map %>%
-                    distinct(clust, motif, feat, intra_cor) %>%
-                    group_by(clust) %>%
-                    mutate(clust_i = ifelse(clust %in% to_split, 1:n(), 1)) %>%
-                    mutate(intra_cor = ifelse(clust %in% to_split, intra_cor, 1)) %>%
-                    ungroup() %>%
-                    tidyr::unite(clust, clust, clust_i, sep = "_") %>%
-                    mutate(clust = as.integer(as.factor(clust)))
-
-                clust_map <- clust_map %>%
-                    distinct(model, feat) %>%
-                    left_join(feat_map, by = "feat")
-            } else {
-                clust_map <- clust_map %>%
-                    group_by(clust) %>%
-                    mutate(clust_i = ifelse(clust %in% to_split, 1:n(), 1)) %>%
-                    ungroup() %>%
-                    tidyr::unite(clust, clust, clust_i, sep = "_") %>%
-                    mutate(clust = as.integer(as.factor(clust)))
-            }
-
-            clust_map <- clust_map %>%
-                group_by(clust) %>%
-                mutate(n = n_distinct(feat)) %>%
-                ungroup()
-        }
+        clust_map <- split_low_correlation_clusters(clust_map, cm, intra_cor_thresh, unique_motifs = unique_motifs)
     }
 
     clust_map <- clust_map %>%
@@ -311,7 +262,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
     cli_alert_info("Infering energies...")
     clust_energies <- infer_energies(sequences, norm_sequences, prego_distilled, traj_models[[1]]@params$min_energy, traj_models[[1]]@params$energy_norm_quantile, traj_models[[1]]@params$norm_energy_max)
 
-    traj_models_full <- purrr::imap(traj_models, ~ {
+    traj_models_full <- purrr::map(traj_models, ~ {
         update_traj_model(.x, clust_energies, prego_distilled)
     })
 
@@ -452,12 +403,10 @@ update_traj_model <- function(traj_model, clust_energies, motif_models) {
     clust_energies_logist <- create_logist_features(cbind(clust_energies, traj_model@additional_features))
     atac_diff <- traj_model@diff_score
     atac_diff_n <- norm01(atac_diff)
-    model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, seed = traj_model@params$seed)
-    model <- strip_glmnet(model)
 
-    predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = traj_model@params$lambda))[, 1]
-    predicted_diff_score <- norm01(predicted_diff_score)
-    predicted_diff_score <- rescale(predicted_diff_score, atac_diff)
+    fit_result <- fit_and_predict_model(clust_energies_logist, atac_diff_n, clust_energies_logist, atac_diff, alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, seed = traj_model@params$seed)
+    model <- fit_result$model
+    predicted_diff_score <- fit_result$predicted_diff_score
 
     TrajectoryModel(
         model = model,
@@ -506,6 +455,7 @@ plot_traj_model_multi_clust <- function(traj_models, clust_map, prego_distilled,
         if (nrow(x) > 1) {
             cli::cli_alert("Plotting cluster {.val {x$clust_name[1]}}, intra_cor = {.val {x$intra_cor[1]}}, n = {.val {x$n[1]}}")
             png(file.path(out_dir, paste0(x$clust_name[1], ".cor_", round(x$intra_cor[1], digits = 3), ".n_", x$n[1], ".png")), width = 500, height = 150 * nrow(x))
+
             p <- clust_map %>%
                 filter(clust == i) %>%
                 as.data.frame() %>%

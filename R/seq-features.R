@@ -30,7 +30,7 @@ create_sequence_features <- function(intervals, size = NULL, normalize = TRUE, n
             norm_feats <- cbind(norm_gc_content, norm_dinucs)
 
             # Apply normalization using reference quantiles
-            for (i in 1:ncol(seq_feats)) {
+            for (i in seq_len(ncol(seq_feats))) {
                 q_low <- quantile(norm_feats[, i], norm_quant, na.rm = TRUE)
                 q_high <- quantile(norm_feats[, i], 1 - norm_quant, na.rm = TRUE)
                 vals <- pmin(pmax(seq_feats[, i], q_low), q_high)

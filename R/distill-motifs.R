@@ -54,13 +54,9 @@ distill_traj_model <- function(traj_model, max_motif_num, min_diff = 0.1, intra_
     clust_energies <- distilled$energies
     clust_energies_logist <- create_logist_features(clust_energies)
 
-    model <- glmnet::glmnet(clust_energies_logist, atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = parallel, seed = params$seed)
-    model <- strip_glmnet(model)
-
-    predicted_diff_score <- logist(glmnet::predict.glmnet(model, newx = clust_energies_logist, type = "link", s = params$lambda))[, 1]
-    predicted_diff_score <- norm01(predicted_diff_score)
-    predicted_diff_score <- rescale(predicted_diff_score, atac_diff)
-
+    fit_result <- fit_and_predict_model(clust_energies_logist, atac_diff_n, clust_energies_logist, atac_diff, alpha = params$alpha, lambda = params$lambda, seed = params$seed, parallel = parallel)
+    model <- fit_result$model
+    predicted_diff_score <- fit_result$predicted_diff_score
 
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
     params <- traj_model@params
@@ -106,36 +102,10 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 
 
     if (!is.null(intra_cor_thresh)) {
-        avg_intra_cluster_cor <- function(cluster_id, clust_map, corr_matrix) {
-            features_in_cluster <- clust_map$feat[clust_map$clust == cluster_id]
-            cluster_corr <- corr_matrix[features_in_cluster, features_in_cluster]
-            mean(cluster_corr[upper.tri(cluster_corr)], na.rm = TRUE)
-        }
-
-        clust_map <- clust_map %>%
-            group_by(clust) %>%
-            mutate(intra_cor = avg_intra_cluster_cor(clust[1], clust_map, features_cm)) %>%
-            ungroup() %>%
-            mutate(intra_cor = ifelse(is.na(intra_cor), 1, intra_cor)) %>%
-            add_count(clust)
-
-        to_split <- clust_map %>%
-            filter(intra_cor < intra_cor_thresh, n > 1) %>%
-            pull(clust) %>%
-            unique()
-
-        if (length(to_split) > 0) {
-            cli_alert_info("Splitting {.val {length(to_split)}} cluster{?s} with average intra-cluster correlation < {.val {intra_cor_thresh}}")
-            clust_map <- clust_map %>%
-                group_by(clust) %>%
-                mutate(clust_i = ifelse(clust %in% to_split, 1:n(), 1)) %>%
-                ungroup() %>%
-                tidyr::unite(clust, clust, clust_i, sep = "_") %>%
-                mutate(clust = as.integer(as.factor(clust)))
-            nclust <- length(unique(clust_map$clust))
-            if (target_number < nclust) {
-                target_number <- nclust
-            }
+        clust_map <- split_low_correlation_clusters(clust_map, features_cm, intra_cor_thresh)
+        nclust <- length(unique(clust_map$clust))
+        if (target_number < nclust) {
+            target_number <- nclust
         }
     }
 
@@ -155,7 +125,7 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
     cli_alert_info("Features left: {.val {nrow(clust_map)}}")
 
     best_clust_map <- clust_map %>%
-        arrange(clust, abs(beta)) %>%
+        arrange(clust, desc(abs(beta))) %>%
         group_by(clust) %>%
         slice(1) %>%
         ungroup() %>%
