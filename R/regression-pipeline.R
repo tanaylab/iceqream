@@ -18,6 +18,15 @@
 #' @param prego_spat_bin_size size of each spatial bin for prego motif inference. Default: NULL (uses prego default).
 #' @param prego_spat_num_bins number of spatial bins for prego motif inference. Default: NULL (uses prego default).
 #' @param max_n_interactions maximum number of interactions to consider. Default: NULL (all interactions).
+#' @param interaction_threshold Threshold for interaction feature selection. Features whose absolute linear-model coefficient exceeds this threshold are used as interaction anchors. Default: `0.01` (Akhiad-inspired tight selection). Before 0.0.7 the default was `0.001`; pass `interaction_threshold = 0.001` explicitly and `interaction_only_sig_motifs = FALSE` for numeric parity with the 0.0.6 / paper / pycqream Phase 2 baseline.
+#' @param interaction_only_sig_motifs If `TRUE` (the new 0.0.7 default), only motif features that survived the coefficient-threshold selection are used as motif-side interaction anchors. If `FALSE`, all motif features are candidate anchors for motif-motif interactions. Default: `TRUE`.
+#' @param interaction_only_sig_add_motifs If `TRUE` (default), only additional-feature columns that survived the coefficient-threshold selection are used as additional-feature anchors for motif interactions.
+#' @param interaction_scale_factor A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1.
+#' @param interaction_min_signal_correlation If non-NULL, drops interactions whose training-set absolute correlation with `diff_score` is below this fraction of the best interaction's |cor|. `1/8` mirrors Akhiad's manual post-filter. Default: NULL.
+#' @param strategy Interaction-selection strategy when `include_interactions = TRUE`. Only `"single"` (the default) is currently supported — runs a single [add_interactions()] call at `interaction_threshold`. `"progressive"` is accepted by `match.arg` for forward compatibility but **errors at call time**: the default progressive builder ([default_score_split_features()]) causes silent test-R^2 collapse (~0.27 on the gastrulation vignette) because its helper-model predictions are defined only for training peaks and get imputed to 0 for test peaks at inference. Reserved for a future release once test-time propagation of `base_pred` / `end_pred` / `pred_diff_e_b` engineered features lands. Power users who want the two-pass workflow today should call [add_interactions_progressive()] directly — see `?add_interactions_progressive` and `?default_score_split_features`.
+#' @param interaction_thresholds Per-pass `interaction_threshold` when `strategy = "progressive"`. **Currently inert** — see `strategy` above. Default `c(0.01, 0.0005)`.
+#' @param interaction_only_sig_motifs_prog Per-pass `only_sig_motifs` when `strategy = "progressive"`. **Currently inert** — see `strategy` above. Default `c(TRUE, FALSE)`.
+#' @param interaction_only_sig_add_motifs_prog Per-pass `only_sig_add_motifs` when `strategy = "progressive"`. **Currently inert** — see `strategy` above. Default `c(TRUE, TRUE)`.
 #'
 #' @return An instance of \code{TrajectoryModel} with the final model.
 #'
@@ -28,48 +37,58 @@
 #' @inherit regress_trajectory_motifs return
 #' @export
 iq_regression <- function(
-    peak_intervals = NULL,
-    peaks = NULL,
-    atac_scores = NULL,
-    atac_diff = NULL,
-    normalize_bins = TRUE,
-    norm_intervals = NULL,
-    motif_energies = NULL,
-    additional_features = NULL,
-    min_tss_distance = 5000,
-    add_sequences_features = TRUE,
-    max_motif_num = 30,
-    traj_prego = NULL,
-    peaks_size = 500,
-    bin_start = 1,
-    bin_end = NULL,
-    seed = 60427,
-    frac_train = 0.8,
-    train_idxs = NULL,
-    test_idxs = NULL,
-    filter_model = TRUE,
-    min_diff = 0.1,
-    prego_min_diff = min_diff,
-    prego_sample_for_kmers = TRUE,
-    prego_sample_fraction = 0.1,
-    prego_energy_norm_quantile = 1,
-    prego_spat_bin_size = NULL,
-    prego_spat_num_bins = NULL,
-    r2_threshold = 0.0005,
-    bits_threshold = 1.75,
-    filter_sample_frac = 0.1,
-    include_interactions = FALSE,
-    interaction_threshold = 0.001,
-    max_motif_interaction_n = NULL,
-    max_add_interaction_n = NULL,
-    max_n_interactions = NULL,
-    n_prego_motifs = 0,
-    n_cores = NULL,
-    output_dir = NULL,
-    plot_report = TRUE,
-    rename_motifs = TRUE,
-    ...) {
+  peak_intervals = NULL,
+  peaks = NULL,
+  atac_scores = NULL,
+  atac_diff = NULL,
+  normalize_bins = TRUE,
+  norm_intervals = NULL,
+  motif_energies = NULL,
+  additional_features = NULL,
+  min_tss_distance = 5000,
+  add_sequences_features = TRUE,
+  max_motif_num = 30,
+  traj_prego = NULL,
+  peaks_size = 500,
+  bin_start = 1,
+  bin_end = NULL,
+  seed = 60427,
+  frac_train = 0.8,
+  train_idxs = NULL,
+  test_idxs = NULL,
+  filter_model = TRUE,
+  min_diff = 0.1,
+  prego_min_diff = min_diff,
+  prego_sample_for_kmers = TRUE,
+  prego_sample_fraction = 0.1,
+  prego_energy_norm_quantile = 1,
+  prego_spat_bin_size = NULL,
+  prego_spat_num_bins = NULL,
+  r2_threshold = 0.0005,
+  bits_threshold = 1.75,
+  filter_sample_frac = 0.1,
+  include_interactions = FALSE,
+  interaction_threshold = 0.01,
+  interaction_only_sig_motifs = TRUE,
+  interaction_only_sig_add_motifs = TRUE,
+  interaction_scale_factor = 1,
+  interaction_min_signal_correlation = NULL,
+  max_motif_interaction_n = NULL,
+  max_add_interaction_n = NULL,
+  max_n_interactions = NULL,
+  strategy = c("single", "progressive"),
+  interaction_thresholds = c(0.01, 0.0005),
+  interaction_only_sig_motifs_prog = c(TRUE, FALSE),
+  interaction_only_sig_add_motifs_prog = c(TRUE, TRUE),
+  n_prego_motifs = 0,
+  n_cores = NULL,
+  output_dir = NULL,
+  plot_report = TRUE,
+  rename_motifs = TRUE,
+  ...
+) {
     peak_intervals <- peak_intervals %||% peaks
+    strategy <- match.arg(strategy)
 
     if (!is.null(n_cores)) {
         cli::cli_alert_info("Setting the number of cores to {.val {n_cores}}")
@@ -222,7 +241,7 @@ iq_regression <- function(
         max_motif_num = max_motif_num,
         seed = seed,
         min_diff = min_diff,
-        min_tss_distance = min_tss_distance,
+        min_tss_distance = NULL,
         ...
     )
 
@@ -240,7 +259,37 @@ iq_regression <- function(
     }
 
     if (include_interactions) {
-        traj_model <- add_interactions(traj_model, interaction_threshold = interaction_threshold, max_motif_n = max_motif_interaction_n, max_add_n = max_add_interaction_n, max_n = max_n_interactions, seed = seed)
+        if (strategy == "single") {
+            cli::cli_alert(
+                "Using single-pass interaction strategy (threshold = {.val {interaction_threshold}}, {.field only_sig_motifs} = {.val {interaction_only_sig_motifs}}, {.field only_sig_add_motifs} = {.val {interaction_only_sig_add_motifs}})."
+            )
+            traj_model <- add_interactions(
+                traj_model,
+                interaction_threshold = interaction_threshold,
+                only_sig_motifs = interaction_only_sig_motifs,
+                only_sig_add_motifs = interaction_only_sig_add_motifs,
+                max_motif_n = max_motif_interaction_n,
+                max_add_n = max_add_interaction_n,
+                max_n = max_n_interactions,
+                interaction_scale_factor = interaction_scale_factor,
+                min_signal_correlation = interaction_min_signal_correlation,
+                seed = seed
+            )
+        } else {
+            # Progressive within iq_regression is currently disabled because
+            # default_score_split_features produces train-only features that
+            # get imputed to 0 at test-time inference, silently collapsing
+            # test R^2 by ~0.27 on gastrulation. Promoted to an error from
+            # a warning on reviewer feedback — warnings get buried and the
+            # failure mode is a silent correctness issue, not a performance
+            # one. The helpers remain exported for power users who propagate
+            # base_pred/end_pred to test peaks themselves.
+            cli::cli_abort(c(
+                "{.code strategy = \"progressive\"} inside {.fn iq_regression} is disabled until test-time {.field base_pred}/{.field end_pred} propagation lands.",
+                "x" = "The default progressive builder ({.fn default_score_split_features}) fits base-only/end-only helper models on train peaks and leaves test peaks at 0 at inference, which collapses test R^2 by ~0.27 on the gastrulation vignette (measured 2026-04-19).",
+                "i" = "If you need the Akhiad-style two-pass workflow now, call {.fn add_interactions_progressive} directly on a model that already spans train + test peaks, and supply {.field additional_features} for both sets at inference."
+            ))
+        }
         final_model <- infer_and_save(traj_model, "iq_regression_final_model.rds")
     }
 

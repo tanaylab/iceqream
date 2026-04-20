@@ -240,3 +240,124 @@ test_that("iq_regression with custom bin_start/bin_end computes test diff correc
         label = "Test R² should be comparable to train R² when using correct bins"
     )
 })
+
+# =============================================================================
+# E2E: include_interactions = TRUE through inference.
+# Guards the class of bugs that 003b446 fixed (rbind matrix/data.frame S4 slot
+# validity). Previously no test exercised the full interaction-augmented
+# inference path.
+# =============================================================================
+test_that("iq_regression(include_interactions = TRUE) completes inference on test peaks", {
+    skip_on_cran()
+    skip_if_not_installed("prego")
+    skip_if_not_installed("misha")
+    skip_if_not_installed("misha.ext")
+
+    genome_root <- Sys.getenv("ICEQREAM_GENOME_ROOT", unset = "/home/aviezerl/mm10")
+    skip_if(!dir.exists(genome_root), paste("misha genome not found at", genome_root))
+
+    data_dir <- get_vignette_data()
+    skip_if(is.null(data_dir), "Could not download vignette data")
+
+    peak_intervals <- readr::read_rds(file.path(data_dir, "peak_intervals.rds"))
+    atac_scores <- readr::read_rds(file.path(data_dir, "atac_scores.rds"))
+    additional_features <- readr::read_rds(file.path(data_dir, "additional_features.rds"))
+    normalization_intervals <- readr::read_tsv(
+        file.path(data_dir, "gastrulation_intervals.tsv"),
+        show_col_types = FALSE
+    )
+    motif_energies <- readr::read_rds(file.path(data_dir, "motif_energies.rds"))
+
+    misha::gsetroot(genome_root)
+
+    traj_model <- iq_regression(
+        peak_intervals = peak_intervals,
+        atac_scores = atac_scores,
+        motif_energies = motif_energies,
+        normalize_energies = FALSE,
+        additional_features = additional_features,
+        norm_intervals = normalization_intervals,
+        seed = 60427,
+        n_prego_motifs = 0,
+        frac_train = 0.8,
+        max_motif_num = 10,
+        plot_report = FALSE,
+        rename_motifs = FALSE,
+        include_interactions = TRUE
+    )
+
+    expect_s4_class(traj_model, "TrajectoryModel")
+    expect_gt(ncol(traj_model@interactions), 0)
+    expect_true(is.matrix(traj_model@interactions))
+
+    # The whole point of this test: inference must complete on test peaks
+    # without a slot-validity or column-alignment error.
+    test_idx <- which(traj_model@type == "test")
+    train_idx <- which(traj_model@type == "train")
+    expect_true(length(train_idx) > 0)
+    expect_true(length(test_idx) > 0)
+
+    r2_train <- cor(
+        traj_model@diff_score[train_idx],
+        traj_model@predicted_diff_score[train_idx],
+        use = "pairwise.complete.obs"
+    )^2
+    r2_test <- cor(
+        traj_model@diff_score[test_idx],
+        traj_model@predicted_diff_score[test_idx],
+        use = "pairwise.complete.obs"
+    )^2
+    expect_gt(r2_train, 0.1)
+    expect_gt(r2_test, 0.05)
+
+    # @interactions rows must span train + test peaks (the rbind-to-matrix
+    # fix at inference.R:122-128 is what makes this work).
+    expect_equal(nrow(traj_model@interactions),
+        length(train_idx) + length(test_idx))
+})
+
+# =============================================================================
+# iq_regression with strategy = "progressive" is disabled until test-time
+# base_pred/end_pred propagation lands. Guard that the error message fires.
+# =============================================================================
+test_that("iq_regression(strategy = 'progressive') errors until test-time propagation lands", {
+    skip_on_cran()
+    skip_if_not_installed("prego")
+    skip_if_not_installed("misha")
+
+    genome_root <- Sys.getenv("ICEQREAM_GENOME_ROOT", unset = "/home/aviezerl/mm10")
+    skip_if(!dir.exists(genome_root), paste("misha genome not found at", genome_root))
+
+    data_dir <- get_vignette_data()
+    skip_if(is.null(data_dir), "Could not download vignette data")
+
+    peak_intervals <- readr::read_rds(file.path(data_dir, "peak_intervals.rds"))
+    atac_scores <- readr::read_rds(file.path(data_dir, "atac_scores.rds"))
+    additional_features <- readr::read_rds(file.path(data_dir, "additional_features.rds"))
+    normalization_intervals <- readr::read_tsv(
+        file.path(data_dir, "gastrulation_intervals.tsv"),
+        show_col_types = FALSE
+    )
+    motif_energies <- readr::read_rds(file.path(data_dir, "motif_energies.rds"))
+
+    misha::gsetroot(genome_root)
+
+    expect_error(
+        iq_regression(
+            peak_intervals = peak_intervals,
+            atac_scores = atac_scores,
+            motif_energies = motif_energies,
+            additional_features = additional_features,
+            norm_intervals = normalization_intervals,
+            seed = 60427,
+            n_prego_motifs = 0,
+            frac_train = 0.8,
+            max_motif_num = 10,
+            plot_report = FALSE,
+            rename_motifs = FALSE,
+            include_interactions = TRUE,
+            strategy = "progressive"
+        ),
+        regexp = "disabled until test-time"
+    )
+})

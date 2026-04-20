@@ -110,6 +110,8 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
                                       max_motif_interaction_n = NULL,
                                       max_add_interaction_n = NULL,
                                       max_interaction_n = NULL,
+                                      only_sig_motifs = FALSE,
+                                      only_sig_add_motifs = TRUE,
                                       symmetrize_spat = TRUE) {
     withr::local_options(list(gmax.data.size = 1e9))
     peak_intervals <- peak_intervals %||% peaks
@@ -157,7 +159,9 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
 
     min_energy <- -7
 
-    validate_misha()
+    if (!is.null(min_tss_distance)) {
+        validate_misha()
+    }
 
     # filter peaks that are too close to TSS
     enhancers_filter <- get_tss_distance_filter(peak_intervals, min_tss_distance)
@@ -263,7 +267,8 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
             max_motif_n = max_motif_interaction_n,
             max_add_n = max_add_interaction_n,
             max_n = max_interaction_n,
-            lambda = lambda, alpha = alpha, seed = seed
+            lambda = lambda, alpha = alpha, seed = seed,
+            only_sig_motifs = only_sig_motifs, only_sig_add_motifs = only_sig_add_motifs
         )
         clust_energies <- cbind(clust_energies, interactions)
     } else {
@@ -316,6 +321,13 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
             n_clust_factor = n_clust_factor,
             include_interactions = include_interactions,
             interaction_threshold = interaction_threshold,
+            # When include_interactions is TRUE, training above concatenates
+            # `interactions` into `clust_energies` before `create_logist_features`,
+            # so every interaction column is expanded into 4 logist features. Inference
+            # (in R/inference.R) reads this flag to decide whether to apply the same
+            # 4x expansion on the test side; without this, inference errored with
+            # "subscript out of bounds" on the model_features alignment step.
+            logist_interactions = include_interactions,
             symmetrize_spat = symmetrize_spat,
             seed = seed
         )

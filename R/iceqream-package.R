@@ -15,8 +15,7 @@
 #' @importFrom stats binomial coef cutree hclust quantile gaussian
 #' @importFrom utils head
 #' @importFrom grDevices png pdf dev.off
-#' @importFrom misha gextract gvtrack.create gintervals.all gvtrack.iterator gdir.create gtrack.exists gtrack.rm gtrack.import gtrack.create gdb.reload gtrack.ls gintervals.canonic
-#' @importFrom misha.ext gintervals.neighbors1 gintervals.normalize gintervals.expand
+#' @importFrom misha gextract gvtrack.create gvtrack.rm gintervals.all gvtrack.iterator gdir.create gtrack.exists gtrack.rm gtrack.import gtrack.create gdb.reload gtrack.ls gintervals.canonic gintervals.neighbors gintervals.normalize gintervals.exists gquantiles
 #' @importFrom readr write_csv write_rds
 #' @import ggplot2
 ## usethis namespace: start

@@ -6,7 +6,7 @@
 \usage{
 filter_traj_model(
   traj_model,
-  r2_threshold = 0.0005,
+  r2_threshold = 5e-04,
   bits_threshold = 1.75,
   sample_frac = 0.1,
   seed = 60427
