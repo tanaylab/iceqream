@@ -7,7 +7,7 @@
 traj_model_variable_response(
   traj_model,
   vars = NULL,
-  lambda = 0.00001,
+  lambda = 1e-05,
   reverse = FALSE
 )
 }

@@ -6,7 +6,7 @@
 \usage{
 filter_multi_traj_model(
   multi_traj,
-  r2_threshold = 0.0005,
+  r2_threshold = 5e-04,
   bits_threshold = 1.75,
   sample_frac = 0.1,
   filter_full = TRUE

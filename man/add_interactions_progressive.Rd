@@ -6,7 +6,7 @@
 \usage{
 add_interactions_progressive(
   traj_model,
-  thresholds = c(0.01, 0.0005),
+  thresholds = c(0.01, 5e-04),
   only_sig_motifs = c(TRUE, FALSE),
   only_sig_add_motifs = c(TRUE, TRUE),
   additional_features_builder = NULL,
