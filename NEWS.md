@@ -12,12 +12,19 @@
       hard-coded to the `add_interactions()` default of `FALSE`).
   For exact numeric parity with 0.0.6 / paper / pycqream Phase 2 results,
   pass `interaction_threshold = 0.001, interaction_only_sig_motifs = FALSE`
-  explicitly. The new defaults hold R^2 train/test within ±0.005 of the
-  old defaults on the gastrulation vignette data at both the default
-  `max_n` cap (0.531/0.351 vs 0.529/0.352) and with `max_n_interactions =
-  5000` removing the shared correlation-cap bottleneck (0.549/0.367 vs
-  0.552/0.360 — tight defaults produce 25 fewer interactions with +0.007
-  test R^2).
+  explicitly. Benchmarked on the gastrulation vignette data
+  (5000 peaks, 21862-motif db) under two configurations:
+    * At the default `max_n_interactions` cap (both configs bounded at
+      260 interactions): R^2 train/test 0.531/0.351 (0.0.7) vs
+      0.529/0.352 (0.0.6). Parity within measurement noise — expected,
+      because the top-N correlation selection dominates when both
+      configurations hit the same cap.
+    * With `max_n_interactions = 5000` (unbounded, probes the selection
+      criteria directly): 0.0.7 produces **492 interactions** at
+      R^2 test 0.367; 0.0.6 produces 517 interactions at R^2 test 0.360.
+      The tight default is more parsimonious (25 fewer interactions)
+      and generalizes slightly better (+0.007 test R^2) — this is the
+      evidence that motivates the default change.
 * `iq_regression(strategy = "progressive")` now errors at call time
   instead of warning. The default progressive builder
   (`default_score_split_features()`) causes silent test-R^2 collapse

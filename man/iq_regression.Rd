@@ -136,13 +136,13 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{max_n_interactions}{maximum number of interactions to consider. Default: NULL (all interactions).}
 
-\item{strategy}{Interaction-selection strategy when \code{include_interactions = TRUE}. \code{"single"} (default) runs a single \code{\link[=add_interactions]{add_interactions()}} call at \code{interaction_threshold}. \code{"progressive"} runs \code{\link[=add_interactions_progressive]{add_interactions_progressive()}} — a two-pass selection that seeds with a tight threshold and, when multi-bin \code{atac_scores} are available, injects \code{base_pred}/\code{end_pred}/\code{pred_diff_e_b} engineered additional features between passes via \code{\link[=default_score_split_features]{default_score_split_features()}} before a looser second pass. NOTE: the default progressive builder (\code{\link[=default_score_split_features]{default_score_split_features()}}) causes severe test-time overfitting under \code{include_interactions = TRUE} because the helper models' predictions are computed on training peaks only and get imputed to 0 for test peaks at inference. Prefer \code{"single"} unless you have a test-time pipeline for these engineered features.}
+\item{strategy}{Interaction-selection strategy when \code{include_interactions = TRUE}. Only \code{"single"} (the default) is currently supported — runs a single \code{\link[=add_interactions]{add_interactions()}} call at \code{interaction_threshold}. \code{"progressive"} is accepted by \code{match.arg} for forward compatibility but \strong{errors at call time}: the default progressive builder (\code{\link[=default_score_split_features]{default_score_split_features()}}) causes silent test-R^2 collapse (~0.27 on the gastrulation vignette) because its helper-model predictions are defined only for training peaks and get imputed to 0 for test peaks at inference. Reserved for a future release once test-time propagation of \code{base_pred} / \code{end_pred} / \code{pred_diff_e_b} engineered features lands. Power users who want the two-pass workflow today should call \code{\link[=add_interactions_progressive]{add_interactions_progressive()}} directly — see \code{?add_interactions_progressive} and \code{?default_score_split_features}.}
 
-\item{interaction_thresholds}{When \code{strategy = "progressive"}, per-pass \code{interaction_threshold}. Default \code{c(0.01, 0.0005)}.}
+\item{interaction_thresholds}{Per-pass \code{interaction_threshold} when \code{strategy = "progressive"}. \strong{Currently inert} — see \code{strategy} above. Default \code{c(0.01, 0.0005)}.}
 
-\item{interaction_only_sig_motifs_prog}{When \code{strategy = "progressive"}, per-pass \code{only_sig_motifs}. Default \code{c(TRUE, FALSE)}.}
+\item{interaction_only_sig_motifs_prog}{Per-pass \code{only_sig_motifs} when \code{strategy = "progressive"}. \strong{Currently inert} — see \code{strategy} above. Default \code{c(TRUE, FALSE)}.}
 
-\item{interaction_only_sig_add_motifs_prog}{When \code{strategy = "progressive"}, per-pass \code{only_sig_add_motifs}. Default \code{c(TRUE, TRUE)}.}
+\item{interaction_only_sig_add_motifs_prog}{Per-pass \code{only_sig_add_motifs} when \code{strategy = "progressive"}. \strong{Currently inert} — see \code{strategy} above. Default \code{c(TRUE, TRUE)}.}
 
 \item{n_prego_motifs}{number of prego motifs (de-novo motifs) to consider.}
 
