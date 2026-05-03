@@ -87,7 +87,7 @@ The `peak_intervals` dataframe contains the genomic positions of accessibility p
 The first step in the IceQream pipeline is to compute motif energies for each transcription factor model and each peak. This process can be computationally intensive, as it calculates energies for over 20,000 motifs from various databases.
 
 ```{r compute_motif_energies, eval=FALSE}
-motif_energies <- compute_motif_energies(peak_intervals, motif_db, normalization_intervals = normalization_intervals)
+motif_energies <- compute_motif_energies(peak_intervals, db = motif_db, normalization_intervals = normalization_intervals)
 ```
 
 However, for this tutorial, we're using pre-computed motif energies for a sample of 5000 loci, which are included in the example data:
@@ -102,7 +102,7 @@ This pre-computed matrix contains motif energies for our sample of peaks, allowi
 For a less memory and computationally intensive analysis on your own data, you can reduce the number of motifs used in the regression by taking a representative from the SCENIC clusters (1615) instead of all motifs (20,000+). This can be done by:
 
 ```{r reduce_motifs, eval=FALSE}
-motif_energies <- compute_motif_energies(peak_intervals, motif_db_scenic_clusters, normalization_intervals = normalization_intervals)
+motif_energies <- compute_motif_energies(peak_intervals, db = motif_db_scenic_clusters, normalization_intervals = normalization_intervals)
 ```
 
 ## Running IceQream
@@ -166,13 +166,20 @@ The model report provides several key pieces of information (from left to right)
 5. Spatial curves show the frequency of each TF binding site along the peaks from the bottom 10% (blue) and top 10% (red) of the differential accessibility (dAP) distribution.
 6. Boxplots show the distribution of ATAC differences (dAP, y-axis) for bins of binding energy (x-axis) for each TF.
 
-## Renaming the motif models 
+## Motif model names
 
-You can rename the motif models to more informative names, either manually using `rename_motif_models` or automatically using `match_traj_model_motif_names`:
+By default, `iq_regression()` automatically renames the motif models to more informative names by matching them against the HOMER database (controlled by the `rename_motifs` argument, default `TRUE`). The mapping that was applied is stored on the model:
 
-```{r rename_motif_models}
+```{r names_map}
+head(traj_model@params$names_map)
+```
+
+**Important caveat:** the assigned name should be treated as a *label*, not a TF identification. The mapping picks the single best-correlated PSSM in the reference database, but (1) many TFs share a motif with other family members, so the chosen name is one of several plausible TFs that could bind that sequence, and (2) the best correlation can still be modest — a low-similarity match will silently get a name. Inspect the PSSM logo and the correlation in `match_traj_model_motif_names()` output before claiming a specific TF is responsible.
+
+If you set `rename_motifs = FALSE` and want to apply the mapping later — or supply a custom one — use `match_traj_model_motif_names()` to derive the map and `rename_motif_models()` to apply it:
+
+```{r rename_motif_models, eval = FALSE}
 names_map <- match_traj_model_motif_names(traj_model)
-names_map
 traj_model <- rename_motif_models(traj_model, names_map)
 ```
 
