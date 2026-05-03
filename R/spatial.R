@@ -259,7 +259,7 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
         filter(type != "middle") %>%
         select(-diff_score)
 
-    spatial_freqs <- purrr::map_dfr(motifs, function(motif) {
+    spatial_freqs <- plyr::ldply(motifs, function(motif) {
         if (is.null(pwm_threshold)) {
             local_pwm_r <- gextract.local_pwm(traj_model@normalization_intervals, traj_model@motif_models[[motif]]$pssm, bidirect = TRUE)
             local_pwm_rn <- norm_energy(local_pwm_r, min_energy = -10, q = 1)
