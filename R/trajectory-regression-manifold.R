@@ -53,6 +53,8 @@ regress_trajectory_motifs_manifold <- function(peak_intervals = NULL,
 
     peak_intervals <- peak_intervals %||% peaks
 
+    kmer_sequence_length <- clamp_kmer_sequence_length(kmer_sequence_length, peaks_size)
+
     validate_peak_intervals(peak_intervals)
     validate_additional_features(additional_features, peak_intervals)
     additional_features[is.na(additional_features)] <- 0

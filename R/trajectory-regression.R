@@ -116,6 +116,8 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
     withr::local_options(list(gmax.data.size = 1e9))
     peak_intervals <- peak_intervals %||% peaks
 
+    kmer_sequence_length <- clamp_kmer_sequence_length(kmer_sequence_length, peaks_size)
+
     if (is.null(atac_scores) && is.null(atac_diff)) {
         cli_abort("Either 'atac_scores' or 'atac_diff' must be provided.")
     }
