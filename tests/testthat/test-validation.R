@@ -371,3 +371,27 @@ test_that("validate_additional_features passes with single-column additional fea
     )
     expect_no_error(iceqream:::validate_additional_features(feats, peaks))
 })
+
+# ---- clamp_kmer_sequence_length ----
+
+test_that("clamp_kmer_sequence_length returns NULL passthrough", {
+    expect_null(iceqream:::clamp_kmer_sequence_length(NULL, 200))
+    expect_null(iceqream:::clamp_kmer_sequence_length(NULL, NULL))
+})
+
+test_that("clamp_kmer_sequence_length leaves value unchanged when peaks_size is NULL", {
+    expect_equal(iceqream:::clamp_kmer_sequence_length(300, NULL), 300)
+})
+
+test_that("clamp_kmer_sequence_length passes through when value <= peaks_size", {
+    expect_equal(iceqream:::clamp_kmer_sequence_length(200, 200), 200)
+    expect_equal(iceqream:::clamp_kmer_sequence_length(150, 500), 150)
+})
+
+test_that("clamp_kmer_sequence_length clamps when value exceeds peaks_size", {
+    expect_message(
+        result <- iceqream:::clamp_kmer_sequence_length(300, 200),
+        "Clamping"
+    )
+    expect_equal(result, 200)
+})

@@ -211,3 +211,19 @@ select_features_by_regression <- function(motif_energies, atac_diff_n, additiona
         chosen_motifs = chosen_motifs
     ))
 }
+
+# Clamp kmer_sequence_length to peaks_size — prego::regress_pwm aborts when
+# kmer_sequence_length exceeds the actual sequence length, which surfaces deep
+# inside a parallel plyr loop as the opaque "task 1 failed" error.
+clamp_kmer_sequence_length <- function(kmer_sequence_length, peaks_size) {
+    if (is.null(kmer_sequence_length) || is.null(peaks_size)) {
+        return(kmer_sequence_length)
+    }
+    if (kmer_sequence_length > peaks_size) {
+        cli::cli_alert_info(
+            "Clamping {.field kmer_sequence_length} from {.val {kmer_sequence_length}} to {.val {peaks_size}} ({.field peaks_size})."
+        )
+        return(peaks_size)
+    }
+    kmer_sequence_length
+}

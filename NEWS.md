@@ -84,6 +84,13 @@
 * Fix: `plot_traj_model_clusters_report()` would silently `unlink(dir, recursive = TRUE)`
   any user-supplied path — now refuses to delete `/`, `$HOME`, `getwd()`, or
   any path shallower than 3 components.
+* Fix: `regress_trajectory_motifs()` and `regress_trajectory_motifs_manifold()`
+  (and therefore `iq_regression()`) now clamp `kmer_sequence_length` to
+  `peaks_size` when it would exceed the extracted sequence length. Previously
+  the mismatch (default `kmer_sequence_length = 300`, user `peaks_size < 300`)
+  surfaced deep inside `distill_motifs()`'s parallel `plyr::llply` loop as the
+  opaque `task 1 failed - "kmer_sequence_length cannot be greater than the
+  length"` originating from `prego::regress_pwm`.
 
 ## Improvements
 
