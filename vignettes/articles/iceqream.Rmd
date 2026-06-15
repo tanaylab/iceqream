@@ -114,7 +114,6 @@ traj_model <- iq_regression(
     peak_intervals = peak_intervals,
     atac_scores = atac_scores,
     motif_energies = motif_energies,
-    normalize_energies = FALSE,
     additional_features = additional_features,
     norm_intervals = normalization_intervals,
     seed = 60427,

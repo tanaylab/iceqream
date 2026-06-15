@@ -43,7 +43,10 @@ plot_multi_traj_model_report <- function(multi_traj, filename = NULL, width = NU
     }
 
     if (type == "pr") {
-        partial_resp_list <- purrr::map(traj_models, compute_partial_response)
+        # Restrict to the motifs that will actually be plotted/ordered
+        # (`names(models)`); the full per-model partial response is otherwise
+        # computed for every variable and then discarded downstream.
+        partial_resp_list <- purrr::map(traj_models, ~ compute_partial_response(.x, vars = names(models)))
     }
 
     pr_mat <- if (type == "pr") {
