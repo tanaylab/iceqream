@@ -22,16 +22,31 @@ create_specific_terms <- function(energies, terms, scale = 1) {
 }
 
 create_features_terms <- function(energies, features, data, scale = 1) {
-    interactions <- purrr::map_dfc(features, ~ {
-        inter <- energies[, setdiff(colnames(energies), .x), drop = FALSE] * data[, .x]
-        max_vals <- apply(inter, 2, max, na.rm = TRUE)
+    # Build each anchor's interaction block as a matrix and cbind them, instead
+    # of accumulating a column-wise data.frame via purrr::map_dfc and round-
+    # tripping through apply(, 2, norm01). For large motif sets the candidate
+    # matrix is nrow(peaks) x O(n^2), so the data.frame dance and the per-column
+    # apply() copies dominate. This is the matrix-level equivalent and produces
+    # identical values (norm01's constant-column case maps to 0 either way).
+    # `energies` may arrive as a data.frame (e.g. cbind(matrix, additional_features));
+    # matrixStats needs a matrix. Coercing here is equivalent to the old
+    # apply()/t() path, which silently coerced too.
+    energies <- as.matrix(energies)
+    blocks <- lapply(features, function(f) {
+        inter <- energies[, setdiff(colnames(energies), f), drop = FALSE] * data[, f]
+        max_vals <- matrixStats::colMaxs(inter, na.rm = TRUE)
         max_vals[max_vals == 0] <- 1
-        inter <- t(t(inter) / max_vals)
-        colnames(inter) <- paste0(.x, ":", colnames(inter))
+        inter <- sweep(inter, 2, max_vals, `/`)
+        colnames(inter) <- paste0(f, ":", colnames(inter))
         inter
     })
+    interactions <- do.call(cbind, blocks)
 
-    interactions <- apply(interactions, 2, norm01) * scale
+    # Column-wise norm01, vectorized (matches norm01(): constant columns -> 0).
+    cmin <- matrixStats::colMins(interactions, na.rm = TRUE)
+    rng <- matrixStats::colMaxs(interactions, na.rm = TRUE) - cmin
+    rng[rng == 0] <- 1
+    interactions <- sweep(sweep(interactions, 2, cmin, `-`), 2, rng, `/`) * scale
     interactions
 }
 
@@ -135,15 +150,24 @@ get_significant_interactions <- function(
 
     if (!is.null(min_signal_correlation) && ncol(inter) > 0) {
         cm_final <- abs(tgs_cor(inter[idxs, ], as.matrix(y[idxs]))[, 1])
-        threshold_cor <- min_signal_correlation * max(cm_final, na.rm = TRUE)
-        keep <- names(cm_final)[!is.na(cm_final) & cm_final > threshold_cor]
-        n_dropped <- ncol(inter) - length(keep)
-        if (n_dropped > 0) {
-            cli::cli_alert_info(
-                "Applied {.field min_signal_correlation} = {.val {min_signal_correlation}}: dropped {.val {n_dropped}} of {.val {ncol(inter)}} interactions below {.val {signif(threshold_cor, 3)}}."
+        if (!any(is.finite(cm_final))) {
+            # All interaction-signal correlations are NA/non-finite (e.g. every
+            # candidate column is constant). max(., na.rm = TRUE) would be -Inf
+            # and silently drop every interaction; skip the filter instead.
+            cli::cli_alert_warning(
+                "{.field min_signal_correlation}: all interaction-signal correlations are non-finite; skipping the filter."
             )
+        } else {
+            threshold_cor <- min_signal_correlation * max(cm_final, na.rm = TRUE)
+            keep <- names(cm_final)[is.finite(cm_final) & cm_final > threshold_cor]
+            n_dropped <- ncol(inter) - length(keep)
+            if (n_dropped > 0) {
+                cli::cli_alert_info(
+                    "Applied {.field min_signal_correlation} = {.val {min_signal_correlation}}: dropped {.val {n_dropped}} of {.val {ncol(inter)}} interactions below {.val {signif(threshold_cor, 3)}}."
+                )
+            }
+            inter <- inter[, keep, drop = FALSE]
         }
-        inter <- inter[, keep, drop = FALSE]
     }
 
     return(inter)
@@ -164,6 +188,7 @@ get_significant_interactions <- function(
 #' @param force If TRUE, the function will add interactions even if they already exist. Default: FALSE
 #' @param logist_interactions Logical indicating whether to transform interactions to logistic functions. Default: FALSE
 #' @param only_sig_motifs Logical indicating whether to only consider significant motifs for interactions. Default: FALSE
+#' @param only_sig_add_motifs Logical indicating whether to restrict additional-feature interaction anchors to the significant additional features (those whose linear-model coefficient exceeds `interaction_threshold`). If FALSE, all additional feature columns are candidate anchors. Default: TRUE
 #' @param alpha The elastic net mixing parameter for glmnet. alpha=1 is the lasso penalty, alpha=0 is the ridge penalty. Default: 1
 #' @param interaction_scale_factor A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1 (no scaling). Values >1 make interactions more prominent relative to motif features; values <1 down-weight them.
 #' @param min_signal_correlation If non-NULL, after the `max_n` correlation-based top-N cap, drop any interaction column whose absolute correlation with the training `diff_score` is below `min_signal_correlation * max(|cor|)`. For example, `min_signal_correlation = 1/8` keeps only interactions whose |cor| exceeds 1/8 of the best interaction's |cor|, mirroring Akhiad's manual post-hoc filter. Default: NULL (no filter).

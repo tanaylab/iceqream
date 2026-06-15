@@ -27,5 +27,29 @@ normalize_with_db_quantiles(
 Normalized motif energies matrix
 }
 \description{
-Normalize motif energies using pre-computed quantiles
+Fast-path normalization used by \code{\link[=compute_motif_energies]{compute_motif_energies()}} when a
+pre-computed \code{db_quantiles} matrix is supplied (e.g.
+\link{mouse_db_quantiles}).
 }
+\section{Scale caveat (not a drop-in for \link{norm_energy_matrix})}{
+
+This function rescales the clamped energies to \verb{[0, norm_energy_max]}
+using the \strong{fixed theoretical range} \code{-min_energy}
+(\code{(y - min_energy) / (-min_energy) * norm_energy_max}). In contrast,
+\link{norm_energy_matrix} (the path used when \code{db_quantiles} is \code{NULL}) and
+the inference-time \link{pbm.normalize_energies} rescale by the \strong{observed
+empirical range} of the processed background energies. The two agree
+only when the background's processed minimum hits the \code{min_energy}
+floor exactly; otherwise the resulting \verb{[0, norm_energy_max]} mapping
+differs (the same input energy maps to a different normalized value).
+Downstream this is largely masked because motif selection is
+correlation-based (scale-invariant) and \code{glmnet} standardizes columns,
+but the \code{db_quantiles} path should not be treated as numerically
+identical to the default path. Reconciling them requires the shipped
+\code{db_quantiles} to also carry a per-motif background min/range column;
+until that data is regenerated and validated, the divergence is
+intentional and documented here. See the pinning test in
+\code{test-energy-utils.R}.
+}
+
+\keyword{internal}

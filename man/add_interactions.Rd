@@ -63,6 +63,8 @@ add_interactions(
 
 \item{only_sig_motifs}{Logical indicating whether to only consider significant motifs for interactions. Default: FALSE}
 
+\item{only_sig_add_motifs}{Logical indicating whether to restrict additional-feature interaction anchors to the significant additional features (those whose linear-model coefficient exceeds \code{interaction_threshold}). If FALSE, all additional feature columns are candidate anchors. Default: TRUE}
+
 \item{interaction_scale_factor}{A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1 (no scaling). Values >1 make interactions more prominent relative to motif features; values <1 down-weight them.}
 
 \item{min_signal_correlation}{If non-NULL, after the \code{max_n} correlation-based top-N cap, drop any interaction column whose absolute correlation with the training \code{diff_score} is below \verb{min_signal_correlation * max(|cor|)}. For example, \code{min_signal_correlation = 1/8} keeps only interactions whose |cor| exceeds 1/8 of the best interaction's |cor|, mirroring Akhiad's manual post-hoc filter. Default: NULL (no filter).}
