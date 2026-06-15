@@ -58,11 +58,9 @@ merge_trajectory_motifs <- function(traj_model, motifs, new_motif_name, min_diff
     feat_mat <- feat_mat[, !colnames(feat_mat) %in% features]
     feat_mat <- cbind(feat_mat, motif_e_logist)
 
-    model <- glmnet::glmnet(feat_mat, atac_diff_n, binomial(link = "logit"), alpha = params$alpha, lambda = params$lambda, parallel = TRUE, seed = seed)
-    model <- strip_glmnet(model)
-    pred <- logist(glmnet::predict.glmnet(model, newx = feat_mat, type = "link", s = params$lambda))[, 1]
-    pred <- norm01(pred)
-    pred <- rescale(pred, atac_diff)
+    fit_result <- fit_and_predict_model(feat_mat, atac_diff_n, feat_mat, atac_diff, alpha = params$alpha, lambda = params$lambda, seed = seed, parallel = TRUE)
+    model <- fit_result$model
+    pred <- fit_result$predicted_diff_score
     r2 <- cor(pred, atac_diff)^2
 
     traj_model_new <- traj_model
