@@ -164,6 +164,32 @@ fit_and_predict_model <- function(train_features, train_y, predict_features, dif
     return(list(model = model, predicted_diff_score = predicted_diff_score))
 }
 
+# Reconstruct a TrajectoryModel after re-fitting on a distilled/updated motif
+# set, carrying over the unchanged inputs (type, intervals, additional features,
+# diff_score, initial prego models) from `traj_model`. Shared by
+# distill_traj_model() and update_traj_model() so the 13-argument constructor
+# call lives in one place.
+rebuild_traj_model <- function(traj_model, model, motif_models, normalized_energies,
+                               model_features, predicted_diff_score,
+                               diff_score = traj_model@diff_score,
+                               params = traj_model@params) {
+    TrajectoryModel(
+        model = model,
+        motif_models = homogenize_pssm_models(motif_models),
+        coefs = get_model_coefs(model),
+        normalized_energies = as.matrix(normalized_energies),
+        model_features = model_features,
+        type = traj_model@type,
+        normalization_intervals = traj_model@normalization_intervals,
+        additional_features = traj_model@additional_features,
+        diff_score = diff_score,
+        predicted_diff_score = predicted_diff_score,
+        initial_prego_models = traj_model@initial_prego_models,
+        peak_intervals = traj_model@peak_intervals,
+        params = params
+    )
+}
+
 select_features_by_regression <- function(motif_energies, atac_diff_n, additional_features,
                                           feature_selection_beta, alpha, lambda,
                                           parallel = TRUE, seed = NULL) {

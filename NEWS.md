@@ -35,6 +35,14 @@
   now compute partial responses only for the motifs actually plotted
   (`vars = names(models)`) instead of for every variable in the model. Cost now
   scales with the number of displayed motifs, not the full motif count.
+* De-duplicated the model-reconstruction logic: a new internal
+  `rebuild_traj_model()` helper carries the unchanged inputs (type, intervals,
+  additional features, diff_score, initial prego models) into the rebuilt
+  `TrajectoryModel`, replacing the 13-argument constructor that was copy-pasted
+  in `distill_traj_model()` and `update_traj_model()`. `merge_trajectory_motifs()`
+  now routes its fit/predict through `fit_and_predict_model()` instead of
+  re-implementing the same glmnet + strip + predict + norm01 + rescale block.
+  Behavior is unchanged (locked by new equivalence tests).
 
 ## Documentation
 

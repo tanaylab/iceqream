@@ -408,20 +408,14 @@ update_traj_model <- function(traj_model, clust_energies, motif_models) {
     model <- fit_result$model
     predicted_diff_score <- fit_result$predicted_diff_score
 
-    TrajectoryModel(
+    rebuild_traj_model(
+        traj_model,
         model = model,
-        motif_models = homogenize_pssm_models(motif_models[names(motif_models) %in% colnames(clust_energies)]),
-        coefs = get_model_coefs(model),
-        normalized_energies = as.matrix(clust_energies),
+        motif_models = motif_models[names(motif_models) %in% colnames(clust_energies)],
+        normalized_energies = clust_energies,
         model_features = clust_energies_logist,
-        type = traj_model@type,
-        normalization_intervals = traj_model@normalization_intervals,
-        additional_features = traj_model@additional_features,
-        diff_score = atac_diff,
         predicted_diff_score = predicted_diff_score,
-        initial_prego_models = traj_model@initial_prego_models,
-        peak_intervals = traj_model@peak_intervals,
-        params = traj_model@params
+        diff_score = atac_diff
     )
 }
 
