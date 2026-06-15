@@ -184,7 +184,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
             "
         heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat), dna_height))
 
-        p <- p_atac + p_dna + p_logos + p_logos_bits + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = c(0.05, 0.05, 0.9), guides = "collect") &
+        p <- (p_atac + p_dna + p_logos + p_logos_bits + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = c(0.05, 0.05, 0.9), guides = "collect")) +
             theme(legend.position = "bottom")
     } else {
         design <- "
@@ -197,7 +197,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
 
         heights <- c(0.2, 0.45, dna_plot_height(nrow(r_mat), dna_height), 0.05)
 
-        p <- p_atac + p_dna + p_logos_bits + p_logos + p_annot + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = widths, guides = "collect") &
+        p <- (p_atac + p_dna + p_logos_bits + p_logos + p_annot + p_atac_ext + patchwork::plot_layout(design = design, heights = heights, width = widths, guides = "collect")) +
             theme(legend.position = "bottom")
     }
 
