@@ -198,7 +198,7 @@ get_significant_interactions <- function(
 #'
 #' @return The updated trajectory model with added interactions.
 #' @export
-add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial", rescale_pred = FALSE, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, interaction_scale_factor = 1, min_signal_correlation = NULL) {
+add_interactions <- function(traj_model, interaction_threshold = 0.001, max_motif_n = NULL, max_add_n = NULL, max_n = NULL, lambda = 1e-5, alpha = 1, seed = 60427, interactions = NULL, ignore_feats = c("TT", "CT", "GT", "AT", "TC", "CC", "GC", "AC", "TG", "CG", "GG", "AG", "TA", "CA", "GA", "AA"), force = FALSE, logist_interactions = FALSE, use_cv = FALSE, nfolds = 10, family = "binomial", rescale_pred = TRUE, only_sig_motifs = FALSE, only_sig_add_motifs = TRUE, interaction_scale_factor = 1, min_signal_correlation = NULL) {
     r2_all_before <- cor(traj_model@diff_score, traj_model@predicted_diff_score)^2
     if (traj_model_has_test(traj_model)) {
         r2_train_before <- cor(traj_model@diff_score[traj_model@type == "train"], traj_model@predicted_diff_score[traj_model@type == "train"])^2

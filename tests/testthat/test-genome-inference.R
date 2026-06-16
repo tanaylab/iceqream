@@ -53,20 +53,13 @@ test_that("create_iq_model + predict reproduces an interaction model's predictio
     skip_if(ncol(bi@interactions) < 1, "fixture produced no interactions")
     iqm <- create_iq_model(bi)
 
-    # add_interactions() stores predicted_diff_score WITHOUT the final rescale
-    # (rescale_pred = FALSE), unlike regress_trajectory_motifs(), so the IQmodel
-    # reproduces it only with rescale = FALSE. The IQmodel does not record which
-    # scale its source predictions are in, so predict()'s default (rescale=TRUE)
-    # does NOT reproduce an interaction model - this is a known inconsistency in
-    # the predicted_diff_score scale across the build paths (flagged for a fix).
-    p_raw <- as.numeric(suppressWarnings(suppressMessages(
-        predict(iqm, intervals = base@peak_intervals, rescale = FALSE)
-    )))
-    expect_equal(p_raw, bi@predicted_diff_score, tolerance = 1e-6, ignore_attr = TRUE)
-
-    p_default <- as.numeric(suppressWarnings(suppressMessages(
+    # add_interactions() rescales predicted_diff_score (rescale_pred = TRUE),
+    # consistent with regress_trajectory_motifs(), so the IQmodel reproduces it
+    # with the default predict() (rescale = TRUE) - exactly like the
+    # no-interaction case above. (Before this was fixed, an interaction model's
+    # predictions were left on the raw [0,1] logistic scale.)
+    p <- as.numeric(suppressWarnings(suppressMessages(
         predict(iqm, intervals = base@peak_intervals)
     )))
-    # Ranking is preserved (perfectly correlated) even though absolute scale differs.
-    expect_gt(cor(p_default, bi@predicted_diff_score), 0.999)
+    expect_equal(p, bi@predicted_diff_score, tolerance = 1e-6, ignore_attr = TRUE)
 })
