@@ -9,6 +9,9 @@
 
 ## Bug fixes
 
+* `merge_trajectory_motifs()` now removes the merged-away motifs from the model
+  entirely (previously they were dropped from the model features but left behind
+  in `@motif_models` and `@normalized_energies`).
 * `regress_trajectory_motifs()` and `regress_trajectory_motifs_manifold()` no
   longer error when `additional_features` is omitted (`NULL`).
 * `add_interactions(min_signal_correlation = ...)` no longer drops all

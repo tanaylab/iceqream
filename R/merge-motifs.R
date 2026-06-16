@@ -67,12 +67,22 @@ merge_trajectory_motifs <- function(traj_model, motifs, new_motif_name, min_diff
     traj_model_new@model <- model
     new_motif_list <- list(distilled)
     names(new_motif_list) <- new_motif_name
-    traj_model_new@motif_models <- c(traj_model@motif_models, new_motif_list)
+    # Drop the merged-away motifs from every per-motif slot (not just
+    # @model_features) and replace them with the single new motif, so
+    # @motif_models / @normalized_energies / @features_r2 stay consistent with
+    # the refit model. (Previously the merged-away motifs were left behind in
+    # @motif_models and @normalized_energies, and the @features_r2 cleanup used
+    # feature names instead of motif names, so it never matched.)
+    keep_motifs <- !names(traj_model@motif_models) %in% motifs
+    traj_model_new@motif_models <- c(traj_model@motif_models[keep_motifs], new_motif_list)
     traj_model_new@predicted_diff_score <- pred
     traj_model_new@model_features <- feat_mat
     traj_model_new@coefs <- get_model_coefs(model)
-    traj_model_new@normalized_energies <- cbind(traj_model@normalized_energies, motif_m)
-    traj_model_new@features_r2 <- traj_model_new@features_r2[!names(traj_model_new@features_r2) %in% features]
+    keep_energy_cols <- !colnames(traj_model@normalized_energies) %in% motifs
+    traj_model_new@normalized_energies <- cbind(
+        traj_model@normalized_energies[, keep_energy_cols, drop = FALSE], motif_m
+    )
+    traj_model_new@features_r2 <- traj_model_new@features_r2[!names(traj_model_new@features_r2) %in% motifs]
 
     cli_alert_success("Finished merging motifs. R^2: {.val {r2}} (Before: {.val {cor(traj_model@predicted_diff_score, atac_diff)^2}})")
 
