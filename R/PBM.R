@@ -273,10 +273,23 @@ pbm.compute <- function(pbm, sequences, response = FALSE, func = "logSumExp", no
 #' @inheritParams pbm.compute
 #' @export
 pbm.gextract <- function(pbm, intervals, response = FALSE, func = "logSumExp", normalize_energies = TRUE) {
-    sequences <- prego::intervals_to_seq(intervals)
+    # Extract sequences at the PBM's trained size: the integrated energy depends
+    # on the sequence-window width, so using the intervals' native width would
+    # produce energies that don't match the model's normalization.
+    sequences <- prego::intervals_to_seq(intervals, pbm@size)
     energies <- intervals
     energies[, pbm@name] <- pbm.compute(pbm, sequences, response, func = func, normalize_energies = normalize_energies)
     return(energies)
+}
+
+# Common trained size across a list of PBMs; errors if they disagree (the
+# energies must all be computed on the same sequence-window width).
+pbm_list_size <- function(pbm_list) {
+    sizes <- unique(vapply(pbm_list, function(p) p@size, numeric(1)))
+    if (length(sizes) != 1) {
+        cli::cli_abort("All PBMs must share the same {.field size}; found {.val {sizes}}.")
+    }
+    sizes
 }
 
 #' Convert a list of PBM objects to a motif database
@@ -405,7 +418,7 @@ pbm_list.multi_traj.compute_energy <- function(multi_traj, sequences, func = "lo
 #'
 #' @export
 pbm_list.multi_traj.gextract_energy <- function(multi_traj, intervals, func = "logSumExp", normalize_energies = TRUE) {
-    sequences <- prego::intervals_to_seq(intervals)
+    sequences <- prego::intervals_to_seq(intervals, pbm_list_size(purrr::flatten(multi_traj)))
     pbm_list.multi_traj.compute_energy(multi_traj, sequences, func, normalize_energies = normalize_energies)
 }
 
@@ -422,7 +435,10 @@ pbm_list.multi_traj.gextract_energy <- function(multi_traj, intervals, func = "l
 #'
 #' @export
 pbm_list.gextract <- function(pbm_list, intervals, response = FALSE, func = "logSumExp", normalize_energies = TRUE) {
-    sequences <- prego::intervals_to_seq(intervals)
+    # Extract at the PBMs' trained size (see pbm.gextract) so the per-motif
+    # energies match the model's normalization rather than depending on the
+    # input intervals' native width.
+    sequences <- prego::intervals_to_seq(intervals, pbm_list_size(pbm_list))
     energies <- pbm_list.compute(pbm_list, sequences, response, func, normalize_energies = normalize_energies)
     energies <- cbind(intervals, energies)
 

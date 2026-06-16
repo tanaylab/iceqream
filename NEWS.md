@@ -9,6 +9,12 @@
 
 ## Bug fixes
 
+* `pbm_list.gextract()`, `pbm.gextract()`, and
+  `pbm_list.multi_traj.gextract_energy()` now extract sequences at the model's
+  trained `size` rather than the input intervals' width. Previously, passing
+  intervals whose width differed from the training `peaks_size` (e.g. 300bp
+  peaks for a model trained at 500bp) produced incorrect energies in the
+  documented inference path.
 * `merge_trajectory_motifs()` now removes the merged-away motifs from the model
   entirely (previously they were dropped from the model features but left behind
   in `@motif_models` and `@normalized_energies`).
