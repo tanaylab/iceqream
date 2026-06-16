@@ -2,60 +2,22 @@
 
 ## Breaking changes
 
-* Removed the inert `normalize_energies` and `norm_motif_energies` arguments
-  from `regress_trajectory_motifs()` and
-  `regress_trajectory_motifs_manifold()` (and therefore from the `...`
-  forwarded by `iq_regression()`). Both were declared and documented but never
-  read in the function body - energy normalization is owned by
-  `compute_motif_energies()` (and `norm_energy_matrix()`), so a user relying on
-  the `normalize_energies = TRUE` default was being told energies would be
-  normalized when they were not. Code that passed `normalize_energies = ` (the
-  vignette and the end-to-end tests did, with no effect) should drop it.
+* `regress_trajectory_motifs()` and `regress_trajectory_motifs_manifold()` no
+  longer accept `normalize_energies` / `norm_motif_energies`. They were ignored
+  (energy normalization happens in `compute_motif_energies()`); remove them from
+  your calls.
 
 ## Bug fixes
 
-* `add_interactions(min_signal_correlation = ...)` no longer silently drops
-  every interaction when all candidate interaction-signal correlations are
-  non-finite (previously `max(., na.rm = TRUE)` returned `-Inf`, making the
-  threshold `-Inf` and the filter reject everything). It now warns and skips
-  the filter in that degenerate case.
-* Doc fix: `regress_trajectory_motifs(max_motif_num=)` documented default
-  corrected from 50 to the actual 30.
+* `add_interactions(min_signal_correlation = ...)` no longer drops all
+  interactions when none of them correlate with the signal.
+* `compute_motif_energies(db_quantiles = ...)` is now documented as using a
+  fixed-range normalization that can differ slightly from the default path.
 
 ## Improvements
 
-* `create_features_terms()` (interaction-matrix construction) is now built at
-  the matrix level (`matrixStats::colMaxs`/`colMins` + `sweep`) instead of
-  accumulating a column-wise data.frame via `purrr::map_dfc` and round-tripping
-  through `apply(, 2, norm01)`. The candidate matrix is `n_peaks x O(n^2)` for
-  large motif sets, so this removes the dominant allocation/copy cost of
-  `add_interactions()`. Output is numerically identical (the snapshot baseline
-  is unchanged).
-* `plot_traj_model_report()` and `plot_multi_traj_model_report(type = "pr")`
-  now compute partial responses only for the motifs actually plotted
-  (`vars = names(models)`) instead of for every variable in the model. Cost now
-  scales with the number of displayed motifs, not the full motif count.
-* De-duplicated the model-reconstruction logic: a new internal
-  `rebuild_traj_model()` helper carries the unchanged inputs (type, intervals,
-  additional features, diff_score, initial prego models) into the rebuilt
-  `TrajectoryModel`, replacing the 13-argument constructor that was copy-pasted
-  in `distill_traj_model()` and `update_traj_model()`. `merge_trajectory_motifs()`
-  now routes its fit/predict through `fit_and_predict_model()` instead of
-  re-implementing the same glmnet + strip + predict + norm01 + rescale block.
-  Behavior is unchanged (locked by new equivalence tests).
-
-## Documentation
-
-* `normalize_with_db_quantiles()` (the `compute_motif_energies(db_quantiles=)`
-  fast path) now documents that it rescales energies by a fixed
-  `-min_energy` range, which diverges from `norm_energy_matrix()`'s
-  observed-range rescaling (and from inference-time `pbm.normalize_energies()`).
-  A new pinning test in `test-energy-utils.R` locks this documented
-  divergence. Reconciling the two paths numerically requires regenerating the
-  shipped `mouse_db_quantiles` with a per-motif background range column plus
-  paper-parity validation; that is deferred.
-
-# iceqream 0.0.7
+* Faster model reports and `add_interactions()` on large motif sets; results are
+  unchanged.
 
 ## Breaking changes
 
