@@ -63,3 +63,73 @@ test_that("create_iq_model + predict reproduces an interaction model's predictio
     )))
     expect_equal(p, bi@predicted_diff_score, tolerance = 1e-6, ignore_attr = TRUE)
 })
+
+# --- Round 5: inference on new/subset peaks, additional-feature alignment,
+#     and sequence edge cases. ---
+
+test_that("predict(IQmodel) is batch-independent: a subset matches the full prediction restricted to it", {
+    base <- genome_traj_models()$base
+    iqm <- create_iq_model(base)
+    p_full <- as.numeric(suppressWarnings(suppressMessages(
+        predict(iqm, intervals = base@peak_intervals)
+    )))
+    set.seed(7)
+    idx <- sort(sample(nrow(base@peak_intervals), 50))
+    p_sub <- as.numeric(suppressWarnings(suppressMessages(
+        predict(iqm, intervals = base@peak_intervals[idx, ])
+    )))
+    # IQmodel rescales with stored min/max, so per-peak predictions don't depend
+    # on the batch (unlike predict(TrajectoryModel), which renormalizes per call).
+    expect_equal(p_sub, p_full[idx], tolerance = 1e-10)
+})
+
+test_that("predict(TrajectoryModel) returns finite predictions on held-out peaks", {
+    m <- genome_traj_models()
+    p <- as.numeric(suppressWarnings(suppressMessages(
+        predict(m$base, peak_intervals = m$new_peaks)
+    )))
+    expect_length(p, nrow(m$new_peaks))
+    expect_true(all(is.finite(p)))
+})
+
+test_that("inference aligns additional_features by name (order-insensitive)", {
+    m <- genome_traj_models()
+    p1 <- as.numeric(suppressWarnings(suppressMessages(
+        predict(m$base_af, peak_intervals = m$new_peaks, additional_features = m$new_af)
+    )))
+    p2 <- as.numeric(suppressWarnings(suppressMessages(
+        predict(m$base_af, peak_intervals = m$new_peaks,
+            additional_features = m$new_af[, rev(seq_len(ncol(m$new_af))), drop = FALSE])
+    )))
+    expect_equal(p1, p2)
+})
+
+test_that("inference warns and imputes 0 for a missing additional_features column", {
+    m <- genome_traj_models()
+    expect_warning(
+        p <- suppressMessages(predict(
+            m$base_af, peak_intervals = m$new_peaks,
+            additional_features = m$new_af[, -ncol(m$new_af), drop = FALSE]
+        )),
+        "missing"
+    )
+    expect_length(as.numeric(p), nrow(m$new_peaks))
+    expect_true(all(is.finite(as.numeric(p))))
+})
+
+test_that("PBM energy computation handles sequence edge cases (N-runs, single sequence)", {
+    base <- genome_traj_models()$base
+    pl <- traj_model_to_pbm_list(base)
+    seqs <- prego::intervals_to_seq(base@peak_intervals[1:6, ], 500)
+
+    e <- suppressWarnings(suppressMessages(pbm_list.compute(pl, seqs)))
+    expect_true(all(is.finite(as.matrix(e))))
+
+    seqs_N <- seqs
+    substr(seqs_N[1], 240, 260) <- paste(rep("N", 21), collapse = "")
+    eN <- suppressWarnings(suppressMessages(pbm_list.compute(pl, seqs_N)))
+    expect_true(all(is.finite(as.matrix(eN))))
+
+    single <- suppressWarnings(suppressMessages(pbm_list.compute(pl, seqs[1])))
+    expect_equal(nrow(as.matrix(single)), 1L)
+})
