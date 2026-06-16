@@ -147,6 +147,15 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
     }
 
     validate_peak_intervals(peak_intervals)
+    # Normalize an omitted additional_features (NULL) to the canonical
+    # "no additional features" representation: a 0-column data.frame with one
+    # row per peak (the same shape the TrajectoryModel slot and the rest of the
+    # pipeline expect). Without this, `additional_features[is.na(...)] <- 0`
+    # silently coerces NULL to a zero-length vector, which then fails the 2D
+    # row subset below with "incorrect number of dimensions".
+    if (is.null(additional_features)) {
+        additional_features <- data.frame(row.names = seq_len(nrow(peak_intervals)))
+    }
     validate_additional_features(additional_features, peak_intervals)
     additional_features[is.na(additional_features)] <- 0
     if (is.null(norm_intervals)) {

@@ -9,6 +9,8 @@
 
 ## Bug fixes
 
+* `regress_trajectory_motifs()` and `regress_trajectory_motifs_manifold()` no
+  longer error when `additional_features` is omitted (`NULL`).
 * `add_interactions(min_signal_correlation = ...)` no longer drops all
   interactions when none of them correlate with the signal.
 * `compute_motif_energies(db_quantiles = ...)` is now documented as using a
