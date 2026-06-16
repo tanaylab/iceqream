@@ -9,6 +9,12 @@
 
 ## Bug fixes
 
+* `add_interactions()` now rescales `predicted_diff_score` to the trajectory's
+  accessibility-difference range (`rescale_pred = TRUE`), matching
+  `regress_trajectory_motifs()`. Previously the default left predictions on the
+  raw `[0, 1]` logistic scale, so adding interactions silently changed the units
+  of `predicted_diff_score` (reported R^2 was unaffected, as it is
+  correlation-based).
 * `pbm_list.gextract()`, `pbm.gextract()`, and
   `pbm_list.multi_traj.gextract_energy()` now extract sequences at the model's
   trained `size` rather than the input intervals' width. Previously, passing

@@ -21,7 +21,7 @@ add_interactions(
   use_cv = FALSE,
   nfolds = 10,
   family = "binomial",
-  rescale_pred = FALSE,
+  rescale_pred = TRUE,
   only_sig_motifs = FALSE,
   only_sig_add_motifs = TRUE,
   interaction_scale_factor = 1,
