@@ -65,7 +65,7 @@ test_that("regress_trajectory_motifs accepts additional_features = NULL (normali
     expect_gt(length(m@motif_models), 0)
 })
 
-test_that("merge_trajectory_motifs adds the merged motif and removes the merged-away feature columns", {
+test_that("merge_trajectory_motifs replaces the merged motifs with the new one consistently across slots", {
     base <- .genome_models()$base
     mm <- names(base@motif_models)[1:2]
     merged <- suppressWarnings(suppressMessages(
@@ -76,16 +76,18 @@ test_that("merge_trajectory_motifs adds the merged motif and removes the merged-
     expect_true("MERGED_TEST" %in% names(merged@motif_models))
     expect_true("MERGED_TEST" %in% colnames(merged@normalized_energies))
 
-    # The merged-away motifs' logistic feature columns are dropped from the model.
+    # The merged-away motifs are removed from every per-motif slot, not just
+    # @model_features, so the model stays internally consistent.
+    expect_false(any(mm %in% names(merged@motif_models)))
+    expect_false(any(mm %in% colnames(merged@normalized_energies)))
     removed_feats <- as.vector(outer(
         mm, c("_low-energy", "_high-energy", "_higher-energy", "_sigmoid"), paste0
     ))
     expect_false(any(removed_feats %in% colnames(merged@model_features)))
 
-    # NOTE (pinned behavior): merge_trajectory_motifs leaves the merged-away
-    # motifs in @motif_models (only their model features are removed), so the
-    # slot grows by exactly one (the new merged motif).
-    expect_equal(length(merged@motif_models), length(base@motif_models) + 1L)
+    # Net effect: the two merged motifs are replaced by exactly one new motif.
+    expect_equal(length(merged@motif_models), length(base@motif_models) - length(mm) + 1L)
+    expect_equal(ncol(merged@normalized_energies), ncol(base@normalized_energies) - length(mm) + 1L)
 
     expect_true(all(is.finite(merged@predicted_diff_score)))
 })
