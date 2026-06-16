@@ -225,7 +225,7 @@ remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TR
             pull(feature)
     }
 
-    X_f <- X[, feats]
+    X_f <- X[, feats, drop = FALSE]
 
     traj_model@model_features <- X_f
     traj_model@motif_models <- traj_model@motif_models[vars_f]
@@ -265,7 +265,7 @@ remove_additional_feature_from_traj <- function(traj_model, feature_name, verbos
             pull(feature)
     }
 
-    X_f <- X[, feats]
+    X_f <- X[, feats, drop = FALSE]
 
     traj_model@model_features <- X_f
     traj_model@additional_features <- traj_model@additional_features[, vars[vars != feature_name], drop = FALSE]
@@ -312,12 +312,21 @@ add_features_r2 <- function(traj_model, sample_frac = 0.1, additional = FALSE, s
     }
 
     motif_models <- names(traj_model@motif_models)
+    n_total_feats <- ncol(traj_model@model_features)
     full_model_r2 <- cor(traj_model@predicted_diff_score, traj_model@diff_score)^2
     var_stats <- purrr::map(motif_models, function(var) {
         pssm <- traj_model@motif_models[[var]]$pssm
-        traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
         bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
-        r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
+        # Leave-one-out R^2 needs a fittable model without `var`. If removing it
+        # would leave fewer than 2 feature columns (glmnet's minimum), there is
+        # no model to compare against, so its leave-one-out R^2 is 0.
+        var_feats <- variable_to_feat(traj_model@model, var)
+        if (n_total_feats - length(var_feats) < 2) {
+            r2 <- 0
+        } else {
+            traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
+            r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
+        }
         cli::cli_alert("R^2 added by {.field {var}} ({.strong {gsub('N', '-', prego::pssm_to_kmer(pssm, pos_bits_thresh = 0.2))}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
         list(r2 = r2, bits = bits)
     })
@@ -412,15 +421,18 @@ split_traj_model_to_train_test <- function(traj_model) {
 #'
 #' @export
 filter_traj_model_intervals <- function(traj_model, idxs) {
-    traj_model@model_features <- traj_model@model_features[idxs, ]
+    # drop = FALSE throughout: a single-motif model has a 1-column
+    # normalized_energies (and a 1-column additional_features is possible too),
+    # which would otherwise collapse to a vector and fail the S4 matrix slot.
+    traj_model@model_features <- traj_model@model_features[idxs, , drop = FALSE]
     if (ncol(traj_model@additional_features) > 0) {
-        traj_model@additional_features <- traj_model@additional_features[idxs, ]
+        traj_model@additional_features <- traj_model@additional_features[idxs, , drop = FALSE]
     }
-    traj_model@normalized_energies <- traj_model@normalized_energies[idxs, ]
+    traj_model@normalized_energies <- traj_model@normalized_energies[idxs, , drop = FALSE]
     traj_model@diff_score <- traj_model@diff_score[idxs]
     traj_model@predicted_diff_score <- traj_model@predicted_diff_score[idxs]
     traj_model@type <- traj_model@type[idxs]
-    traj_model@peak_intervals <- traj_model@peak_intervals[idxs, ]
+    traj_model@peak_intervals <- traj_model@peak_intervals[idxs, , drop = FALSE]
     return(traj_model)
 }
 
