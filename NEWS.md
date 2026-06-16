@@ -9,6 +9,11 @@
 
 ## Bug fixes
 
+* `filter_traj_model()` no longer crashes on small or aggressively-filtered
+  models: it is a no-op on models with fewer than 2 motifs, never removes every
+  motif (it keeps at least one so the model stays fittable), and its bits-based
+  removal is now applied even when no feature also fails the R^2 threshold
+  (previously it was silently skipped in that case).
 * `add_interactions()` now rescales `predicted_diff_score` to the trajectory's
   accessibility-difference range (`rescale_pred = TRUE`), matching
   `regress_trajectory_motifs()`. Previously the default left predictions on the
