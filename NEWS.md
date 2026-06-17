@@ -51,8 +51,12 @@
   longer error when `additional_features` is omitted (`NULL`).
 * `add_interactions(min_signal_correlation = ...)` no longer drops all
   interactions when none of them correlate with the signal.
-* `compute_motif_energies(db_quantiles = ...)` is now documented as using a
-  fixed-range normalization that can differ slightly from the default path.
+* `compute_motif_energies(db_quantiles = ...)` is documented more precisely: it
+  normalizes against a stable precomputed reference instead of the observed
+  quantile of the normalization intervals. This can change which motifs are
+  selected during regression, but does not affect a trained model's internal
+  consistency or its predictions (energies are recomputed consistently at
+  inference time).
 
 ## Improvements
 
