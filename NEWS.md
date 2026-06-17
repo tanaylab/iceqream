@@ -9,6 +9,11 @@
 
 ## Bug fixes
 
+* `rename_motif_models()` now also renames interaction features. Previously,
+  renaming a model that had interactions set the interaction columns of
+  `@model_features` to `NA` and left `@interactions` on the old motif names,
+  silently corrupting the model. (`iq_regression()` was unaffected - it renames
+  before adding interactions.)
 * `filter_traj_model()` no longer crashes on small or aggressively-filtered
   models: it is a no-op on models with fewer than 2 motifs, never removes every
   motif (it keeps at least one so the model stays fittable), and its bits-based
