@@ -19,6 +19,10 @@
   motif (it keeps at least one so the model stays fittable), and its bits-based
   removal is now applied even when no feature also fails the R^2 threshold
   (previously it was silently skipped in that case).
+* The manifold/multi-trajectory beta filter (used by `distill_traj_model_multi()`)
+  no longer crashes when unifying models that have no additional features, and is
+  robust to single-motif or fully-filtered trajectories (it always keeps at least
+  one motif).
 * `add_interactions()` now rescales `predicted_diff_score` to the trajectory's
   accessibility-difference range (`rescale_pred = TRUE`), matching
   `regress_trajectory_motifs()`. Previously the default left predictions on the

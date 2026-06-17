@@ -339,6 +339,13 @@ create_logist_features <- function(features) {
     # remove features that are all NA
     features <- features[, colSums(is.na(features)) != nrow(features), drop = FALSE]
 
+    # No columns left (e.g. a model with no additional features, or an
+    # all-dinucleotide additional-features matrix): return an empty matrix that
+    # still carries the right number of rows so downstream cbind() is a no-op.
+    if (ncol(features) == 0) {
+        return(matrix(numeric(0), nrow = nrow(features), ncol = 0))
+    }
+
     if (is.null(colnames(features))) {
         colnames(features) <- paste0("V", seq_len(ncol(features)))
     }
