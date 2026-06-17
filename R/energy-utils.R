@@ -231,24 +231,34 @@ norm_energy_matrix <- function(x, dataset_x = x, min_energy = -7, q = 1, norm_en
 #' pre-computed `db_quantiles` matrix is supplied (e.g.
 #' [mouse_db_quantiles]).
 #'
-#' @section Scale caveat (not a drop-in for [norm_energy_matrix]):
+#' @section Relationship to [norm_energy_matrix] (no downstream impact):
 #' This function rescales the clamped energies to `[0, norm_energy_max]`
 #' using the **fixed theoretical range** `-min_energy`
-#' (`(y - min_energy) / (-min_energy) * norm_energy_max`). In contrast,
-#' [norm_energy_matrix] (the path used when `db_quantiles` is `NULL`) and
-#' the inference-time [pbm.normalize_energies] rescale by the **observed
-#' empirical range** of the processed background energies. The two agree
-#' only when the background's processed minimum hits the `min_energy`
-#' floor exactly; otherwise the resulting `[0, norm_energy_max]` mapping
-#' differs (the same input energy maps to a different normalized value).
-#' Downstream this is largely masked because motif selection is
-#' correlation-based (scale-invariant) and `glmnet` standardizes columns,
-#' but the `db_quantiles` path should not be treated as numerically
-#' identical to the default path. Reconciling them requires the shipped
-#' `db_quantiles` to also carry a per-motif background min/range column;
-#' until that data is regenerated and validated, the divergence is
-#' intentional and documented here. See the pinning test in
-#' `test-energy-utils.R`.
+#' (`(y - min_energy) / (-min_energy) * norm_energy_max`), whereas
+#' [norm_energy_matrix] (the `db_quantiles = NULL` path) rescales by the
+#' **observed empirical range** of the background. The two formulas
+#' therefore map the same input to different normalized values (pinned in
+#' `test-energy-utils.R`). However, this denominator difference is a pure
+#' affine rescale (correlation = 1) and has **no effect on a trained
+#' model**: the only consumer of `compute_motif_energies()` output is the
+#' correlation-based motif *selection* in [regress_trajectory_motifs()] /
+#' [regress_trajectory_motifs_manifold()], which is scale-invariant. Both
+#' regression paths then re-extract and re-normalize the selected motifs'
+#' energies with [norm_energy_matrix] (observed range) during distillation
+#' (`distill_motifs` / [distill_traj_model_multi]), so the model's
+#' `@normalized_energies` are observed-range and match what inference
+#' (`calc_traj_model_energies` / [pbm.normalize_energies]) recomputes -
+#' `predict()` / [create_iq_model()] round-trip exactly whether or not
+#' `db_quantiles` was used (verified on genome models, max|diff| = 0).
+#'
+#' The practically meaningful difference between the two paths is **not**
+#' this denominator but the **reference quantile**: `db_quantiles` carries
+#' a stable genome-wide reference, while the default path takes the
+#' per-call observed quantile of `normalization_intervals`. That changes
+#' *which* motifs pass the correlation-based selection threshold (and hence
+#' the resulting model), which is the intended tradeoff of supplying
+#' `db_quantiles` (no large normalization background required). It is a
+#' selection choice, not a numerical bug, and does not need a fix.
 #'
 #' @param motif_energies Matrix of motif energies to normalize
 #' @param db_quantiles Matrix of pre-computed quantiles for normalization
