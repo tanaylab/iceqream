@@ -514,8 +514,31 @@ rename_motif_models <- function(traj_model, names_map) {
         m
     }) %>% do.call(c, .)
 
-    colnames(traj_model@model_features) <- ext_names_map[colnames(traj_model@model_features)]
-    names(colnames(traj_model@model_features)) <- NULL
+    # Interaction features are named "A:B" (optionally with a logist suffix);
+    # ext_names_map only covers single motif/additional features, so rename each
+    # side of an interaction through names_map separately. Without this the
+    # interaction columns of @model_features become NA and @interactions keeps
+    # the old motif names, silently corrupting an interaction-augmented model.
+    rename_interaction_names <- function(x) {
+        suffix_re <- "_(low-energy|high-energy|higher-energy|sigmoid)$"
+        vapply(x, function(nm) {
+            suffix <- regmatches(nm, regexpr(suffix_re, nm))
+            base <- sub(suffix_re, "", nm)
+            parts <- strsplit(base, ":", fixed = TRUE)[[1]]
+            renamed <- ifelse(parts %in% names(names_map), names_map[parts], parts)
+            paste0(paste(renamed, collapse = ":"), if (length(suffix) > 0) suffix else "")
+        }, character(1), USE.NAMES = FALSE)
+    }
+
+    mf_cols <- colnames(traj_model@model_features)
+    new_mf_cols <- unname(ext_names_map[mf_cols])
+    inter_cols <- grepl(":", mf_cols, fixed = TRUE)
+    new_mf_cols[inter_cols] <- rename_interaction_names(mf_cols[inter_cols])
+    colnames(traj_model@model_features) <- new_mf_cols
+
+    if (has_interactions(traj_model)) {
+        colnames(traj_model@interactions) <- rename_interaction_names(colnames(traj_model@interactions))
+    }
     traj_model@coefs <- traj_model@coefs %>%
         mutate(variable = names_map[variable])
     if (!is.null(traj_model@params$distilled_features)) {
