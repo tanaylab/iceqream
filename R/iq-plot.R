@@ -7,12 +7,13 @@
 #' @param atac_tracks A vector of ATAC-seq track names to plot.
 #' @param width Width of the plot in bp.
 #' @param ext_width Width of the top plot in bp.
-#' @param scale_cex Numeric, scaling factor for letter sizes.
+#' @param scale_cex Numeric, scaling factor for letter sizes (also sets the total horizontal width budget, so larger values trade legibility for overlap).
 #' @param dna_height Numeric, height of each row of DNA sequence relative to the entire plot.
 #' @param T_emax Numeric, threshold for maximum energy.
 #' @param T_rmax Numeric, threshold for maximum response.
 #' @param motifs A list of specific motifs to plot.
 #' @param plot_others Logical, whether to plot other motifs that pass the threshold when specific motifs are provided.
+#' @param local_energy_q Numeric quantile (or NULL) for normalizing local PWM energies that drive DNA letter sizes. The PBM `@max_energy`/`@energy_range` slots are calibrated on aggregate (whole-sequence) energies, which saturate local per-position energies and yield uniform letters; setting this (default 0.995) instead normalizes the raw local energies within each window so binding sites are emphasized. Set to NULL to use the (saturating) model-slot normalization.
 #' @param trim_pbms Logical, whether to trim PBM objects by removing positions with low information content from the beginning and end of the PSSM.
 #' @param trim_bits_thresh Numeric, threshold for trimming PBM objects.
 #' @param bits_threshold Numeric, threshold for trimming PSSMs.
@@ -62,6 +63,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
                           T_rmax = NULL,
                           motifs = NULL,
                           plot_others = FALSE,
+                          local_energy_q = 0.995,
                           trim_pbms = TRUE,
                           trim_bits_thresh = 0.1,
                           bits_threshold = NULL, order_motifs = TRUE, atac_names = atac_tracks, atac_colors = NULL,
@@ -116,7 +118,7 @@ plot_iq_locus <- function(interval, pbm_list, atac_tracks,
         }
     }
 
-    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax, T_rmax, motifs, plot_others)
+    energy_response_data <- compute_energy_response(pbm_list, dna, T_emax, T_rmax, motifs, plot_others, local_energy_q = local_energy_q)
     e_mat <- energy_response_data$e_mat
     r_mat <- energy_response_data$r_mat
 
@@ -528,10 +530,26 @@ preprocess_interval <- function(interval, width) {
     gintervals.normalize(interval, width)
 }
 
-compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs = NULL, plot_others = FALSE) {
+compute_energy_response <- function(pbm_list, dna, T_emax, T_rmax = NULL, motifs = NULL, plot_others = FALSE, local_energy_q = 0.995) {
     cli_alert("Computing energies and responses for {.val {length(pbm_list)}} PBM models")
 
-    energies <- pbm_list.compute_local(pbm_list, dna)
+    if (!is.null(local_energy_q)) {
+        # `pbm@max_energy`/`@energy_range` are calibrated on *aggregate* (whole-sequence)
+        # energies in `traj_model_to_pbm_list()`, but the letter sizes need *local*
+        # per-position energies. Applying the aggregate normalization to local energies
+        # saturates most positions to the ceiling (uniform letters). Instead, normalize
+        # the raw local PWM energies by their own within-window quantile so the relative
+        # binding signal (and thus letter emphasis) is preserved.
+        energies <- purrr::map(pbm_list, function(pbm) {
+            pssm <- pbm@pssm %>%
+                as.data.frame() %>%
+                mutate(pos = row_number() - 1) %>%
+                select(pos, everything())
+            norm0q(prego::compute_local_pwm(dna, pssm), local_energy_q) * 10
+        })
+    } else {
+        energies <- pbm_list.compute_local(pbm_list, dna)
+    }
     resp <- pbm_list.compute_local(pbm_list, dna, response = TRUE)
 
     e_mat <- do.call(rbind, energies) %>% as.matrix()
@@ -581,19 +599,21 @@ prepare_dna_data <- function(dna, max_e, r_mat, e_mat, scale_cex, pbm_list, eps)
     l <- nchar(dna)
     pssm_l <- purrr::map_dbl(pbm_list, ~ nrow(.x@pssm))
 
+    # `size` doubles as the letter font size *and* its horizontal slot width
+    # (letter_pos = cumsum(size) below), so normalizing by the sum keeps the total
+    # width budget fixed (= scale_cex * 1.1) and the letters tile the panel without
+    # overlap, with relative sizes set by local binding energy.
     tot_cex <- sum(max_e + eps, na.rm = TRUE)
-    max_e <- (max_e + eps) / tot_cex
-    e_min <- quantile(max_e, 0.1, na.rm = TRUE)
+    e <- (max_e + eps) / tot_cex
 
     dna_df <- tibble(
         pos = 1:l,
         nuc = strsplit(dna, "")[[1]],
-        e = max_e
+        e = e
     ) %>%
         mutate(
             size = e * scale_cex * 1.1
         ) %>%
-        mutate(nuc = ifelse(max_e == e_min, "*", nuc)) %>%
         left_join(
             t(r_mat) %>%
                 as.data.frame() %>%
