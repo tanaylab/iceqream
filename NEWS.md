@@ -26,6 +26,9 @@
 * `add_interactions()` is now a no-op (instead of crashing) on models with fewer
   than two features to interact, such as a single-motif model. This also fixes
   `iq_regression()` when filtering leaves a single motif.
+* `learn_traj_prego()` (and therefore `iq_regression()` / `regress_trajectory_motifs()`)
+  no longer crashes when given a single `additional_features` column; it falls back
+  to a logistic regression to regress the feature out before motif learning.
 * `add_interactions()` now rescales `predicted_diff_score` to the trajectory's
   accessibility-difference range (`rescale_pred = TRUE`), matching
   `regress_trajectory_motifs()`. Previously the default left predictions on the

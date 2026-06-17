@@ -1,3 +1,24 @@
+# Regress additional features out of the (normalized) trajectory score before
+# de-novo motif learning, returning the residual score. The original model fits
+# a near-unpenalized lasso (glmnet, lambda = 1e-5) on the additional features.
+# glmnet requires at least 2 feature columns, so a single additional feature
+# falls back to an ordinary logistic regression (which is what lambda ~ 0 lasso
+# approximates anyway). Returns a numeric vector aligned with `score`.
+regress_out_additional_features <- function(additional_features, score, seed = NULL) {
+    af_mat <- as.matrix(additional_features)
+    y_af <- norm01(score)
+    if (ncol(af_mat) >= 2) {
+        glm_feats <- glmnet::glmnet(af_mat, y_af, binomial(link = "logit"), alpha = 1, lambda = 1e-5, parallel = TRUE, seed = seed)
+        glm_feats <- strip_glmnet(glm_feats)
+        pred <- logist(glmnet::predict.glmnet(glm_feats, newx = af_mat, type = "link", s = 1e-5))[, 1]
+    } else {
+        df_af <- data.frame(.y = y_af, af_mat, check.names = FALSE)
+        glm_feats <- stats::glm(.y ~ ., data = df_af, family = binomial(link = "logit"))
+        pred <- stats::predict(glm_feats, type = "response")
+    }
+    y_af - pred
+}
+
 #' Learn 'prego' models for ATAC difference of a trajectory
 #'
 #' @param peak_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of each peak, with an additional column named "const" indicating whether the peak is constitutive and therefore shouldn't be used in the regression. Optionally, a column named "cluster" can be added with indication of the cluster of each peak.
@@ -65,13 +86,10 @@ learn_traj_prego <- function(peak_intervals = NULL, peaks = NULL, atac_diff, n_m
     }
 
     if (!is.null(additional_features)) {
-        additional_features <- additional_features[peaks_df$id, ]
+        additional_features <- additional_features[peaks_df$id, , drop = FALSE]
         additional_features[is.na(additional_features)] <- 0
         cli_alert_info("Learning a model using only additional features in order to remove them from the motif learning...")
-        glm_feats <- glmnet::glmnet(as.matrix(additional_features), norm01(peaks_df$score), binomial(link = "logit"), alpha = 1, lambda = 1e-5, parallel = TRUE, seed = seed)
-        glm_feats <- strip_glmnet(glm_feats)
-        pred <- logist(glmnet::predict.glmnet(glm_feats, newx = as.matrix(additional_features), type = "link", s = 1e-5))[, 1]
-        score <- norm01(peaks_df$score) - pred
+        score <- regress_out_additional_features(additional_features, peaks_df$score, seed = seed)
     } else {
         score <- peaks_df$score
     }
