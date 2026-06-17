@@ -29,6 +29,9 @@
 * `learn_traj_prego()` (and therefore `iq_regression()` / `regress_trajectory_motifs()`)
   no longer crashes when given a single `additional_features` column; it falls back
   to a logistic regression to regress the feature out before motif learning.
+* `regress_trajectory_motifs()` no longer crashes or silently drops the motif name
+  when the model is reduced to a single motif (e.g. `max_motif_num = 1`), including
+  with `include_interactions = TRUE`.
 * `add_interactions()` now rescales `predicted_diff_score` to the trajectory's
   accessibility-difference range (`rescale_pred = TRUE`), matching
   `regress_trajectory_motifs()`. Previously the default left predictions on the
