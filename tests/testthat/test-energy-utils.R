@@ -465,11 +465,14 @@ test_that("normalize_with_db_quantiles errors on missing motifs", {
 })
 
 test_that("normalize_with_db_quantiles uses a fixed -min_energy range, diverging from norm_energy_matrix (documented)", {
-    # Pins the documented scale divergence between the two normalization paths
-    # (see ?normalize_with_db_quantiles "Scale caveat"). Background energies
-    # whose processed range does NOT reach the min_energy floor make the
-    # observed-range rescaling (norm_energy_matrix) and the fixed -min_energy
-    # rescaling (normalize_with_db_quantiles) disagree.
+    # Pins the formula-level divergence between the two normalization paths
+    # (see ?normalize_with_db_quantiles). Background energies whose processed
+    # range does NOT reach the min_energy floor make the observed-range
+    # rescaling (norm_energy_matrix) and the fixed -min_energy rescaling
+    # (normalize_with_db_quantiles) disagree. This divergence is a pure affine
+    # rescale (correlation = 1) and has no downstream model impact: db_quantiles
+    # output feeds only scale-invariant motif selection, and the final model
+    # energies are always recomputed observed-range during distillation.
     log2_vals <- c(-1, -2, -3, -4, -5)
     x <- matrix(log2_vals * log(2), ncol = 1) # natural log, as gextract_pwm returns
     colnames(x) <- "m1"
