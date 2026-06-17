@@ -294,11 +294,13 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
 
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
 
-    # remove additional features from clust_energies
-    normalized_energies <- clust_energies[, setdiff(colnames(clust_energies), colnames(additional_features))]
+    # remove additional features from clust_energies (drop = FALSE so a
+    # single-motif model keeps its matrix shape and column name instead of
+    # collapsing to an unnamed vector)
+    normalized_energies <- clust_energies[, setdiff(colnames(clust_energies), colnames(additional_features)), drop = FALSE]
 
     if (include_interactions) {
-        normalized_energies <- normalized_energies[, setdiff(colnames(normalized_energies), colnames(interactions))]
+        normalized_energies <- normalized_energies[, setdiff(colnames(normalized_energies), colnames(interactions)), drop = FALSE]
     }
 
     traj_model <- TrajectoryModel(

@@ -108,7 +108,15 @@ get_significant_interactions <- function(
     if (is.null(idxs)) {
         idxs <- seq_len(nrow(energies))
     }
-    glm_model_lin <- glmnet::glmnet(as.matrix(energies[idxs, ]), y[idxs], binomial(link = "logit"), alpha = alpha, lambda = lambda, seed = seed)
+    # Interactions are pairwise: with fewer than 2 features there are no pairs to
+    # form, and the linear pre-selection glmnet() below would itself error on a
+    # single-column design ("x should be a matrix with 2 or more columns"). This
+    # guards both callers - add_interactions() and the de-novo regression path.
+    if (ncol(energies) < 2) {
+        cli::cli_alert_warning("Fewer than 2 features available; no interactions can be formed.")
+        return(NULL)
+    }
+    glm_model_lin <- glmnet::glmnet(as.matrix(energies[idxs, , drop = FALSE]), y[idxs], binomial(link = "logit"), alpha = alpha, lambda = lambda, seed = seed)
     glm_model_lin <- strip_glmnet(glm_model_lin)
 
     feats_all <- abs(stats::coef(glm_model_lin)[-1])

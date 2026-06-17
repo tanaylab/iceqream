@@ -411,3 +411,23 @@ test_that("add_interactions still adds interactions on a 2-motif model", {
     expect_true(iceqream:::has_interactions(out))
     expect_gte(ncol(out@interactions), 1L)
 })
+
+test_that("get_significant_interactions returns NULL with fewer than 2 features", {
+    # Interactions are pairwise. A single-feature design also crashes the linear
+    # pre-selection glmnet ("x should be a matrix with 2 or more columns"). This
+    # guards both the add_interactions() caller and the de-novo regression path
+    # (regress_trajectory_motifs(include_interactions = TRUE)) when distillation
+    # yields a single motif.
+    set.seed(1)
+    e1 <- matrix(rnorm(300), ncol = 1, dimnames = list(NULL, "motifA"))
+    y <- runif(300)
+    res <- suppressWarnings(suppressMessages(
+        iceqream:::get_significant_interactions(
+            e1, y,
+            interaction_threshold = 0.001,
+            additional_features = data.frame(row.names = seq_len(300)),
+            max_n = 10
+        )
+    ))
+    expect_null(res)
+})
