@@ -388,3 +388,46 @@ test_that("relearn_traj_model use_cv path reuses cv.glmnet's full-path fit", {
     lambda_idx <- which(abs(cv_model$lambda - lambda) < 1e-12)
     expect_length(lambda_idx, 1L)
 })
+
+test_that("add_interactions is a no-op on a single-feature model (no glmnet crash)", {
+    # Interactions are pairwise: a 1-motif, 0-additional-feature model has no
+    # pairs to form. Previously the linear pre-selection glmnet crashed with
+    # "x should be a matrix with 2 or more columns". This matters because the
+    # filter fixes can legitimately reduce a model to a single motif, and
+    # iq_regression() calls add_interactions() after filtering.
+    tm <- create_mock_traj_model(n_peaks = 150, n_motifs = 1)
+    expect_equal(ncol(tm@additional_features), 0L)
+    out <- suppressWarnings(suppressMessages(add_interactions(tm, max_n = 20)))
+    expect_s4_class(out, "TrajectoryModel")
+    expect_false(iceqream:::has_interactions(out))
+    expect_equal(length(out@motif_models), 1L)
+    expect_true(all(is.finite(out@predicted_diff_score)))
+})
+
+test_that("add_interactions still adds interactions on a 2-motif model", {
+    # The single-feature guard must not block models that can form pairs.
+    tm <- create_mock_traj_model(n_peaks = 150, n_motifs = 2)
+    out <- suppressWarnings(suppressMessages(add_interactions(tm, max_n = 20)))
+    expect_true(iceqream:::has_interactions(out))
+    expect_gte(ncol(out@interactions), 1L)
+})
+
+test_that("get_significant_interactions returns NULL with fewer than 2 features", {
+    # Interactions are pairwise. A single-feature design also crashes the linear
+    # pre-selection glmnet ("x should be a matrix with 2 or more columns"). This
+    # guards both the add_interactions() caller and the de-novo regression path
+    # (regress_trajectory_motifs(include_interactions = TRUE)) when distillation
+    # yields a single motif.
+    set.seed(1)
+    e1 <- matrix(rnorm(300), ncol = 1, dimnames = list(NULL, "motifA"))
+    y <- runif(300)
+    res <- suppressWarnings(suppressMessages(
+        iceqream:::get_significant_interactions(
+            e1, y,
+            interaction_threshold = 0.001,
+            additional_features = data.frame(row.names = seq_len(300)),
+            max_n = 10
+        )
+    ))
+    expect_null(res)
+})

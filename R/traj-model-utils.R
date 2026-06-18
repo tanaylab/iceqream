@@ -225,7 +225,7 @@ remove_motif_models_from_traj <- function(traj_model, motif_models, verbose = TR
             pull(feature)
     }
 
-    X_f <- X[, feats]
+    X_f <- X[, feats, drop = FALSE]
 
     traj_model@model_features <- X_f
     traj_model@motif_models <- traj_model@motif_models[vars_f]
@@ -265,7 +265,7 @@ remove_additional_feature_from_traj <- function(traj_model, feature_name, verbos
             pull(feature)
     }
 
-    X_f <- X[, feats]
+    X_f <- X[, feats, drop = FALSE]
 
     traj_model@model_features <- X_f
     traj_model@additional_features <- traj_model@additional_features[, vars[vars != feature_name], drop = FALSE]
@@ -312,12 +312,21 @@ add_features_r2 <- function(traj_model, sample_frac = 0.1, additional = FALSE, s
     }
 
     motif_models <- names(traj_model@motif_models)
+    n_total_feats <- ncol(traj_model@model_features)
     full_model_r2 <- cor(traj_model@predicted_diff_score, traj_model@diff_score)^2
     var_stats <- purrr::map(motif_models, function(var) {
         pssm <- traj_model@motif_models[[var]]$pssm
-        traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
         bits <- sum(prego::bits_per_pos(pssm), na.rm = TRUE)
-        r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
+        # Leave-one-out R^2 needs a fittable model without `var`. If removing it
+        # would leave fewer than 2 feature columns (glmnet's minimum), there is
+        # no model to compare against, so its leave-one-out R^2 is 0.
+        var_feats <- variable_to_feat(traj_model@model, var)
+        if (n_total_feats - length(var_feats) < 2) {
+            r2 <- 0
+        } else {
+            traj_model_f_var <- remove_motif_models_from_traj(traj_model, var, verbose = FALSE)
+            r2 <- cor(traj_model_f_var@predicted_diff_score, traj_model_f_var@diff_score)^2
+        }
         cli::cli_alert("R^2 added by {.field {var}} ({.strong {gsub('N', '-', prego::pssm_to_kmer(pssm, pos_bits_thresh = 0.2))}}): {.val {full_model_r2 - r2}}. Bits: {.val {bits}}")
         list(r2 = r2, bits = bits)
     })
@@ -412,15 +421,18 @@ split_traj_model_to_train_test <- function(traj_model) {
 #'
 #' @export
 filter_traj_model_intervals <- function(traj_model, idxs) {
-    traj_model@model_features <- traj_model@model_features[idxs, ]
+    # drop = FALSE throughout: a single-motif model has a 1-column
+    # normalized_energies (and a 1-column additional_features is possible too),
+    # which would otherwise collapse to a vector and fail the S4 matrix slot.
+    traj_model@model_features <- traj_model@model_features[idxs, , drop = FALSE]
     if (ncol(traj_model@additional_features) > 0) {
-        traj_model@additional_features <- traj_model@additional_features[idxs, ]
+        traj_model@additional_features <- traj_model@additional_features[idxs, , drop = FALSE]
     }
-    traj_model@normalized_energies <- traj_model@normalized_energies[idxs, ]
+    traj_model@normalized_energies <- traj_model@normalized_energies[idxs, , drop = FALSE]
     traj_model@diff_score <- traj_model@diff_score[idxs]
     traj_model@predicted_diff_score <- traj_model@predicted_diff_score[idxs]
     traj_model@type <- traj_model@type[idxs]
-    traj_model@peak_intervals <- traj_model@peak_intervals[idxs, ]
+    traj_model@peak_intervals <- traj_model@peak_intervals[idxs, , drop = FALSE]
     return(traj_model)
 }
 
@@ -502,8 +514,31 @@ rename_motif_models <- function(traj_model, names_map) {
         m
     }) %>% do.call(c, .)
 
-    colnames(traj_model@model_features) <- ext_names_map[colnames(traj_model@model_features)]
-    names(colnames(traj_model@model_features)) <- NULL
+    # Interaction features are named "A:B" (optionally with a logist suffix);
+    # ext_names_map only covers single motif/additional features, so rename each
+    # side of an interaction through names_map separately. Without this the
+    # interaction columns of @model_features become NA and @interactions keeps
+    # the old motif names, silently corrupting an interaction-augmented model.
+    rename_interaction_names <- function(x) {
+        suffix_re <- "_(low-energy|high-energy|higher-energy|sigmoid)$"
+        vapply(x, function(nm) {
+            suffix <- regmatches(nm, regexpr(suffix_re, nm))
+            base <- sub(suffix_re, "", nm)
+            parts <- strsplit(base, ":", fixed = TRUE)[[1]]
+            renamed <- ifelse(parts %in% names(names_map), names_map[parts], parts)
+            paste0(paste(renamed, collapse = ":"), if (length(suffix) > 0) suffix else "")
+        }, character(1), USE.NAMES = FALSE)
+    }
+
+    mf_cols <- colnames(traj_model@model_features)
+    new_mf_cols <- unname(ext_names_map[mf_cols])
+    inter_cols <- grepl(":", mf_cols, fixed = TRUE)
+    new_mf_cols[inter_cols] <- rename_interaction_names(mf_cols[inter_cols])
+    colnames(traj_model@model_features) <- new_mf_cols
+
+    if (has_interactions(traj_model)) {
+        colnames(traj_model@interactions) <- rename_interaction_names(colnames(traj_model@interactions))
+    }
     traj_model@coefs <- traj_model@coefs %>%
         mutate(variable = names_map[variable])
     if (!is.null(traj_model@params$distilled_features)) {

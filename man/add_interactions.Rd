@@ -21,7 +21,7 @@ add_interactions(
   use_cv = FALSE,
   nfolds = 10,
   family = "binomial",
-  rescale_pred = FALSE,
+  rescale_pred = TRUE,
   only_sig_motifs = FALSE,
   only_sig_add_motifs = TRUE,
   interaction_scale_factor = 1,
@@ -62,6 +62,8 @@ add_interactions(
 \item{rescale_pred}{Logical indicating whether to rescale the predicted values. Default is TRUE.}
 
 \item{only_sig_motifs}{Logical indicating whether to only consider significant motifs for interactions. Default: FALSE}
+
+\item{only_sig_add_motifs}{Logical indicating whether to restrict additional-feature interaction anchors to the significant additional features (those whose linear-model coefficient exceeds \code{interaction_threshold}). If FALSE, all additional feature columns are candidate anchors. Default: TRUE}
 
 \item{interaction_scale_factor}{A multiplier applied to the normalized interaction matrix before it is joined into the model features. Default: 1 (no scaling). Values >1 make interactions more prominent relative to motif features; values <1 down-weight them.}
 

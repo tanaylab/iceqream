@@ -463,3 +463,40 @@ test_that("normalize_with_db_quantiles errors on missing motifs", {
         "missing"
     )
 })
+
+test_that("normalize_with_db_quantiles uses a fixed -min_energy range, diverging from norm_energy_matrix (documented)", {
+    # Pins the formula-level divergence between the two normalization paths
+    # (see ?normalize_with_db_quantiles). Background energies whose processed
+    # range does NOT reach the min_energy floor make the observed-range
+    # rescaling (norm_energy_matrix) and the fixed -min_energy rescaling
+    # (normalize_with_db_quantiles) disagree. This divergence is a pure affine
+    # rescale (correlation = 1) and has no downstream model impact: db_quantiles
+    # output feeds only scale-invariant motif selection, and the final model
+    # energies are always recomputed observed-range during distillation.
+    log2_vals <- c(-1, -2, -3, -4, -5)
+    x <- matrix(log2_vals * log(2), ncol = 1) # natural log, as gextract_pwm returns
+    colnames(x) <- "m1"
+    rownames(x) <- paste0("p", 1:5)
+
+    min_energy <- -7
+    nmax <- 10
+
+    # Observed-range path (the db_quantiles = NULL path)
+    nm <- norm_energy_matrix(x, dataset_x = x, min_energy = min_energy, q = 1, norm_energy_max = nmax)
+
+    # db_quantiles fast path, fed the same q = 1 reference (max, natural log)
+    dbq <- matrix(max(x), nrow = 1, ncol = 1, dimnames = list("m1", "1"))
+    nd <- iceqream:::normalize_with_db_quantiles(
+        x, dbq,
+        energy_norm_quantile = 1, min_energy = min_energy, norm_energy_max = nmax
+    )
+
+    # Both pin the top of the scale to norm_energy_max ...
+    expect_equal(max(nm[, 1]), nmax)
+    expect_equal(max(nd[, 1]), nmax)
+
+    # ... but the lower tail diverges: observed range (4) vs fixed -min_energy (7).
+    expect_equal(as.numeric(nm[, 1]), c(10, 7.5, 5, 2.5, 0))
+    expect_equal(as.numeric(nd[, 1]), (c(0, -1, -2, -3, -4) + 7) / 7 * nmax)
+    expect_false(isTRUE(all.equal(as.numeric(nm[, 1]), as.numeric(nd[, 1]))))
+})

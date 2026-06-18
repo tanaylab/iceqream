@@ -172,6 +172,69 @@ test_that("fit_and_predict_model predictions have same range as diff_score", {
     expect_true(max(result$predicted_diff_score) <= max(diff_score) + 0.01)
 })
 
+test_that("fit_and_predict_model is identical to the open-coded glmnet+strip+predict+norm01+rescale block", {
+    # Locks the equivalence that merge_trajectory_motifs relies on after being
+    # routed through fit_and_predict_model (it previously open-coded this block).
+    set.seed(7)
+    n <- 120
+    p <- 6
+    X <- matrix(rnorm(n * p), nrow = n, ncol = p)
+    colnames(X) <- paste0("f", seq_len(p))
+    diff_score <- rnorm(n)
+    y <- norm01(diff_score)
+    alpha <- 1
+    lambda <- 1e-5
+
+    # Manual block (the exact code merge_trajectory_motifs used pre-refactor).
+    m_manual <- iceqream:::strip_glmnet(suppressWarnings(glmnet::glmnet(
+        X, y, binomial(link = "logit"), alpha = alpha, lambda = lambda, seed = 7
+    )))
+    pred_manual <- iceqream:::logist(glmnet::predict.glmnet(m_manual, newx = X, type = "link", s = lambda))[, 1]
+    pred_manual <- iceqream:::rescale(norm01(pred_manual), diff_score)
+
+    res <- suppressWarnings(iceqream:::fit_and_predict_model(
+        X, y, X, diff_score, alpha = alpha, lambda = lambda, seed = 7
+    ))
+
+    expect_equal(res$predicted_diff_score, pred_manual)
+    expect_equal(as.numeric(res$model$beta[, 1]), as.numeric(m_manual$beta[, 1]))
+})
+
+# --- rebuild_traj_model ---
+
+test_that("rebuild_traj_model carries over unchanged inputs and applies the new model/energies", {
+    tm <- create_mock_traj_model(n_peaks = 40, n_motifs = 3)
+
+    # New (smaller) motif set + matching energies/features, as a distiller would produce.
+    new_energies <- tm@normalized_energies[, 1:2, drop = FALSE]
+    new_features <- create_logist_features(new_energies)
+    new_motifs <- tm@motif_models[1:2]
+    fit <- suppressWarnings(iceqream:::fit_and_predict_model(
+        new_features, norm01(tm@diff_score), new_features, tm@diff_score,
+        alpha = tm@params$alpha, lambda = tm@params$lambda, seed = tm@params$seed
+    ))
+
+    rebuilt <- iceqream:::rebuild_traj_model(
+        tm,
+        model = fit$model,
+        motif_models = new_motifs,
+        normalized_energies = new_energies,
+        model_features = new_features,
+        predicted_diff_score = fit$predicted_diff_score
+    )
+
+    expect_s4_class(rebuilt, "TrajectoryModel")
+    # Carried over unchanged from the source model:
+    expect_identical(rebuilt@type, tm@type)
+    expect_identical(rebuilt@peak_intervals, tm@peak_intervals)
+    expect_identical(rebuilt@diff_score, tm@diff_score)
+    expect_identical(rebuilt@initial_prego_models, tm@initial_prego_models)
+    # Replaced with the new fit:
+    expect_equal(colnames(rebuilt@normalized_energies), colnames(new_energies))
+    expect_equal(rebuilt@predicted_diff_score, fit$predicted_diff_score)
+    expect_true(is.matrix(rebuilt@normalized_energies))
+})
+
 # --- theme_iq_track ---
 
 test_that("theme_iq_track returns a list of ggplot2 theme components", {

@@ -78,7 +78,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 
 \item{add_sequences_features}{Add CG content and dinuceotide content to the additional features.}
 
-\item{max_motif_num}{maximum number of motifs to consider. Default: 50}
+\item{max_motif_num}{maximum number of motifs to consider. Default: 30}
 
 \item{traj_prego}{output of \code{learn_traj_prego}. If provided, no additional prego models would be inferred.}
 
@@ -158,9 +158,7 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
   Arguments passed on to \code{\link[=regress_trajectory_motifs]{regress_trajectory_motifs}}
   \describe{
     \item{\code{n_clust_factor}}{factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1}
-    \item{\code{norm_motif_energies}}{A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
     \item{\code{pssm_db}}{a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.}
-    \item{\code{normalize_energies}}{whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.}
     \item{\code{min_initial_energy_cor}}{minimal correlation between the motif normalized energy and the ATAC difference.}
     \item{\code{energy_norm_quantile}}{quantile of the energy used for normalization. Default: 1}
     \item{\code{norm_energy_max}}{maximum value of the normalized energy. Default: 10}
@@ -186,6 +184,7 @@ single value for \code{lambda} (for predictions after CV use
 \code{lambda} values. \code{glmnet} relies on its warms starts for speed,
 and its often faster to fit a whole path than compute a single fit.}
     \item{\code{only_sig_motifs}}{Logical indicating whether to only consider significant motifs for interactions. Default: FALSE}
+    \item{\code{only_sig_add_motifs}}{Logical indicating whether to restrict additional-feature interaction anchors to the significant additional features (those whose linear-model coefficient exceeds \code{interaction_threshold}). If FALSE, all additional feature columns are candidate anchors. Default: TRUE}
     \item{\code{symmetrize_spat}}{if TRUE, the spatial model would be symmetrized around the center bin. Default: TRUE.}
   }}
 }

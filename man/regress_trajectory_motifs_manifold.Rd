@@ -13,14 +13,12 @@ regress_trajectory_motifs_manifold(
   target_traj_motif_num = 30,
   n_clust_factor = 1,
   motif_energies = NULL,
-  norm_motif_energies = NULL,
   pssm_db = iceqream::motif_db,
   additional_features = NULL,
   min_tss_distance = 5000,
   bin_start = 1,
   bin_end = NULL,
   min_initial_energy_cor = 0.05,
-  normalize_energies = TRUE,
   energy_norm_quantile = 1,
   norm_energy_max = 10,
   n_prego_motifs = 0,
@@ -56,15 +54,13 @@ regress_trajectory_motifs_manifold(
 
 \item{norm_intervals}{A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.}
 
-\item{max_motif_num}{maximum number of motifs to consider. Default: 50}
+\item{max_motif_num}{maximum number of motifs to consider. Default: 30}
 
 \item{target_traj_motif_num}{Number of motifs to select for each trajectory. Note that the actual number of motifs can be less or more than this number, depending on the data from other trajectories.}
 
 \item{n_clust_factor}{factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1}
 
 \item{motif_energies}{A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
-
-\item{norm_motif_energies}{A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.}
 
 \item{pssm_db}{a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.}
 
@@ -78,8 +74,6 @@ Note that in order to filter peaks that are too close to TSS, the current \code{
 \item{bin_end}{the end of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: the last bin (only used when atac_scores is provided)}
 
 \item{min_initial_energy_cor}{minimal correlation between the motif normalized energy and the ATAC difference.}
-
-\item{normalize_energies}{whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.}
 
 \item{energy_norm_quantile}{quantile of the energy used for normalization. Default: 1}
 
