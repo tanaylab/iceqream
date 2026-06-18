@@ -1,4 +1,67 @@
-# iceqream 0.0.7
+# iceqream 0.0.8
+
+## Breaking changes
+
+* `regress_trajectory_motifs()` and `regress_trajectory_motifs_manifold()` no
+  longer accept `normalize_energies` / `norm_motif_energies`. They were ignored
+  (energy normalization happens in `compute_motif_energies()`); remove them from
+  your calls.
+
+## Bug fixes
+
+* `rename_motif_models()` now also renames interaction features. Previously,
+  renaming a model that had interactions set the interaction columns of
+  `@model_features` to `NA` and left `@interactions` on the old motif names,
+  silently corrupting the model. (`iq_regression()` was unaffected - it renames
+  before adding interactions.)
+* `filter_traj_model()` no longer crashes on small or aggressively-filtered
+  models: it is a no-op on models with fewer than 2 motifs, never removes every
+  motif (it keeps at least one so the model stays fittable), and its bits-based
+  removal is now applied even when no feature also fails the R^2 threshold
+  (previously it was silently skipped in that case).
+* The manifold/multi-trajectory beta filter (used by `distill_traj_model_multi()`)
+  no longer crashes when unifying models that have no additional features, and is
+  robust to single-motif or fully-filtered trajectories (it always keeps at least
+  one motif).
+* `add_interactions()` is now a no-op (instead of crashing) on models with fewer
+  than two features to interact, such as a single-motif model. This also fixes
+  `iq_regression()` when filtering leaves a single motif.
+* `learn_traj_prego()` (and therefore `iq_regression()` / `regress_trajectory_motifs()`)
+  no longer crashes when given a single `additional_features` column; it falls back
+  to a logistic regression to regress the feature out before motif learning.
+* `regress_trajectory_motifs()` no longer crashes or silently drops the motif name
+  when the model is reduced to a single motif (e.g. `max_motif_num = 1`), including
+  with `include_interactions = TRUE`.
+* `add_interactions()` now rescales `predicted_diff_score` to the trajectory's
+  accessibility-difference range (`rescale_pred = TRUE`), matching
+  `regress_trajectory_motifs()`. Previously the default left predictions on the
+  raw `[0, 1]` logistic scale, so adding interactions silently changed the units
+  of `predicted_diff_score` (reported R^2 was unaffected, as it is
+  correlation-based).
+* `pbm_list.gextract()`, `pbm.gextract()`, and
+  `pbm_list.multi_traj.gextract_energy()` now extract sequences at the model's
+  trained `size` rather than the input intervals' width. Previously, passing
+  intervals whose width differed from the training `peaks_size` (e.g. 300bp
+  peaks for a model trained at 500bp) produced incorrect energies in the
+  documented inference path.
+* `merge_trajectory_motifs()` now removes the merged-away motifs from the model
+  entirely (previously they were dropped from the model features but left behind
+  in `@motif_models` and `@normalized_energies`).
+* `regress_trajectory_motifs()` and `regress_trajectory_motifs_manifold()` no
+  longer error when `additional_features` is omitted (`NULL`).
+* `add_interactions(min_signal_correlation = ...)` no longer drops all
+  interactions when none of them correlate with the signal.
+* `compute_motif_energies(db_quantiles = ...)` is documented more precisely: it
+  normalizes against a stable precomputed reference instead of the observed
+  quantile of the normalization intervals. This can change which motifs are
+  selected during regression, but does not affect a trained model's internal
+  consistency or its predictions (energies are recomputed consistently at
+  inference time).
+
+## Improvements
+
+* Faster model reports and `add_interactions()` on large motif sets; results are
+  unchanged.
 
 ## Breaking changes
 

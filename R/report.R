@@ -333,7 +333,10 @@ plot_traj_model_report <- function(traj_model, filename = NULL, motif_num = NULL
             theme_void())
     }
 
-    pr <- compute_partial_response(traj_model)
+    # Only the displayed motifs (`models` was already subset to `motif_num`)
+    # need a partial response; computing it for every variable scales with the
+    # full motif count, not the number plotted.
+    pr <- compute_partial_response(traj_model, vars = names(models))
     e_vs_pr_p <- purrr::map(names(models), ~ plot_e_vs_pr(.x, pr, traj_model, aspect.ratio = NULL))
 
     e_vs_r_boxp_p <- purrr::map(names(models), ~ plot_motif_energy_vs_response_boxplot(traj_model, .x, ylim = boxp_ylim, xlab = paste(names_map[.x], "energy"), ylab = boxp_ylab, y_data = boxp_y_data, outliers = FALSE))

@@ -408,20 +408,14 @@ update_traj_model <- function(traj_model, clust_energies, motif_models) {
     model <- fit_result$model
     predicted_diff_score <- fit_result$predicted_diff_score
 
-    TrajectoryModel(
+    rebuild_traj_model(
+        traj_model,
         model = model,
-        motif_models = homogenize_pssm_models(motif_models[names(motif_models) %in% colnames(clust_energies)]),
-        coefs = get_model_coefs(model),
-        normalized_energies = as.matrix(clust_energies),
+        motif_models = motif_models[names(motif_models) %in% colnames(clust_energies)],
+        normalized_energies = clust_energies,
         model_features = clust_energies_logist,
-        type = traj_model@type,
-        normalization_intervals = traj_model@normalization_intervals,
-        additional_features = traj_model@additional_features,
-        diff_score = atac_diff,
         predicted_diff_score = predicted_diff_score,
-        initial_prego_models = traj_model@initial_prego_models,
-        peak_intervals = traj_model@peak_intervals,
-        params = traj_model@params
+        diff_score = atac_diff
     )
 }
 
@@ -524,7 +518,13 @@ filter_traj_model_by_beta <- function(traj_model, threshold = 0.005) {
 
     X <- as.matrix(cbind(traj_model@normalized_energies, traj_model@additional_features))
 
-    X_train <- X[traj_model@type == "train", ]
+    # glmnet needs >=2 feature columns; a 0/1-motif model has nothing to filter.
+    if (ncol(X) < 2 || length(traj_model@motif_models) < 2) {
+        cli::cli_alert_info("Model has too few features to filter by beta; returning unchanged.")
+        return(traj_model)
+    }
+
+    X_train <- X[traj_model@type == "train", , drop = FALSE]
     y_train <- y[traj_model@type == "train"]
 
     model <- glmnet::glmnet(X_train, y_train, binomial(link = "logit"), alpha = traj_model@params$alpha, lambda = traj_model@params$lambda, seed = traj_model@params$seed)
@@ -538,6 +538,17 @@ filter_traj_model_by_beta <- function(traj_model, threshold = 0.005) {
     vars_to_remove <- beta_df %>%
         filter(beta < threshold) %>%
         pull(motif)
+
+    # Never remove every motif: keep the highest-beta one so the model refits.
+    if (length(vars_to_remove) >= length(traj_model@motif_models)) {
+        keep <- beta_df %>%
+            filter(motif %in% vars_to_remove) %>%
+            arrange(desc(beta)) %>%
+            slice(1) %>%
+            pull(motif)
+        cli::cli_alert_warning("All motifs fell below the beta threshold; keeping {.val {keep}}.")
+        vars_to_remove <- setdiff(vars_to_remove, keep)
+    }
 
     new_model <- remove_motif_models_from_traj(traj_model, vars_to_remove, verbose = FALSE)
     new_r2_train <- cor(new_model@diff_score[new_model@type == "train"], new_model@predicted_diff_score[new_model@type == "train"])^2
@@ -585,10 +596,10 @@ filter_multi_traj_model_by_beta <- function(multi_traj, beta_threshold = 0.005, 
         all_motif_models <- all_motif_models[unique(names(all_motif_models))]
         normalized_energies <- purrr::imap(traj_models_f, ~ {
             e <- .x@normalized_energies
-            e <- e[, colnames(e) %in% names(.x@motif_models)]
+            e <- e[, colnames(e) %in% names(.x@motif_models), drop = FALSE]
             e
         }) %>% do.call(cbind, .)
-        normalized_energies <- normalized_energies[, names(all_motif_models)]
+        normalized_energies <- normalized_energies[, names(all_motif_models), drop = FALSE]
 
         cli::cli_alert("Unifying models (number of unique motifs: {.val {length(all_motif_models)}})")
 

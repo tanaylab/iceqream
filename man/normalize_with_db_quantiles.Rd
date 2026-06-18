@@ -27,5 +27,39 @@ normalize_with_db_quantiles(
 Normalized motif energies matrix
 }
 \description{
-Normalize motif energies using pre-computed quantiles
+Fast-path normalization used by \code{\link[=compute_motif_energies]{compute_motif_energies()}} when a
+pre-computed \code{db_quantiles} matrix is supplied (e.g.
+\link{mouse_db_quantiles}).
 }
+\section{Relationship to \link{norm_energy_matrix} (no downstream impact)}{
+
+This function rescales the clamped energies to \verb{[0, norm_energy_max]}
+using the \strong{fixed theoretical range} \code{-min_energy}
+(\code{(y - min_energy) / (-min_energy) * norm_energy_max}), whereas
+\link{norm_energy_matrix} (the \code{db_quantiles = NULL} path) rescales by the
+\strong{observed empirical range} of the background. The two formulas
+therefore map the same input to different normalized values (pinned in
+\code{test-energy-utils.R}). However, this denominator difference is a pure
+affine rescale (correlation = 1) and has \strong{no effect on a trained
+model}: the only consumer of \code{compute_motif_energies()} output is the
+correlation-based motif \emph{selection} in \code{\link[=regress_trajectory_motifs]{regress_trajectory_motifs()}} /
+\code{\link[=regress_trajectory_motifs_manifold]{regress_trajectory_motifs_manifold()}}, which is scale-invariant. Both
+regression paths then re-extract and re-normalize the selected motifs'
+energies with \link{norm_energy_matrix} (observed range) during distillation
+(\code{distill_motifs} / \link{distill_traj_model_multi}), so the model's
+\verb{@normalized_energies} are observed-range and match what inference
+(\code{calc_traj_model_energies} / \link{pbm.normalize_energies}) recomputes -
+\code{predict()} / \code{\link[=create_iq_model]{create_iq_model()}} round-trip exactly whether or not
+\code{db_quantiles} was used (verified on genome models, max|diff| = 0).
+
+The practically meaningful difference between the two paths is \strong{not}
+this denominator but the \strong{reference quantile}: \code{db_quantiles} carries
+a stable genome-wide reference, while the default path takes the
+per-call observed quantile of \code{normalization_intervals}. That changes
+\emph{which} motifs pass the correlation-based selection threshold (and hence
+the resulting model), which is the intended tradeoff of supplying
+\code{db_quantiles} (no large normalization background required). It is a
+selection choice, not a numerical bug, and does not need a fix.
+}
+
+\keyword{internal}

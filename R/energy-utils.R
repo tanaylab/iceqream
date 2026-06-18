@@ -226,6 +226,40 @@ norm_energy_matrix <- function(x, dataset_x = x, min_energy = -7, q = 1, norm_en
 
 #' Normalize motif energies using pre-computed quantiles
 #'
+#' @description
+#' Fast-path normalization used by [compute_motif_energies()] when a
+#' pre-computed `db_quantiles` matrix is supplied (e.g.
+#' [mouse_db_quantiles]).
+#'
+#' @section Relationship to [norm_energy_matrix] (no downstream impact):
+#' This function rescales the clamped energies to `[0, norm_energy_max]`
+#' using the **fixed theoretical range** `-min_energy`
+#' (`(y - min_energy) / (-min_energy) * norm_energy_max`), whereas
+#' [norm_energy_matrix] (the `db_quantiles = NULL` path) rescales by the
+#' **observed empirical range** of the background. The two formulas
+#' therefore map the same input to different normalized values (pinned in
+#' `test-energy-utils.R`). However, this denominator difference is a pure
+#' affine rescale (correlation = 1) and has **no effect on a trained
+#' model**: the only consumer of `compute_motif_energies()` output is the
+#' correlation-based motif *selection* in [regress_trajectory_motifs()] /
+#' [regress_trajectory_motifs_manifold()], which is scale-invariant. Both
+#' regression paths then re-extract and re-normalize the selected motifs'
+#' energies with [norm_energy_matrix] (observed range) during distillation
+#' (`distill_motifs` / [distill_traj_model_multi]), so the model's
+#' `@normalized_energies` are observed-range and match what inference
+#' (`calc_traj_model_energies` / [pbm.normalize_energies]) recomputes -
+#' `predict()` / [create_iq_model()] round-trip exactly whether or not
+#' `db_quantiles` was used (verified on genome models, max|diff| = 0).
+#'
+#' The practically meaningful difference between the two paths is **not**
+#' this denominator but the **reference quantile**: `db_quantiles` carries
+#' a stable genome-wide reference, while the default path takes the
+#' per-call observed quantile of `normalization_intervals`. That changes
+#' *which* motifs pass the correlation-based selection threshold (and hence
+#' the resulting model), which is the intended tradeoff of supplying
+#' `db_quantiles` (no large normalization background required). It is a
+#' selection choice, not a numerical bug, and does not need a fix.
+#'
 #' @param motif_energies Matrix of motif energies to normalize
 #' @param db_quantiles Matrix of pre-computed quantiles for normalization
 #' @param energy_norm_quantile Quantile to use for normalization
@@ -233,6 +267,7 @@ norm_energy_matrix <- function(x, dataset_x = x, min_energy = -7, q = 1, norm_en
 #' @param norm_energy_max Maximum normalized energy value
 #'
 #' @return Normalized motif energies matrix
+#' @keywords internal
 normalize_with_db_quantiles <- function(motif_energies, db_quantiles, energy_norm_quantile, min_energy, norm_energy_max) {
     # Check if energy_norm_quantile exists in db_quantiles columns
     if (!as.character(energy_norm_quantile) %in% colnames(db_quantiles)) {
@@ -313,6 +348,13 @@ create_logist_features <- function(features) {
     }
     # remove features that are all NA
     features <- features[, colSums(is.na(features)) != nrow(features), drop = FALSE]
+
+    # No columns left (e.g. a model with no additional features, or an
+    # all-dinucleotide additional-features matrix): return an empty matrix that
+    # still carries the right number of rows so downstream cbind() is a no-op.
+    if (ncol(features) == 0) {
+        return(matrix(numeric(0), nrow = nrow(features), ncol = 0))
+    }
 
     if (is.null(colnames(features))) {
         colnames(features) <- paste0("V", seq_len(ncol(features)))

@@ -11,17 +11,15 @@
 #' @param atac_diff Optional. A numeric vector representing the differential accessibility between the start and end of the trajectory. Either this or \code{atac_scores} must be provided.
 #' @param normalize_bins whether to normalize the ATAC scores to be between 0 and 1. Default: TRUE
 #' @param norm_intervals A data frame, indicating the genomic positions ('chrom', 'start', 'end') of peaks used for energy normalization. If NULL, the function will use \code{peak_intervals} for normalization.
-#' @param max_motif_num maximum number of motifs to consider. Default: 50
+#' @param max_motif_num maximum number of motifs to consider. Default: 30
 #' @param n_clust_factor factor to divide the number of to keep after clustering. e.g. if n_clust_factor > 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1
 #' @param motif_energies A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
-#' @param norm_motif_energies A numeric matrix, representing the normalized energy of each motif in each interval of \code{norm_intervals}. If NULL, the function will use \code{pssm_db} to calculate the motif energies. Note that this might take a while.
 #' @param pssm_db a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in \code{motif_energies} (column names) should be present in the 'motif' column. Default: all motifs.
 #' @param additional_features A data frame, representing additional genomic features (e.g. CpG content, distance to TSS, etc.) for each peak. Note that NA values would be replaced with 0.
 #' @param min_tss_distance distance from Transcription Start Site (TSS) to classify a peak as an enhancer. Default: 5000. If NULL, no filtering will be performed - use this option if your peaks are already filtered. \cr
 #' Note that in order to filter peaks that are too close to TSS, the current \code{misha} genome must have an intervals set called \code{intervs.global.tss}.
 #' @param bin_start the start of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: 1
 #' @param bin_end the end of the trajectory. Can be an integer index or a character column name of \code{atac_scores}. Default: the last bin (only used when atac_scores is provided)
-#' @param normalize_energies whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.
 #' @param min_initial_energy_cor minimal correlation between the motif normalized energy and the ATAC difference.
 #' @param energy_norm_quantile quantile of the energy used for normalization. Default: 1
 #' @param norm_energy_max maximum value of the normalized energy. Default: 10
@@ -74,14 +72,12 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
                                       max_motif_num = 30,
                                       n_clust_factor = 1,
                                       motif_energies = NULL,
-                                      norm_motif_energies = NULL,
                                       pssm_db = iceqream::motif_db,
                                       additional_features = NULL,
                                       min_tss_distance = 5000,
                                       bin_start = 1,
                                       bin_end = NULL,
                                       min_initial_energy_cor = 0.05,
-                                      normalize_energies = TRUE,
                                       energy_norm_quantile = 1,
                                       norm_energy_max = 10,
                                       n_prego_motifs = 0,
@@ -151,6 +147,15 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
     }
 
     validate_peak_intervals(peak_intervals)
+    # Normalize an omitted additional_features (NULL) to the canonical
+    # "no additional features" representation: a 0-column data.frame with one
+    # row per peak (the same shape the TrajectoryModel slot and the rest of the
+    # pipeline expect). Without this, `additional_features[is.na(...)] <- 0`
+    # silently coerces NULL to a zero-length vector, which then fails the 2D
+    # row subset below with "incorrect number of dimensions".
+    if (is.null(additional_features)) {
+        additional_features <- data.frame(row.names = seq_len(nrow(peak_intervals)))
+    }
     validate_additional_features(additional_features, peak_intervals)
     additional_features[is.na(additional_features)] <- 0
     if (is.null(norm_intervals)) {
@@ -289,11 +294,13 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
 
     cli_alert_success("Finished running model. Number of non-zero coefficients: {.val {sum(model$beta != 0)}} (out of {.val {ncol(clust_energies_logist)}}). R^2: {.val {cor(predicted_diff_score, atac_diff_n)^2}}")
 
-    # remove additional features from clust_energies
-    normalized_energies <- clust_energies[, setdiff(colnames(clust_energies), colnames(additional_features))]
+    # remove additional features from clust_energies (drop = FALSE so a
+    # single-motif model keeps its matrix shape and column name instead of
+    # collapsing to an unnamed vector)
+    normalized_energies <- clust_energies[, setdiff(colnames(clust_energies), colnames(additional_features)), drop = FALSE]
 
     if (include_interactions) {
-        normalized_energies <- normalized_energies[, setdiff(colnames(normalized_energies), colnames(interactions))]
+        normalized_energies <- normalized_energies[, setdiff(colnames(normalized_energies), colnames(interactions)), drop = FALSE]
     }
 
     traj_model <- TrajectoryModel(
