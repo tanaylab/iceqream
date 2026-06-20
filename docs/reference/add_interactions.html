@@ -13,7 +13,7 @@ the new features."><meta property="og:image" content="https://tanaylab.github.io
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,7 +64,7 @@ the new features.</p>
 <span>  use_cv <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  nfolds <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"binomial"</span>,</span>
-<span>  rescale_pred <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  rescale_pred <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  only_sig_motifs <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  only_sig_add_motifs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  interaction_scale_factor <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -142,6 +142,10 @@ the new features.</p>
 
 <dt id="arg-only-sig-motifs">only_sig_motifs<a class="anchor" aria-label="anchor" href="#arg-only-sig-motifs"></a></dt>
 <dd><p>Logical indicating whether to only consider significant motifs for interactions. Default: FALSE</p></dd>
+
+
+<dt id="arg-only-sig-add-motifs">only_sig_add_motifs<a class="anchor" aria-label="anchor" href="#arg-only-sig-add-motifs"></a></dt>
+<dd><p>Logical indicating whether to restrict additional-feature interaction anchors to the significant additional features (those whose linear-model coefficient exceeds <code>interaction_threshold</code>). If FALSE, all additional feature columns are candidate anchors. Default: TRUE</p></dd>
 
 
 <dt id="arg-interaction-scale-factor">interaction_scale_factor<a class="anchor" aria-label="anchor" href="#arg-interaction-scale-factor"></a></dt>
