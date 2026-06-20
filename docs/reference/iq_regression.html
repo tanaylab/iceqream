@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -137,7 +137,7 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
 
 
 <dt id="arg-max-motif-num">max_motif_num<a class="anchor" aria-label="anchor" href="#arg-max-motif-num"></a></dt>
-<dd><p>maximum number of motifs to consider. Default: 50</p></dd>
+<dd><p>maximum number of motifs to consider. Default: 30</p></dd>
 
 
 <dt id="arg-traj-prego">traj_prego<a class="anchor" aria-label="anchor" href="#arg-traj-prego"></a></dt>
@@ -292,14 +292,8 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
 <dd><p>Arguments passed on to <code><a href="regress_trajectory_motifs.html">regress_trajectory_motifs</a></code></p><dl><dt><code>n_clust_factor</code></dt>
 <dd><p>factor to divide the number of to keep after clustering. e.g. if n_clust_factor &gt; 1 the number of motifs to keep will be reduced by a factor of n_clust_factor. Default: 1</p></dd>
 
-    <dt><code>norm_motif_energies</code></dt>
-<dd><p>A numeric matrix, representing the normalized energy of each motif in each interval of <code>norm_intervals</code>. If NULL, the function will use <code>pssm_db</code> to calculate the motif energies. Note that this might take a while.</p></dd>
-
     <dt><code>pssm_db</code></dt>
 <dd><p>a data frame with PSSMs ('A', 'C', 'G' and 'T' columns), with an additional column 'motif' containing the motif name. All the motifs in <code>motif_energies</code> (column names) should be present in the 'motif' column. Default: all motifs.</p></dd>
-
-    <dt><code>normalize_energies</code></dt>
-<dd><p>whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.</p></dd>
 
     <dt><code>min_initial_energy_cor</code></dt>
 <dd><p>minimal correlation between the motif normalized energy and the ATAC difference.</p></dd>
@@ -355,6 +349,9 @@ and its often faster to fit a whole path than compute a single fit.</p></dd>
 
     <dt><code>only_sig_motifs</code></dt>
 <dd><p>Logical indicating whether to only consider significant motifs for interactions. Default: FALSE</p></dd>
+
+    <dt><code>only_sig_add_motifs</code></dt>
+<dd><p>Logical indicating whether to restrict additional-feature interaction anchors to the significant additional features (those whose linear-model coefficient exceeds <code>interaction_threshold</code>). If FALSE, all additional feature columns are candidate anchors. Default: TRUE</p></dd>
 
     <dt><code>symmetrize_spat</code></dt>
 <dd><p>if TRUE, the spatial model would be symmetrized around the center bin. Default: TRUE.</p></dd>
