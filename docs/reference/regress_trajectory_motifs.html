@@ -11,7 +11,7 @@ Optionally, additional features such as epigenomic features can be provided."><m
 
     <a class="navbar-brand me-2" href="../index.html">iceqream</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,14 +54,12 @@ Optionally, additional features such as epigenomic features can be provided.</p>
 <span>  max_motif_num <span class="op">=</span> <span class="fl">30</span>,</span>
 <span>  n_clust_factor <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  motif_energies <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  norm_motif_energies <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pssm_db <span class="op">=</span> <span class="fu">iceqream</span><span class="fu">::</span><span class="va"><a href="motif_db.html">motif_db</a></span>,</span>
 <span>  additional_features <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  min_tss_distance <span class="op">=</span> <span class="fl">5000</span>,</span>
 <span>  bin_start <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  bin_end <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  min_initial_energy_cor <span class="op">=</span> <span class="fl">0.05</span>,</span>
-<span>  normalize_energies <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  energy_norm_quantile <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  norm_energy_max <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  n_prego_motifs <span class="op">=</span> <span class="fl">0</span>,</span>
@@ -125,7 +123,7 @@ Optionally, additional features such as epigenomic features can be provided.</p>
 
 
 <dt id="arg-max-motif-num">max_motif_num<a class="anchor" aria-label="anchor" href="#arg-max-motif-num"></a></dt>
-<dd><p>maximum number of motifs to consider. Default: 50</p></dd>
+<dd><p>maximum number of motifs to consider. Default: 30</p></dd>
 
 
 <dt id="arg-n-clust-factor">n_clust_factor<a class="anchor" aria-label="anchor" href="#arg-n-clust-factor"></a></dt>
@@ -134,10 +132,6 @@ Optionally, additional features such as epigenomic features can be provided.</p>
 
 <dt id="arg-motif-energies">motif_energies<a class="anchor" aria-label="anchor" href="#arg-motif-energies"></a></dt>
 <dd><p>A numeric matrix, representing the energy of each motif in each peak. If NULL, the function will use <code>pssm_db</code> to calculate the motif energies. Note that this might take a while.</p></dd>
-
-
-<dt id="arg-norm-motif-energies">norm_motif_energies<a class="anchor" aria-label="anchor" href="#arg-norm-motif-energies"></a></dt>
-<dd><p>A numeric matrix, representing the normalized energy of each motif in each interval of <code>norm_intervals</code>. If NULL, the function will use <code>pssm_db</code> to calculate the motif energies. Note that this might take a while.</p></dd>
 
 
 <dt id="arg-pssm-db">pssm_db<a class="anchor" aria-label="anchor" href="#arg-pssm-db"></a></dt>
@@ -163,10 +157,6 @@ Note that in order to filter peaks that are too close to TSS, the current <code>
 
 <dt id="arg-min-initial-energy-cor">min_initial_energy_cor<a class="anchor" aria-label="anchor" href="#arg-min-initial-energy-cor"></a></dt>
 <dd><p>minimal correlation between the motif normalized energy and the ATAC difference.</p></dd>
-
-
-<dt id="arg-normalize-energies">normalize_energies<a class="anchor" aria-label="anchor" href="#arg-normalize-energies"></a></dt>
-<dd><p>whether to normalize the motif energies. Set this to FALSE if the motif energies are already normalized.</p></dd>
 
 
 <dt id="arg-energy-norm-quantile">energy_norm_quantile<a class="anchor" aria-label="anchor" href="#arg-energy-norm-quantile"></a></dt>
@@ -285,6 +275,10 @@ lasso penalty, and <code>alpha=0</code> the ridge penalty.</p></dd>
 
 <dt id="arg-only-sig-motifs">only_sig_motifs<a class="anchor" aria-label="anchor" href="#arg-only-sig-motifs"></a></dt>
 <dd><p>Logical indicating whether to only consider significant motifs for interactions. Default: FALSE</p></dd>
+
+
+<dt id="arg-only-sig-add-motifs">only_sig_add_motifs<a class="anchor" aria-label="anchor" href="#arg-only-sig-add-motifs"></a></dt>
+<dd><p>Logical indicating whether to restrict additional-feature interaction anchors to the significant additional features (those whose linear-model coefficient exceeds <code>interaction_threshold</code>). If FALSE, all additional feature columns are candidate anchors. Default: TRUE</p></dd>
 
 
 <dt id="arg-symmetrize-spat">symmetrize_spat<a class="anchor" aria-label="anchor" href="#arg-symmetrize-spat"></a></dt>
