@@ -128,6 +128,12 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 
     cli_alert_info("Learning a model for each motif cluster...")
 
+    # The per-cluster loop forks via doMC and each worker runs prego::regress_pwm
+    # (a native thread pool). Keep prego single-threaded inside the fork so the
+    # fork over clusters is the only parallelism layer (avoids the fork-unsafe
+    # native-thread-pool deadlock). See local_prego_single_thread().
+    local_prego_single_thread()
+
     best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
         n_feats <- nrow(clust_map %>% filter(clust == x$clust))
         motif <- NULL

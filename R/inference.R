@@ -222,6 +222,11 @@ infer_energies_new <- function(sequences, norm_sequences, motif_list, min_energy
 infer_energies <- function(sequences, norm_sequences, motif_list, min_energy, energy_norm_quantile, norm_energy_max, func = "logSumExp", bidirect = TRUE) {
     ml <- purrr::discard(motif_list, is.null)
 
+    # The plyr loops below fork via doMC; keep prego single-threaded inside the
+    # forks so the doMC fork is the only parallelism layer (avoids the
+    # fork-unsafe native-thread-pool deadlock). See local_prego_single_thread().
+    local_prego_single_thread()
+
     energies <- plyr::llply(ml, function(x) {
         prego::compute_pwm(sequences, x$pssm, spat = x$spat, spat_min = x$spat_min %||% 1, spat_max = x$spat_max, func = func, bidirect = bidirect)
     }, .parallel = getOption("prego.parallel", TRUE))
