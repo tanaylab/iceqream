@@ -1,3 +1,19 @@
+# iceqream 0.0.9
+
+## Bug fixes
+
+* Parallel work no longer deadlocks when `prego::set_parallel()` is active.
+  Several loops iterate prego's compute/regression functions (`compute_pwm()`,
+  `compute_local_pwm()`, `regress_pwm()`) under `plyr`'s `.parallel` (doMC) fork
+  backend, while `prego::set_parallel()` *also* turns on prego's internal
+  RcppParallel/OpenMP thread pool. A native thread pool that is warm at `fork()`
+  is not fork-safe, so the forked workers could hang. The affected loops -
+  `infer_energies()`, `pbm_list.compute_local()`, motif distillation
+  (`distill_motifs()`, `distill_traj_model_multi()`) and
+  `compute_traj_model_spatial_freq()` - now pin prego to a single internal thread
+  inside the fork (the doMC fork stays as the parallelism layer), matching the
+  guard `prego::extract_pwm()` already applies. Results are unchanged.
+
 # iceqream 0.0.8
 
 ## Breaking changes

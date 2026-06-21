@@ -253,3 +253,27 @@ clamp_kmer_sequence_length <- function(kmer_sequence_length, peaks_size) {
     }
     kmer_sequence_length
 }
+
+# Pin prego's internal RcppParallel/OpenMP thread pool to a single thread for
+# the remainder of the calling function. iceqream iterates prego's compute /
+# regression functions (compute_pwm, compute_local_pwm, regress_pwm) under
+# plyr's `.parallel` (doMC) backend, which forks the R process. set_parallel()
+# turns on *both* layers at once (doMC::registerDoMC + setThreadOptions). A
+# native thread pool that is warm at fork() is not fork-safe: a forked worker
+# that re-enters it can deadlock (the "prego OpenMP x doMC" hang). Pinning prego
+# to one internal thread leaves the doMC fork as the only live parallelism
+# layer. Mirrors the guard prego::extract_pwm() already applies when forking.
+#
+# Only pins when the surrounding loop actually forks (`parallel` TRUE). Callers
+# whose `.parallel` follows getOption("prego.parallel") can use the default; the
+# few that take their own `parallel` flag must pass it, so that a non-forking
+# (parallel = FALSE) loop keeps prego's threads for its single-process compute.
+local_prego_single_thread <- function(parallel = getOption("prego.parallel", TRUE), .local_envir = parent.frame()) {
+    nc <- getOption("prego.parallel.nc", 1)
+    if (!isTRUE(parallel) || is.null(nc) || nc <= 1 || !requireNamespace("RcppParallel", quietly = TRUE)) {
+        return(invisible(NULL))
+    }
+    RcppParallel::setThreadOptions(numThreads = 1)
+    withr::defer(RcppParallel::setThreadOptions(numThreads = nc), envir = .local_envir)
+    invisible(NULL)
+}
