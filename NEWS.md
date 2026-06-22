@@ -2,17 +2,24 @@
 
 ## Bug fixes
 
-* Parallel work no longer deadlocks when `prego::set_parallel()` is active.
-  Several loops iterate prego's compute/regression functions (`compute_pwm()`,
-  `compute_local_pwm()`, `regress_pwm()`) under `plyr`'s `.parallel` (doMC) fork
-  backend, while `prego::set_parallel()` *also* turns on prego's internal
+* Inference no longer deadlocks when `prego::set_parallel()` is active.
+  `infer_energies()`, `pbm_list.compute_local()` and
+  `compute_traj_model_spatial_freq()` iterate prego's PWM functions
+  (`compute_pwm()` / `compute_local_pwm()`) under `plyr`'s `.parallel` (doMC)
+  fork backend, while `prego::set_parallel()` *also* turns on prego's internal
   RcppParallel/OpenMP thread pool. A native thread pool that is warm at `fork()`
-  is not fork-safe, so the forked workers could hang. The affected loops -
-  `infer_energies()`, `pbm_list.compute_local()`, motif distillation
-  (`distill_motifs()`, `distill_traj_model_multi()`) and
-  `compute_traj_model_spatial_freq()` - now pin prego to a single internal thread
-  inside the fork (the doMC fork stays as the parallelism layer), matching the
-  guard `prego::extract_pwm()` already applies. Results are unchanged.
+  is not fork-safe, so a forked worker re-entering it could hang. These loops now
+  pin prego to a single internal thread inside the fork (the doMC fork stays as
+  the parallelism layer), matching the guard `prego::extract_pwm()` already
+  applies. Results are unchanged and there is no speed cost - `compute_pwm()` /
+  `compute_local_pwm()` do not scale with internal threads. The
+  motif-distillation loops are intentionally left untouched: they run
+  `prego::regress_pwm()`, which *does* scale with threads, so single-threading it
+  would cripple training; they oversubscribe instead.
+* New "Parallelism" section in `?regress_trajectory_motifs` /
+  `?infer_trajectory_motifs` documenting how to budget threads when you wrap
+  these functions in your own `doMC`/`foreach`/`mclapply` loop (otherwise `K`
+  workers x `N` prego threads oversubscribe the machine).
 
 # iceqream 0.0.8
 

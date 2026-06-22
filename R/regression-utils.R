@@ -255,14 +255,23 @@ clamp_kmer_sequence_length <- function(kmer_sequence_length, peaks_size) {
 }
 
 # Pin prego's internal RcppParallel/OpenMP thread pool to a single thread for
-# the remainder of the calling function. iceqream iterates prego's compute /
-# regression functions (compute_pwm, compute_local_pwm, regress_pwm) under
-# plyr's `.parallel` (doMC) backend, which forks the R process. set_parallel()
-# turns on *both* layers at once (doMC::registerDoMC + setThreadOptions). A
-# native thread pool that is warm at fork() is not fork-safe: a forked worker
-# that re-enters it can deadlock (the "prego OpenMP x doMC" hang). Pinning prego
-# to one internal thread leaves the doMC fork as the only live parallelism
-# layer. Mirrors the guard prego::extract_pwm() already applies when forking.
+# the remainder of the calling function. iceqream iterates prego's PWM compute
+# functions (compute_pwm / compute_local_pwm) under plyr's `.parallel` (doMC)
+# backend, which forks the R process. set_parallel() turns on *both* layers at
+# once (doMC::registerDoMC + setThreadOptions). A native thread pool that is
+# warm at fork() is not fork-safe: a forked worker that re-enters it can
+# deadlock (the "prego OpenMP x doMC" hang). Pinning prego to one internal
+# thread leaves the doMC fork as the only live parallelism layer. Mirrors the
+# guard prego::extract_pwm() already applies when forking.
+#
+# IMPORTANT - use only where the forked compute does NOT scale with internal
+# threads. compute_pwm / compute_local_pwm are effectively serial regardless of
+# the thread count (the doMC fork over motifs is the real parallelism), so
+# pinning them to one thread is free. Do NOT use this around prego::regress_pwm
+# (the motif-distillation loops): regress_pwm scales strongly with threads
+# (single-threaded is several times slower), so pinning would cripple training.
+# Distillation is left to oversubscribe instead; callers who nest their own
+# fork around iceqream should budget threads themselves - see ?infer_trajectory_motifs.
 #
 # Only pins when the surrounding loop actually forks (`parallel` TRUE). Callers
 # whose `.parallel` follows getOption("prego.parallel") can use the default; the
