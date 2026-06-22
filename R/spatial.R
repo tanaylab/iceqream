@@ -259,6 +259,14 @@ compute_traj_model_spatial_freq <- function(traj_model, size, pwm_threshold = 7,
         filter(type != "middle") %>%
         select(-diff_score)
 
+    # The per-motif loop forks via doMC (when parallel) and each worker runs
+    # prego::compute_local_pwm / compute_pwm (a native thread pool). Keep prego
+    # single-threaded inside the fork so the fork over motifs is the only
+    # parallelism layer (avoids the fork-unsafe native-thread-pool deadlock).
+    # Pass `parallel` so a non-forking call keeps prego's threads. See
+    # local_prego_single_thread().
+    local_prego_single_thread(parallel)
+
     spatial_freqs <- plyr::ldply(motifs, function(motif) {
         if (is.null(pwm_threshold)) {
             local_pwm_r <- gextract.local_pwm(traj_model@normalization_intervals, traj_model@motif_models[[motif]]$pssm, bidirect = TRUE)

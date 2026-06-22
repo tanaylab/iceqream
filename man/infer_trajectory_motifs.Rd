@@ -47,3 +47,21 @@ a \code{TrajectoryModel} object which contains both the original ('train') peaks
 \description{
 This function infers the motif energies for a set of peaks using a pre-trained trajectory model.
 }
+\section{Parallelism}{
+
+iceqream parallelizes through \pkg{prego}, which uses an internal
+RcppParallel/OpenMP thread pool (sized by \code{prego::set_parallel()}).
+\strong{Do not wrap calls to this function in your own \code{doMC} /
+\code{foreach} / \code{mclapply} loop without budgeting threads.} Forking the
+R process while the prego thread pool is configured for \code{N} threads makes
+every one of your \code{K} workers spawn its own \code{N} threads (\code{K * N} total),
+which oversubscribes the machine and, with a fork-unsafe thread pool, can
+deadlock. If you parallelize across trajectories/cell-types yourself, set the
+per-worker budget \emph{inside} each worker before its first prego call, e.g.
+\code{prego::set_parallel(max(1, floor(parallel::detectCores() / K)))}.
+Note also that \code{prego::set_parallel()}'s default uses
+\code{parallel::detectCores()}, which reports the machine's cores, not the
+cores allocated to your job on a shared cluster - pass an explicit thread
+count there.
+}
+
