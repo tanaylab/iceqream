@@ -191,12 +191,6 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 
     cli::cli_alert("Number of clusters after splitting: {.val {nrow(clust_map %>% distinct(clust))}}, out of which {.val {sum(clust_sizes == 1)}} have only one feature. Avg cluster size: {.val {round(mean(clust_sizes), digits = 2)}}")
 
-    # The per-cluster loop forks via doMC and each worker runs prego::regress_pwm
-    # (a native thread pool). Keep prego single-threaded inside the fork so the
-    # fork over clusters is the only parallelism layer (avoids the fork-unsafe
-    # native-thread-pool deadlock). See local_prego_single_thread().
-    local_prego_single_thread()
-
     prego_distilled <- plyr::dlply(clust_map, "clust", function(x) {
         n_feats <- length(unique(x$feat))
         clust_name <- clust_to_name[x$clust[1]]

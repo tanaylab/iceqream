@@ -62,6 +62,7 @@
 #' @inheritParams glmnet::glmnet
 #' @inheritParams add_interactions
 #' @inheritParams prego::regress_pwm
+#' @inheritSection infer_trajectory_motifs Parallelism
 #' @export
 regress_trajectory_motifs <- function(peak_intervals = NULL,
                                       peaks = NULL,
