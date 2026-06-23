@@ -120,6 +120,14 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals = NULL, peaks = N
     e_test <- e_test[, common_cols, drop = FALSE]
     traj_model@normalized_energies <- as.matrix(rbind(traj_model@normalized_energies[, common_cols, drop = FALSE], e_test))
 
+    # Mark the newly inferred peaks as 'test' BEFORE computing stats, so that
+    # add_traj_model_stats() can identify the test rows. Previously @type was
+    # updated only after the stats call, so test_idxs was empty at stats time:
+    # r2_test was never computed and r2_train/r2_all were taken over a @type
+    # vector inconsistent with the (already-extended) diff_score/predicted
+    # vectors.
+    traj_model@type <- c(traj_model@type, rep("test", nrow(e_test_logist)))
+
     if (!is.null(diff_score)) {
         traj_model@diff_score <- c(traj_model@diff_score, diff_score)
         traj_model <- add_traj_model_stats(traj_model)
@@ -129,7 +137,6 @@ infer_trajectory_motifs <- function(traj_model, peak_intervals = NULL, peaks = N
         traj_model <- add_traj_model_stats(traj_model)
     }
 
-    traj_model@type <- c(traj_model@type, rep("test", nrow(e_test_logist)))
     traj_model@peak_intervals <- bind_rows(traj_model@peak_intervals, peak_intervals)
     if (has_additional_features(traj_model) && !is.null(additional_features)) {
         traj_model@additional_features <- bind_rows(traj_model@additional_features, as.data.frame(additional_features))
