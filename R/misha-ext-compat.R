@@ -5,9 +5,15 @@ intervs_to_mat <- function(intervs) {
         return(matrix(nrow = 0, ncol = 0))
     }
 
-    # Usually gextract returns chrom, start, end, intervalID as first 4 columns
-    # We drop them and convert the rest to a matrix
-    mat <- as.matrix(intervs[, -(1:4), drop = FALSE])
+    mat <- misha::gintervals.to_mat(intervs)
+
+    # ponytail: return a plain matrix keyed by "<chrom>_<start>_<end>".
+    # iceqream matches rownames against `peaks$peak_name` (see preprocess_data)
+    # and treats these as plain matrices - `[.intervs_mat` does not drop single
+    # columns and carries an `intervals` attribute that t() silently invalidates.
+    class(mat) <- NULL
+    attr(mat, "intervals") <- NULL
+    rownames(mat) <- paste0(intervs$chrom, "_", intervs$start, "_", intervs$end)
     return(mat)
 }
 
@@ -31,6 +37,7 @@ mat_to_intervs <- function(mat, intervals = NULL) {
     # If intervals has more than 4 columns, we usually only want the first 3 or 4.
     cols <- min(ncol(intervals), 4)
     res <- cbind(intervals[, 1:cols, drop = FALSE], as.data.frame(mat))
+    rownames(res) <- NULL
     return(res)
 }
 
