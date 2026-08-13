@@ -210,7 +210,7 @@ preprocess_data <- function(project_name, files = NULL, cell_types = NULL, peaks
         arrange(intervalID) %>%
         select(-intervalID)
 
-    atac_mat <- misha.ext::intervs_to_mat(atac_data)
+    atac_mat <- intervs_to_mat(atac_data)
     atac_mat[is.na(atac_mat)] <- 0
 
     cli::cli_alert("Normalizing regional effect using a punctured window of {.val {window_size}}bp. Minimal quantile: {.val {minimal_quantile}}")
@@ -523,7 +523,7 @@ plot_cell_type_normalization_scatter <- function(obj, cell_type1, cell_type2, pe
 
 plot_cell_type_scatter <- function(mat, anchor_cell_type, const_peaks = NULL, filename = NULL, width = NULL, height = NULL, ylab = "ATAC signal (log2)", prob1_thresh = NULL) {
     p <- mat %>%
-        misha.ext::mat_to_intervs() %>%
+        mat_to_intervs() %>%
         mutate(const = ifelse(const_peaks, "const", "variable")) %>%
         gather("type", "val", -(chrom:end), -!!sym(anchor_cell_type), -const) %>%
         ggplot(aes(x = !!sym(anchor_cell_type), y = val, color = const)) +
