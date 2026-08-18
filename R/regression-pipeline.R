@@ -171,13 +171,24 @@ iq_regression <- function(
     }
 
     frac_train <- length(train_idxs) / n_intervals
+    frac_test <- length(test_idxs) / n_intervals
 
-    cli::cli_alert_info("Training on {.val {length(train_idxs)}} intervals ({scales::percent(frac_train)}) and testing on {.val {length(test_idxs)}} intervals ({scales::percent(1 - frac_train)})")
+    cli::cli_alert_info("Training on {.val {length(train_idxs)}} intervals ({scales::percent(frac_train)}) and testing on {.val {length(test_idxs)}} intervals ({scales::percent(frac_test)})")
+
+    # train and test are disjoint but need not cover every peak. Say so out loud:
+    # a caller that computed the indices against a differently-filtered peak set
+    # silently loses the difference, and the percentages alone do not show it.
+    n_unused <- n_intervals - length(train_idxs) - length(test_idxs)
+    if (n_unused > 0) {
+        cli::cli_alert_warning("{.val {n_unused}} peak{?s} ({scales::percent(n_unused / n_intervals)}) are in neither {.field train_idxs} nor {.field test_idxs} and will be dropped. If you computed the indices against a filtered copy of the peaks, pass that same filtered set as {.field peak_intervals}.")
+    }
 
     if (!is.null(output_dir)) {
         dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
         cli::cli_alert_info("Saving the train and test indices to {.val {output_dir}}")
-        train_test <- ifelse(1:n_intervals %in% train_idxs, "train", "test")
+        train_test <- rep("unused", n_intervals)
+        train_test[train_idxs] <- "train"
+        train_test[test_idxs] <- "test"
         readr::write_csv(peak_intervals %>% mutate(type = train_test), file.path(output_dir, "train_test_indices.csv"))
     }
 
