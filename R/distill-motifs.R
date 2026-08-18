@@ -128,6 +128,15 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
 
     cli_alert_info("Learning a model for each motif cluster...")
 
+    # This loop is where a trajectory model spends most of its time, and the fork
+    # over clusters is the only parallelism it has - prego::regress_pwm() is
+    # single-threaded the way we call it (multi_kmers = FALSE), so raising the
+    # thread count alone does nothing. Running it serially is easy to do by
+    # accident, since prego::set_parallel(1) turns the fork off, so say so.
+    if (!isTRUE(getOption("prego.parallel", TRUE)) && nrow(best_clust_map) > 1) {
+        cli::cli_alert_warning("{.pkg prego} parallelism is off, so these {.val {nrow(best_clust_map)}} clusters are learned one after another. Call {.code prego::set_parallel(n)} with {.val {nrow(best_clust_map)}} or more cores to learn them in parallel.")
+    }
+
     best_motifs_prego <- plyr::alply(best_clust_map, 1, function(x) {
         n_feats <- nrow(clust_map %>% filter(clust == x$clust))
         motif <- NULL
