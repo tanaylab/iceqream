@@ -253,3 +253,57 @@ clamp_kmer_sequence_length <- function(kmer_sequence_length, peaks_size) {
     }
     kmer_sequence_length
 }
+
+# Pin prego's internal RcppParallel/OpenMP thread pool to a single thread for
+# the remainder of the calling function. iceqream iterates prego's compute /
+# regression functions (compute_pwm, compute_local_pwm, regress_pwm) under plyr's
+# `.parallel` (doMC) backend, which forks the R process. set_parallel() turns on
+# *both* layers at once (doMC::registerDoMC + setThreadOptions). A native thread
+# pool that is warm at fork() is not fork-safe: a forked worker that re-enters it
+# can deadlock (the "prego OpenMP x doMC" hang). Pinning prego to one internal
+# thread leaves the doMC fork as the only live parallelism layer. Mirrors the
+# guard prego::extract_pwm() already applies when forking.
+#
+# IMPORTANT - use only where NOTHING in the rest of the calling function needs
+# prego's threads. The restore is deferred to the caller's frame, so the pin
+# covers the whole function, not just the forked loop.
+#
+# compute_pwm / compute_local_pwm are effectively serial regardless of the thread
+# count (the doMC fork over motifs is the real parallelism), so pinning them is
+# free - hence the guard on infer_energies, pbm_list.compute_local and
+# compute_traj_model_spatial_freq.
+#
+# Do NOT use this in the motif-distillation loops (distill_motifs,
+# distill_traj_model_multi). Tried and reverted, measured on a 121,634-peak model
+# at 32 cores: the forked regress_pwm calls were unaffected (38.6/98.2/108.0/
+# 130.6s vs 38.4/98.2/107.3/130.0s), but distill_motifs ends with a call to
+# infer_energies_new(), which does NOT fork - it is one C++ call that relies
+# entirely on prego's internal threads - and the still-active pin took it from
+# 21.7s to 98.2s, i.e. distill_motifs 152.9s -> 230.0s. Distillation is left to
+# oversubscribe instead; callers who nest their own fork around iceqream should
+# budget threads themselves - see ?infer_trajectory_motifs.
+#
+# Note the pin did not touch regress_pwm because regress_pwm does not use prego's
+# threads as *we* call it: its `parallel` argument only feeds the multi_kmers /
+# motif_num > 1 branches, and run_prego_on_clust_residuals() passes
+# multi_kmers = FALSE, motif_num = 1. Measured fresh-process (TBB's thread count
+# is fixed at first init, so it must be set before the first prego call and
+# cannot be changed later in the same process), 20k x 500bp sequences:
+# multi_kmers = FALSE is 141.4s / 145.6s / 146.1s at 1 / 8 / 32 threads with
+# cpu/elapsed 1.02 throughout (strictly one core); multi_kmers = TRUE at 8
+# threads runs cpu/elapsed 2.67. So the doMC fork over clusters is the only
+# parallelism distillation has - raising the thread count alone buys nothing.
+#
+# Only pins when the surrounding loop actually forks (`parallel` TRUE). Callers
+# whose `.parallel` follows getOption("prego.parallel") can use the default; the
+# few that take their own `parallel` flag must pass it, so that a non-forking
+# (parallel = FALSE) loop keeps prego's threads for its single-process compute.
+local_prego_single_thread <- function(parallel = getOption("prego.parallel", TRUE), .local_envir = parent.frame()) {
+    nc <- getOption("prego.parallel.nc", 1)
+    if (!isTRUE(parallel) || is.null(nc) || nc <= 1 || !requireNamespace("RcppParallel", quietly = TRUE)) {
+        return(invisible(NULL))
+    }
+    RcppParallel::setThreadOptions(numThreads = 1)
+    withr::defer(RcppParallel::setThreadOptions(numThreads = nc), envir = .local_envir)
+    invisible(NULL)
+}

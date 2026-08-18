@@ -2,6 +2,9 @@
 
 ## Bug fixes
 
+* Inference no longer deadlocks when `prego::set_parallel()` is active - it
+  affected `infer_energies()`, `pbm_list.compute_local()` and
+  `compute_traj_model_spatial_freq()`.
 * Fixed a crash on models that keep a motif whose name contains `::` (JASPAR
   dimers such as `GATA1::TAL1`). Renaming left the model inconsistent and the
   next inference aborted with "subscript out of bounds". This hit any
@@ -30,6 +33,12 @@
 * `regress_trajectory_motifs()` no longer re-filters and re-copies
   `motif_energies` when `iq_regression()` has already applied the TSS filter -
   with a full motif database that copy was ~20GB.
+
+## Documentation
+
+* New "Parallelism" section in `?regress_trajectory_motifs` /
+  `?infer_trajectory_motifs` on budgeting threads when you nest these calls in
+  your own `doMC`/`foreach`/`mclapply` loop.
 
 # iceqream 0.0.8
 
