@@ -1,3 +1,23 @@
+# iceqream 0.0.9
+
+## Bug fixes
+
+* Fixed a crash on models that keep a motif whose name contains `::` (JASPAR
+  dimers such as `GATA1::TAL1`). Renaming left the model inconsistent and the
+  next inference aborted with "subscript out of bounds". This hit any
+  `iq_regression()` run, as `rename_motifs = TRUE` is the default.
+* `distill_traj_model_multi()` no longer drops the motif name (or errors) when a
+  trajectory contributes a single motif.
+
+## Performance
+
+* `iq_regression()` skips computing sequence features that `additional_features`
+  already provides, instead of computing and discarding them (~14s per call on
+  345k peaks).
+* `regress_trajectory_motifs()` no longer re-filters and re-copies
+  `motif_energies` when `iq_regression()` has already applied the TSS filter -
+  with a full motif database that copy was ~20GB.
+
 # iceqream 0.0.8
 
 ## Breaking changes
