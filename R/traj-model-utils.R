@@ -532,7 +532,15 @@ rename_motif_models <- function(traj_model, names_map) {
 
     mf_cols <- colnames(traj_model@model_features)
     new_mf_cols <- unname(ext_names_map[mf_cols])
-    inter_cols <- grepl(":", mf_cols, fixed = TRUE)
+    # A motif name can contain a colon itself - JASPAR dimers are named like
+    # "JASPAR.GATA1::TAL1" - so ":" alone does not mark an interaction feature.
+    # Treating one as an interaction sends it through rename_interaction_names(),
+    # which splits on ":", finds no part in names_map and hands back the original
+    # name: @motif_models gets renamed while @model_features keeps the old column,
+    # and inference then dies with "Missing model feature columns" (or, before
+    # that check existed, "subscript out of bounds"). Only fall back to the
+    # interaction path for columns ext_names_map does not already know.
+    inter_cols <- is.na(new_mf_cols) & grepl(":", mf_cols, fixed = TRUE)
     new_mf_cols[inter_cols] <- rename_interaction_names(mf_cols[inter_cols])
     colnames(traj_model@model_features) <- new_mf_cols
 
