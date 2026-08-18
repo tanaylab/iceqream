@@ -175,13 +175,18 @@ regress_trajectory_motifs <- function(peak_intervals = NULL,
     enhancers_filter <- get_tss_distance_filter(peak_intervals, min_tss_distance)
 
     peak_intervals_all <- peak_intervals
-    peak_intervals <- peak_intervals[enhancers_filter, ]
-    atac_scores <- atac_scores[enhancers_filter, ]
-    atac_diff <- atac_diff[enhancers_filter]
-    motif_energies <- motif_energies[enhancers_filter, ]
+    # iq_regression() already applies this filter before calling us, so the
+    # filter is all-TRUE on that path. Subsetting anyway copies motif_energies
+    # (tens of GB on a full motif database) for nothing.
+    if (!all(enhancers_filter)) {
+        peak_intervals <- peak_intervals[enhancers_filter, ]
+        atac_scores <- atac_scores[enhancers_filter, ]
+        atac_diff <- atac_diff[enhancers_filter]
+        motif_energies <- motif_energies[enhancers_filter, ]
 
-    if (!is.null(additional_features)) {
-        additional_features <- additional_features[enhancers_filter, ]
+        if (!is.null(additional_features)) {
+            additional_features <- additional_features[enhancers_filter, ]
+        }
     }
 
     cli_alert_info("Number of peaks: {.val {nrow(peak_intervals)}}")

@@ -48,3 +48,33 @@ test_that("rename_motif_models rejects duplicate target names and incomplete map
     incomplete <- setNames(c("A", "B"), names(tm@motif_models)[1:2])
     expect_error(suppressMessages(rename_motif_models(tm, incomplete)), "not found")
 })
+
+test_that("rename_motif_models handles motif names containing '::' (JASPAR dimers)", {
+    # Regression test: dimer motifs are named like "JASPAR.GATA1::TAL1". The
+    # interaction branch used to claim any column with a ":" in it, so those
+    # columns went through rename_interaction_names(), which splits on ":",
+    # matches nothing and returns the name unchanged. @motif_models was renamed
+    # while @model_features kept the old column, and inference then failed with
+    # "Missing model feature columns" / "subscript out of bounds".
+    tm <- create_mock_traj_model(n_peaks = 80, n_motifs = 3)
+
+    # step 1: give one motif a dimer-style name (old names have no ":" here, so
+    # this step is unaffected by the bug)
+    to_dimer <- setNames(c("JASPAR.GATA1::TAL1", "B", "C"), names(tm@motif_models))
+    tm <- suppressWarnings(suppressMessages(rename_motif_models(tm, to_dimer)))
+    expect_true(any(grepl("^JASPAR.GATA1::TAL1_", colnames(tm@model_features))))
+
+    # step 2: rename away from the dimer name - this is what used to break
+    out <- suppressWarnings(suppressMessages(
+        rename_motif_models(tm, setNames(c("TAL1", "B2", "C2"), names(tm@motif_models)))
+    ))
+
+    expect_setequal(names(out@motif_models), c("TAL1", "B2", "C2"))
+    expect_false(any(is.na(colnames(out@model_features))))
+    expect_false(any(grepl("GATA1", colnames(out@model_features))))
+    # every motif has its 4 logist feature columns under the new name
+    expect_true(all(paste0("TAL1_", c("low-energy", "high-energy", "higher-energy", "sigmoid")) %in%
+        colnames(out@model_features)))
+    # and the model stays usable: features present for every motif model
+    expect_true(all(names(out@motif_models) %in% sub("_[^_]+$", "", colnames(out@model_features))))
+})
