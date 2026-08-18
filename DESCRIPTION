@@ -22,6 +22,7 @@ Imports:
     prego (>= 0.0.5),
     purrr,
     plyr,
+    RcppParallel,
     readr,
     tgstat,
     tibble,

@@ -523,6 +523,11 @@ pbm.gextract_local <- function(pbm, intervals, response = FALSE, scaling_q = 0.9
 #'
 #' @export
 pbm_list.compute_local <- function(pbm_list, sequences, response = FALSE, scaling_q = NULL) {
+    # Keep prego single-threaded inside the doMC fork below so the fork is the
+    # only parallelism layer (avoids the fork-unsafe native-thread-pool
+    # deadlock). See local_prego_single_thread().
+    local_prego_single_thread()
+
     energies <- plyr::llply(pbm_list, function(pbm) {
         pbm.compute_local(pbm, sequences, response, scaling_q)
     }, .parallel = getOption("prego.parallel", TRUE))
