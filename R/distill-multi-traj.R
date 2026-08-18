@@ -91,7 +91,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         features <- purrr::imap(traj_models, ~ {
             e <- .x@normalized_energies
             motifs <- motif_map[names(motif_map) == .y]
-            e <- e[, colnames(e) %in% motifs]
+            e <- e[, colnames(e) %in% motifs, drop = FALSE]
             e
         }) %>% do.call(cbind, .)
 
@@ -105,7 +105,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
         # unify energies
         features <- purrr::imap(traj_models, ~ {
             e <- .x@normalized_energies
-            e <- e[, colnames(e) %in% names(.x@motif_models)]
+            e <- e[, colnames(e) %in% names(.x@motif_models), drop = FALSE]
             colnames(e) <- paste0(.y, ".", colnames(e))
             e
         }) %>% do.call(cbind, .)
@@ -268,7 +268,7 @@ distill_traj_model_multi <- function(traj_models, max_motif_num = NULL, min_diff
 
     traj_models_new <- purrr::imap(traj_models, ~ {
         models_to_use <- unique(clust_map$clust_name[clust_map$model == .y])
-        clust_energies <- clust_energies[, colnames(clust_energies) %in% models_to_use]
+        clust_energies <- clust_energies[, colnames(clust_energies) %in% models_to_use, drop = FALSE]
 
         cli_alert_info("Computing new trajectory model {.val {.y}}. Using {.val {length(models_to_use)}} motifs")
         update_traj_model(.x, clust_energies, prego_distilled)
