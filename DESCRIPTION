@@ -10,7 +10,7 @@ Description: iceqream is a package for regressing accessibility from sequences u
 License: MIT + file LICENSE
 Depends:
     R (>= 2.10),
-    misha (>= 4.2.0)
+    misha (>= 5.7.0)
 Imports:
     cli,
     dplyr,
