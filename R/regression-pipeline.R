@@ -100,15 +100,24 @@ iq_regression <- function(
     }
 
     if (add_sequences_features) {
-        cli::cli_alert("Computing sequence features")
-        seq_feats <- create_sequence_features(peak_intervals, peaks_size)
-        if (is.null(additional_features)) {
-            additional_features <- seq_feats
+        # preprocess_data() already puts gc_content + the 16 dinucleotide features
+        # in additional_features, in which case the setdiff below drops every
+        # column we just computed. Probe the names on a single interval first so
+        # we don't extract and count all the sequences for nothing.
+        seq_feat_names <- colnames(create_sequence_features(peak_intervals[1, , drop = FALSE], peaks_size, normalize = FALSE))
+        if (!is.null(additional_features) && all(seq_feat_names %in% colnames(additional_features))) {
+            cli::cli_alert("Sequence features already present in {.field additional_features}, skipping")
         } else {
-            seq_feats <- seq_feats[, setdiff(colnames(seq_feats), colnames(additional_features)), drop = FALSE]
-            if (ncol(seq_feats) > 0) {
-                cli::cli_alert("Added the following sequence features: {.val {colnames(seq_feats)}}")
-                additional_features <- cbind(additional_features, seq_feats)
+            cli::cli_alert("Computing sequence features")
+            seq_feats <- create_sequence_features(peak_intervals, peaks_size)
+            if (is.null(additional_features)) {
+                additional_features <- seq_feats
+            } else {
+                seq_feats <- seq_feats[, setdiff(colnames(seq_feats), colnames(additional_features)), drop = FALSE]
+                if (ncol(seq_feats) > 0) {
+                    cli::cli_alert("Added the following sequence features: {.val {colnames(seq_feats)}}")
+                    additional_features <- cbind(additional_features, seq_feats)
+                }
             }
         }
     }
