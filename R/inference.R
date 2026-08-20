@@ -159,7 +159,15 @@ extract_traj_model_sequences <- function(traj_model, peak_intervals) {
     all_intervals <- all_intervals %>%
         left_join(unique_intervals, by = c("chrom", "start", "end"))
     cli_alert_info("Extracting sequences...")
-    sequences_all <- prego::intervals_to_seq(all_intervals, traj_model@params$peaks_size)
+    # Extract the DEDUPED intervals: `intervalID` indexes `unique_intervals`, so
+    # extracting `all_intervals` and then subscripting by `intervalID` only lines
+    # up when there are no duplicates. Whenever `normalization_intervals` shares
+    # peaks with `peak_intervals` - the common case, and total overlap when a
+    # caller passes the same set as both - every norm interval at or after the
+    # first duplicate got some other interval's sequence. Extracting the unique
+    # set is also what the dedup was for: it skips the duplicate extractions
+    # instead of doing them and throwing them away.
+    sequences_all <- prego::intervals_to_seq(unique_intervals, traj_model@params$peaks_size)
 
     sequences <- sequences_all[all_intervals$intervalID[all_intervals$type == "f"]]
     norm_sequences <- sequences_all[all_intervals$intervalID[all_intervals$type == "n"]]

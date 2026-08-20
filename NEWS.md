@@ -1,3 +1,22 @@
+# iceqream 0.0.10
+
+## Bug fixes
+
+* `extract_traj_model_sequences()` returned misaligned normalization sequences
+  whenever `normalization_intervals` shared any interval with `peak_intervals`.
+  It deduplicated the two sets into `unique_intervals` and assigned an
+  `intervalID` against that deduplicated set, but then extracted sequences for
+  the *full* (duplicated) interval list and subscripted them by `intervalID` -
+  so from the first duplicate onward, every normalization interval was handed
+  some other interval's sequence. Peak sequences were unaffected. This is the
+  common case rather than a corner case: passing the same set as both
+  `peak_intervals` and `norm_intervals` makes every normalization sequence
+  suspect, and it silently perturbs the energy normalization (the background
+  feeds the quantile/range in `norm_energy_matrix()`). Extracting the
+  deduplicated set fixes the alignment and also makes the deduplication do what
+  it was written for - it now skips the duplicate extractions instead of
+  performing them and discarding the results.
+
 # iceqream 0.0.9
 
 ## Bug fixes
