@@ -24,7 +24,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: latest
-          channels: conda-forge,aviezerl,bioconda,ofirr
+          channels: conda-forge,aviezerl,bioconda
           channel-priority: strict
           activate-environment: base
           auto-activate: true
@@ -55,8 +55,7 @@ jobs:
             --keep-going \
             -c conda-forge \
             -c aviezerl \
-            -c bioconda \
-            -c ofirr
+            -c bioconda
 
       - name: Upload to anaconda.org
         if: always()
