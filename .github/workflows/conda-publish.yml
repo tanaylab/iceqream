@@ -26,11 +26,12 @@ jobs:
           miniforge-version: latest
           channels: conda-forge,aviezerl,bioconda,ofirr
           channel-priority: strict
-          activate-environment: build
+          activate-environment: base
+          auto-activate: true
 
       - name: Install conda-build and anaconda-client
         run: |
-          conda install -y conda-build anaconda-client
+          conda install -n base -y conda-build anaconda-client
 
       - name: Extract version
         id: version
