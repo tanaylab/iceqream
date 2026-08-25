@@ -1,5 +1,5 @@
 {% set name = "iceqream" %}
-{% set version = environ.get("PACKAGE_VERSION", "0.0.5") %}
+{% set version = environ.get("PACKAGE_VERSION", "0.0.10") %}
 
 package:
   name: r-{{ name|lower }}
@@ -24,10 +24,10 @@ requirements:
     - r-glmnet
     - r-matrix
     - r-matrixstats
-    - r-misha
-    - r-misha.ext
+    - r-misha >=5.7.0
     - r-prego >=0.0.5
     - r-purrr
+    - r-rcppparallel
     - r-plyr
     - r-readr
     - r-tgstat
@@ -58,10 +58,10 @@ requirements:
     - r-glmnet
     - r-matrix
     - r-matrixstats
-    - r-misha
-    - r-misha.ext
+    - r-misha >=5.7.0
     - r-prego >=0.0.5
     - r-purrr
+    - r-rcppparallel
     - r-plyr
     - r-readr
     - r-tgstat
