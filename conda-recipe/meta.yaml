@@ -1,5 +1,5 @@
 {% set name = "iceqream" %}
-{% set version = environ.get("PACKAGE_VERSION", "0.0.10") %}
+{% set version = environ.get("PACKAGE_VERSION", "0.0.11") %}
 
 package:
   name: r-{{ name|lower }}

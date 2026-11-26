@@ -1,3 +1,17 @@
+# iceqream 0.0.11
+
+## Performance
+
+* `distill_motifs()` (step 3 of `regress_trajectory_motifs()`) gave every
+  forked PREGO worker the whole energy matrix of the motifs left after the L1
+  filter (`features[diff_filter, ]`), although a worker reads only its own
+  cluster's columns. Each worker therefore held a private copy of
+  rows x motifs x 8 bytes. With 30 clusters and a few thousand motifs this
+  dominated the peak memory of a fit: at 200,000 rows and 3,918 motifs the
+  copies were ~188 GB of a 292 GB peak, and at 500,000 rows the peak reached
+  ~734 GB. Each worker now gets only its cluster's columns. The fitted model
+  is unchanged (same motif models, coefficients and predictions).
+
 # iceqream 0.0.10
 
 ## Bug fixes
