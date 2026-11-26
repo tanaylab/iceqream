@@ -159,10 +159,16 @@ distill_motifs <- function(features, target_number, glm_model, y, seqs, norm_seq
             cli_alert_info("Running {.field prego} on cluster {.val {x$feat}} (fusing {.val {n_feats}} motifs)")
         }
 
+        # Only the cluster's own columns: the worker reads no others, and taking
+        # all of them copied the whole energy matrix into every forked worker
+        # (rows x features x 8 bytes each, ~6 GB per worker at 200k rows).
+        clust_feats <- clust_map %>%
+            filter(clust == x$clust) %>%
+            pull(feat)
         res <- run_prego_on_clust_residuals(
             model = glm_model,
-            feats = features[diff_filter, ],
-            clust_motifs = clust_map %>% filter(clust == x$clust) %>% pull(feat),
+            feats = features[diff_filter, clust_feats, drop = FALSE],
+            clust_motifs = clust_feats,
             sequences = seqs[diff_filter],
             lambda = lambda,
             seed = seed,
